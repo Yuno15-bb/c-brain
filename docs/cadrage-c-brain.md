@@ -242,11 +242,11 @@ c-brain/
 | **L0** ✅ | `sync.sh` (liste blanche) + `leakcheck.py` + `.gitignore` + `skills/` | outils livrés et **exécutés** : `sync --check` prouvé sur 3 divergences simultanées, leakcheck rouge à 50 (= il voit) |
 | **L1** ✅ | `generalize.py` + `rules.json` (20 règles) + `skeleton/` | **leakcheck vert** (50 → 0) ; `selftest` + `doctor` + `recall` + `graph_export` **verts en HOME isolé** |
 | **L2** ✅ | `install.sh` + `uninstall.sh` + `merge_settings.py` + `INSTALL.md` | cycle complet prouvé en HOME isolé : 2ᵉ passe = 0 changement ; `settings.json` revient **à l'identique** après désinstallation ; fiche utilisateur intacte |
-| **L3** | Capsule (sans assets morts, sans node_modules) + statusline | fenêtre qui s'anime sur `status.json` ; ligne d'état visible |
-| **L4** | Planète + `.command` Bureau | double-clic → globe sur `localhost:8765` |
-| **L5** | Companion (panneau live des diffs) | diffs visibles pendant une session test |
-| **L6** | `brain update` + hook `SessionStart` throttlé + `migrations/` + `VERSION` | un tag poussé ici arrive dans le HOME isolé au démarrage suivant ; rollback prouvé |
-| **L7** | README + recette de vérification + `gh repo create --private` + **suppression de `bbly-agents`** | un invité installe sans poser de question |
+| **L3** ✅ | Capsule + statusline | capture d'écran : `DISTILLING` puis `IDLE` sur changement de `status.json` ; 3 composants alignés sur le même chemin |
+| **L4** ✅ | Planète + `.command` Bureau | `launch.sh` → `200` sur index/graph/glb ; capture headless du globe + légende |
+| **L5** ✅ | Companion | hooks pre/post rejoués : `+3 −1` agrégé, statusline à **2 lignes** |
+| **L6** ✅ | `brain update` + `check_update.py` + `migrations/` + `VERSION` | dépôt distant factice, 2 tags : mise à jour, migration jouée 1× seule, rollback, fiche intacte à chaque étape |
+| **L7** 🔸 | README + `docs/verification.md` + dépôt **local** initialisé | leakcheck `--history` vert · **reste en attente d'un feu vert** : `gh repo create --private` et suppression de `bbly-agents` |
 
 Chemin critique : **L0 → L1 → L2 → L6**. L3/L4/L5 se parallélisent après L2.
 `bbly-agents` n'est supprimé qu'**après** C Brain en ligne et vérifié — jamais avant.
