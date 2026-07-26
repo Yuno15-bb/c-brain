@@ -14,6 +14,7 @@ Usage :
 Sortie 0 = propre · Sortie 1 = fuite détectée.
 """
 
+import os
 import re
 import subprocess
 import sys
@@ -68,7 +69,10 @@ EXEMPT = {"personne — propriétaire": ("docs/",)}
 
 
 def exempted(label: str, source: str) -> bool:
-    return any(source.startswith(p) for p in EXEMPT.get(label, ()))
+    # « historique:docs/… » doit être exempté comme « docs/… » : c'est le même
+    # fichier, vu à deux moments.
+    src = source[len("historique:"):] if source.startswith("historique:") else source
+    return any(src.startswith(p) for p in EXEMPT.get(label, ()))
 
 
 def is_text(path: Path) -> bool:
@@ -116,13 +120,32 @@ def main():
 
     if with_history:
         try:
-            hist = subprocess.run(["git", "-C", str(ROOT), "log", "-p", "--all"],
-                                  capture_output=True, text=True, timeout=120).stdout
-            if hist:
-                scan("<historique git>", hist, compiled, leaks)
-                scanned += " + historique git"
+            paths = subprocess.run(["git", "-C", str(ROOT), "ls-files"],
+                                   capture_output=True, text=True, timeout=30).stdout.split()
         except (OSError, subprocess.SubprocessError):
+            paths = []
             print("⚠️  Historique git illisible — scan limité à l'arbre de travail.")
+
+        # CHEMIN PAR CHEMIN, pas en un seul bloc. Deux raisons :
+        #  · les exemptions (docs/, contrôleur, règles) ne s'appliquent que si
+        #    l'on sait de quel fichier vient chaque ligne ;
+        #  · `--format=` retire les en-têtes de commit, sinon la ligne « Author:
+        #    Prénom Nom <mail> » remonte comme fuite à chaque commit.
+        n_hist = 0
+        for rel in paths:
+            if os.path.basename(rel) in SKIP_NAMES:
+                continue
+            try:
+                d = subprocess.run(["git", "-C", str(ROOT), "log", "-p", "--all",
+                                    "--format=", "--", rel],
+                                   capture_output=True, text=True, timeout=60).stdout
+            except (OSError, subprocess.SubprocessError):
+                continue
+            if d:
+                n_hist += 1
+                scan(f"historique:{rel}", d, compiled, leaks)
+        if n_hist:
+            scanned += f" + historique de {n_hist} fichier(s)"
 
     print(f"🔍 Contrôle de fuite — {scanned}, {len(MARKERS)} marqueurs")
 
