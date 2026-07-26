@@ -1,4 +1,4 @@
-# 🧠 C Brain
+# C Brain
 
 **A memory that grows** for command-line agents.
 

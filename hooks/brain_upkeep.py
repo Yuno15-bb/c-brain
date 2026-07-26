@@ -59,27 +59,27 @@ COOLDOWN_H = 12
 
 # Priorité de réveil (au plus un par passage) : l'honnêteté d'abord (contradictions),
 # puis la cohésion (liens/îlots), l'élagage (poids mort), enfin l'infra (défauts doctor).
-ORDER = ["challenger", "architecte", "archiviste", "mecanicien"]
+ORDER = ["challenger", "architect", "archivist", "mechanic"]
 
 # Modèle par agent (cohérent avec leur frontmatter ; le shell parent force haiku
 # pour distill/jardin, ici on respecte le besoin réel de chaque rôle).
-MODEL = {"architecte": "sonnet", "challenger": "sonnet",
-         "archiviste": "haiku", "mecanicien": "sonnet"}
+MODEL = {"architect": "sonnet", "challenger": "sonnet",
+         "archivist": "haiku", "mechanic": "sonnet"}
 
 # Activité capsule par agent (clés DÉJÀ reconnues par capsule/index.html : la
 # créature montre le bon rôle au travail). L'architecte a SA scène propre
 # ('architecting' : ponts inter-domaines) — distincte du 'mapping' du jardinier.
-ACT = {"architecte": "architecting", "challenger": "challenging",
-       "archiviste": "archiving", "mecanicien": "auditing"}
+ACT = {"architect": "architecting", "challenger": "challenging",
+       "archivist": "archiving", "mechanic": "auditing"}
 
 # Capteur mécanique à régénérer pour CHAQUE agent (optimisation O1 : on ne régénère
 # QUE les capteurs des agents dont le cooldown est ouvert — inutile de recalculer la
 # topologie TF-IDF de 151 fiches si l'architecte est de toute façon en cooldown).
 # Le challenger n'a pas de capteur à régénérer (coherence.json est accumulé en
 # continu par check_coherence à chaque écriture de fiche).
-REGEN = {"architecte": ("brain_topology.py", ["--json"]),
-         "archiviste": ("brain_utility.py", ["--json"]),
-         "mecanicien": ("brain_doctor.py", ["--json"])}
+REGEN = {"architect": ("brain_topology.py", ["--json"]),
+         "archivist": ("brain_utility.py", ["--json"]),
+         "mechanic": ("brain_doctor.py", ["--json"])}
 
 
 def load_json(path, default):
@@ -133,17 +133,17 @@ def sensor_signal():
     # ARCHITECTE : la cohésion globale s'effrite — îlot détaché, fiche isolée,
     # placement douteux, ou un tas de liens évidents manquants.
     arch_ok = n_iso >= 1 or n_bad >= 3 or n_comp >= 2 or n_miss >= 8
-    sig["architecte"] = (arch_ok,
+    sig["architect"] = (arch_ok,
         f"{n_miss} liens manquants, {n_iso} isolées, {n_bad} placements douteux, "
         f"{n_comp} composante(s)")
     # CHALLENGER : au moins une paire signalée « doublon OU contradiction » à trancher.
     sig["challenger"] = (n_contra >= 1, f"{n_contra} recouvrement(s) fort(s) à arbitrer")
     # ARCHIVISTE : du poids mort s'accumule (fiches froides candidates à l'archivage).
-    sig["archiviste"] = (n_dead >= 3, f"{n_dead} fiche(s) en poids mort")
+    sig["archivist"] = (n_dead >= 3, f"{n_dead} fiche(s) en poids mort")
     # MÉCANICIEN : le docteur signale des défauts d'infra (liens morts, orphelins,
     # frontmatter, nommage, hors-index). Ne se réveille QUE s'il y a un vrai défaut —
     # donc rare, exactement quand on en a besoin (sinon doctor.total = 0).
-    sig["mecanicien"] = (n_defaut >= 1, f"{n_defaut} défaut(s) infra signalé(s) par le docteur")
+    sig["mechanic"] = (n_defaut >= 1, f"{n_defaut} défaut(s) infra signalé(s) par le docteur")
     return sig
 
 
@@ -184,7 +184,7 @@ def decide(now=None):
 
 
 TASKS = {
-    "architecte": (
+    "architect": (
         "Veille de COHÉSION (auto). Le capteur state/topology.json est à jour : "
         "lis-le et traite EN PRIORITÉ les îlots détachés, les fiches isolées, les "
         "placements incohérents, puis quelques liens manquants inter-domaines à plus "
@@ -197,12 +197,12 @@ TASKS = {
         "doublon à fusionner, contradiction à signaler, ou faux positif. Produis tes "
         "doutes étayés (tu ne réécris pas le savoir, tu le mets à l'épreuve). "
         "ÉCONOMIE DE TOKENS : n'ouvre que les fiches concernées. NE committe PAS. Rapport bref."),
-    "archiviste": (
+    "archivist": (
         "Veille de FRAÎCHEUR (auto). state/utility.json liste le poids mort (fiches "
         "froides). PROPOSE l'archivage des plus clairement périmées (ne supprime "
         "JAMAIS seul : marque/déplace selon la convention d'archivage). "
         "ÉCONOMIE DE TOKENS : appuie-toi sur le JSON. NE committe PAS. Rapport bref."),
-    "mecanicien": (
+    "mechanic": (
         "Veille d'INFRA (auto). state/doctor.json liste des défauts mécaniques : "
         "liens_morts, orphelins, frontmatter, nommage, hors_index. Corrige UNIQUEMENT "
         "ces défauts ciblés et SÛRS (lien mort → bon lien ou retrait, frontmatter "

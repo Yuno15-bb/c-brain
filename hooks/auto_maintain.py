@@ -221,7 +221,7 @@ def launch_agent(sid, n, to_distill):
     # Modèle PAR AGENT. Le distillateur est le seul étage créatif de la couche 1 : son
     # échec perd du savoir définitivement (le jardinage, lui, est mécanique et rejouable).
     # D'où sonnet pour distiller, haiku pour ranger. cf. brain_upkeep.MODEL, même logique.
-    MODEL_L1 = {"distillateur": "sonnet", "jardinier": "haiku"}
+    MODEL_L1 = {"distiller": "sonnet", "gardener": "haiku"}
     base = lambda m: (f'"{claude}" -p --model {m} --output-format json '
                       f'--dangerously-skip-permissions')
     pulse = lambda act, det: f'"{py}" "{status_cli}" busy {act} "{det}"'
@@ -261,16 +261,16 @@ def launch_agent(sid, n, to_distill):
         #    résultat (df=1 : ré-enfile la session si « Not logged in »/quota/crash).
         #    Le jardinage n'a lieu que si la distillation a RÉELLEMENT réussi.
         lines.append(pulse("distilling", "Distilling this session"))
-        lines += agent_call("distillateur", dpf)
+        lines += agent_call("distiller", dpf)
         lines.append(f'if "{py}" "{guard_cli}" interpret "{cost}" "{sid}" 1 ; then')
         lines.append(f'  "{py}" "{mark_cli}" "{sid}"')
         lines.append(f'  {pulse("gardening", "Organizing the tree")}')
-        lines += ['  ' + l for l in agent_call("jardinier", gpf)]
+        lines += ['  ' + l for l in agent_call("gardener", gpf)]
         lines.append('fi')
     else:
         # Jardinage seul (Inbox pleine, pas de session à distiller).
         lines.append(pulse("gardening", "Organizing the tree"))
-        lines += agent_call("jardinier", gpf)
+        lines += agent_call("gardener", gpf)
         lines.append(f'"{py}" "{guard_cli}" interpret "{cost}" "{sid}" 0')
     # GARDE MÉCANIQUE post-jardinier (zéro LLM) : le jardinier est seul juge de sa propre
     # passe. brain_doctor recompte les défauts (liens morts, orphelins, frontmatter,

@@ -111,7 +111,7 @@ class ModeleParAgentCoucheUn(unittest.TestCase):
             if line.strip().startswith("MODEL_L1"):
                 exec(line.strip(), {}, ns)  # noqa: S102
         m = ns["MODEL_L1"]
-        self.assertGreaterEqual(self.RANG[m["distillateur"]], self.RANG[m["jardinier"]],
+        self.assertGreaterEqual(self.RANG[m["distiller"]], self.RANG[m["gardener"]],
                                 "le distillateur (irréversible) tourne sous le jardinier (rejouable)")
 
 
