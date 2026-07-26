@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""C Brain — contrôle de fuite. Le garde-fou qui a le droit de bloquer le commit.
+
+Adapté de claude-brain-v2/build/leakcheck.py (2026-07-25), qui tourne déjà vert
+sur le pipeline d'anonymisation du portfolio.
+
+Il ne relit PAS la source : il scanne ce qui va réellement sortir — le dépôt
+lui-même, et son historique git avec --history. Un marqueur qui survit = rouge.
+
+Usage :
+  python3 leakcheck.py              scanne l'arbre de travail
+  python3 leakcheck.py --history    scanne EN PLUS tout l'historique git
+
+Sortie 0 = propre · Sortie 1 = fuite détectée.
+"""
+
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+
+# Ce qui ne doit JAMAIS sortir. Deux familles : identités réelles de tiers,
+# et secrets. Les deux bloquent de la même façon.
+MARKERS = [
+    ("nom du client",           r"DG\s*CHARPENTE|DG\s*Charpente"),
+    ("sigle client",            r"\bDGC\b|\bdgc-"),
+    ("produit client",          r"BIG\s*GABY|\bGaby\b|\bgaby\b"),
+    ("personne — propriétaire", r"\bDylan\b|\bDylanp\b"),
+    ("personne — gestionnaire", r"\bClarisse\b"),
+    ("personne — technicien",   r"\bLaurent\b"),
+    ("personne — dirigeant",    r"\bGabriel\b"),
+    ("nom de famille client",   r"\bRoume\b"),
+    ("ville du client",         r"\bToulouse\b|\btoulousain"),
+    ("commune du client",       r"\bCastanet-Tolosan\b|\bColomiers\b|\bBlagnac\b"
+                                r"|\bTournefeuille\b|\bMURET\b"),
+    ("code postal local",       r"\b31\d{3}\b"),
+    ("cadre personnel",         r"Mission Locale|\bCEJ\b"),
+    ("tiers identifié",         r"\b(GAILLOUSTE|TREMBLET|GAUBE|DELEST|MARRE|CHOUIALI"
+                                r"|NAJMEDDINE|WILLHEM|AGESTIS|ALTRAD|FONCIA|SERCOB"
+                                r"|PERSONAZ|RENOVAZ|CHAMAYOU|Barhoumi|Faouz|Merwan"
+                                r"|Alexis|Joris)\b"),
+    ("adresse mail",            r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
+    ("téléphone",               r"(?<![\d.])0[1-9](?:[ .-]?\d{2}){4}(?![\d.])"),
+    ("adresse postale",         r"\b\d{1,3}\s+(?:rue|avenue|impasse|chemin|boulevard|route)\s+\w+"),
+    ("chemin personnel",        r"/Users/[A-Za-z0-9_.-]+/"),
+    ("clé Anthropic",           r"sk-ant-[A-Za-z0-9_\-]{8,}"),
+    ("jeton GitHub",            r"gh[pousr]_[A-Za-z0-9]{16,}"),
+    ("jeton JWT",               r"eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}"),
+    ("secret assigné en clair", r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{12,}"),
+]
+
+# Deux fichiers CONTIENNENT forcément les marqueurs, c'est leur métier :
+# le contrôleur (la liste) et les règles de généralisation (les motifs à traiter).
+# Les scanner reviendrait à se mordre la queue.
+SKIP_NAMES = {"leakcheck.py", "rules.json"}
+SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
+
+# Exemptions NOMMÉES, marqueur par marqueur. Jamais un dossier entier :
+# une exemption large finirait par couvrir une vraie fuite.
+#
+# `docs/` = prose rédigée et relue à la main. Le propriétaire y garde son nom,
+# c'est SON design-doc (même décision que pour le portfolio Claude Brain V2).
+# Tous les autres marqueurs — clients, tiers, secrets, chemins — s'y appliquent
+# normalement : seul le nom du propriétaire est exempté.
+EXEMPT = {"personne — propriétaire": ("docs/",)}
+
+
+def exempted(label: str, source: str) -> bool:
+    return any(source.startswith(p) for p in EXEMPT.get(label, ()))
+
+
+def is_text(path: Path) -> bool:
+    try:
+        return b"\0" not in path.read_bytes()[:2048]
+    except OSError:
+        return False
+
+
+def iter_files():
+    for f in sorted(ROOT.rglob("*")):
+        if not f.is_file() or f.name in SKIP_NAMES:
+            continue
+        if SKIP_DIRS & set(f.relative_to(ROOT).parts):
+            continue
+        if is_text(f):
+            yield f
+
+
+def context(text, start, end, width=45):
+    left = text[max(0, start - width):start].replace("\n", " ")
+    right = text[end:end + width].replace("\n", " ")
+    return f"…{left}⟦{text[start:end]}⟧{right}…"
+
+
+def scan(label_source, text, compiled, leaks):
+    for label, rx in compiled:
+        if exempted(label, label_source):
+            continue
+        for m in rx.finditer(text):
+            leaks.append((label_source, label, context(text, m.start(), m.end())))
+
+
+def main():
+    with_history = "--history" in sys.argv
+    compiled = [(label, re.compile(pattern)) for label, pattern in MARKERS]
+    leaks = []
+
+    files = list(iter_files())
+    for path in files:
+        scan(path.relative_to(ROOT).as_posix(),
+             path.read_text(encoding="utf-8", errors="replace"), compiled, leaks)
+
+    scanned = f"{len(files)} fichier(s)"
+
+    if with_history:
+        try:
+            hist = subprocess.run(["git", "-C", str(ROOT), "log", "-p", "--all"],
+                                  capture_output=True, text=True, timeout=120).stdout
+            if hist:
+                scan("<historique git>", hist, compiled, leaks)
+                scanned += " + historique git"
+        except (OSError, subprocess.SubprocessError):
+            print("⚠️  Historique git illisible — scan limité à l'arbre de travail.")
+
+    print(f"🔍 Contrôle de fuite — {scanned}, {len(MARKERS)} marqueurs")
+
+    if not leaks:
+        print("\n✅ PROPRE — aucun marqueur sensible. Commit autorisé.")
+        return 0
+
+    by_label = {}
+    for _, label, _ in leaks:
+        by_label[label] = by_label.get(label, 0) + 1
+
+    print(f"\n⛔ ROUGE — {len(leaks)} fuite(s). Rien ne sort.\n")
+    for label, count in sorted(by_label.items(), key=lambda kv: -kv[1]):
+        print(f"   {count:>5}×  {label}")
+
+    print("\n   Cas :")
+    for path, label, ctx in leaks[:20]:
+        print(f"     · [{label}] {path}\n       {ctx}")
+    if len(leaks) > 20:
+        print(f"     … et {len(leaks) - 20} autre(s).")
+
+    print("\n   → Corrige à la source (généralise le fichier), pas en assouplissant les marqueurs.")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

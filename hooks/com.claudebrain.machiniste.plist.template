@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Machiniste — ronde machine du Claude Brain (RAM / CPU / chaleur).
+     Toutes les 10 minutes, sans LLM : mesure, tue les serveurs de dev orphelins,
+     signale le reste. Coût quota : zéro.
+
+     TEMPLATE — __HOME__ doit être substitué par le vrai $HOME à l'installation
+     (même piège que com.claudebrain.resume : un /Users/<ancien-nom> en dur avait cassé
+     silencieusement la reprise sur machine neuve le 2026-07-22). -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.claudebrain.machiniste</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>__HOME__/claude-brain/hooks/machiniste.py</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    <key>StartInterval</key>
+    <integer>600</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <!-- Nice bas : la ronde ne doit jamais disputer le CPU au travail de l'utilisateur. -->
+    <key>Nice</key>
+    <integer>10</integer>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>StandardOutPath</key>
+    <string>__HOME__/claude-brain/sessions/machiniste.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/claude-brain/sessions/machiniste.log</string>
+</dict>
+</plist>

@@ -1,0 +1,40 @@
+# === C Brain — ce qui ne doit JAMAIS être commité ===================
+# Règle : le moteur se copie, le vécu ne se copie pas.
+# Ce fichier est le 2ᵉ filet. Le 1ᵉʳ est la liste blanche de sync.sh
+# (refus par défaut), le 3ᵉ est leakcheck.py (bloque le commit).
+
+# --- Vécu de l'utilisateur : jamais dans le moteur ---
+# ANCRÉS À LA RACINE (`/`) : sans la barre initiale, git applique le motif à
+# TOUS les niveaux et exclut aussi `skeleton/lessons/`, `skeleton/meta/`… —
+# le squelette du tronc vide ne partait donc jamais dans le dépôt, et
+# l'installation échouait chez l'utilisateur. Attrapé en installant depuis un
+# vrai clone, jamais depuis une copie.
+/state/
+/lessons/
+/projects/
+/meta/
+/life/
+/sessions/
+/corpus/
+/audits/
+/MEMORY.md
+
+# --- Artefacts régénérés qui contiennent le TEXTE INTÉGRAL des fiches ---
+# planet/graph.json fait 1,4 Mo et embarque les noms de clients.
+# Il est reconstruit à chaque lancement par graph_export.py.
+planet/graph.json
+
+# --- Machine-spécifique (contient /Users/<nom> en dur) ---
+hooks/com.claudebrain.resume.plist
+*.plist
+!*.plist.template
+
+# --- Poids mort / dépendances ---
+capsule/node_modules/
+capsule/assets/
+.venv/
+__pycache__/
+*.pyc
+
+# --- Système ---
+.DS_Store

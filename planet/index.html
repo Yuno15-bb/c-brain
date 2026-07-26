@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>🪐 Planète de connaissance — Claude Brain</title>
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; background:#07070b; overflow:hidden;
+    font-family:"Courier New",monospace; color:#cfc6ba; }
+  #c{ display:block; width:100vw; height:100vh; cursor:grab; }
+  #c:active{ cursor:grabbing; }
+
+  #hud{ position:fixed; top:14px; left:16px; pointer-events:none; }
+  #title{ font-size:13px; letter-spacing:1px; color:#e0d6c8; text-shadow:0 0 10px #000; }
+  #counts{ font-size:11px; opacity:.75; margin-top:3px; }
+  #viewtag{ font-size:11px; color:#5ad7e6; opacity:.85; margin-top:2px; }
+  #modes{ display:flex; gap:6px; margin-top:7px; pointer-events:auto; }
+  #modes button{ font-family:inherit; font-size:10px; letter-spacing:.5px; color:#cfc6ba;
+    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.14); border-radius:6px;
+    padding:3px 8px; cursor:pointer; transition:all .15s; }
+  #modes button:hover{ background:rgba(255,255,255,.1); }
+  #modes button.on{ color:#07070b; background:#5ad7e6; border-color:#5ad7e6; font-weight:bold; }
+  #grow{ font-size:11px; color:#f2c94c; opacity:0; transition:opacity .4s; margin-top:2px; }
+  #session{ font-size:10.5px; color:#86c8b0; opacity:.85; margin-top:6px; letter-spacing:.3px; }
+  #session b{ color:#cdeadd; font-weight:normal; }
+
+  #legend{ position:fixed; bottom:14px; left:16px; font-size:10px; line-height:1.65; opacity:.85; max-height:60vh; overflow:hidden; }
+  #legend .row{ display:flex; align-items:center; gap:6px; }
+  #legend .dot{ width:9px; height:9px; border-radius:50%; box-shadow:0 0 6px currentColor; flex:none; }
+  #legend .hd{ opacity:.5; letter-spacing:1px; text-transform:uppercase; font-size:9px; margin:5px 0 2px; }
+  #legend .bdg{ width:11px; text-align:center; flex:none; font-size:11px; }
+
+  #tip{ --accent:#888; position:fixed; right:18px; top:50%; width:300px; max-width:40vw; padding:15px 17px;
+    background:linear-gradient(180deg, rgba(10,12,16,0.95), rgba(8,9,13,0.96));
+    border:1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+    pointer-events:none; opacity:0; transition:opacity .16s ease, transform .16s ease;
+    transform:translateY(-50%) translateX(12px);
+    box-shadow:0 0 24px rgba(0,0,0,.6), inset 0 0 26px color-mix(in srgb, var(--accent) 8%, transparent);
+    z-index:5; }
+  #tip.show{ opacity:1; transform:translateY(-50%) translateX(0); }
+  #tip::before, #tip::after, #tip .scan::before, #tip .scan::after{
+    content:""; position:absolute; width:13px; height:13px; border:2px solid var(--accent); }
+  #tip::before{ top:-1px; left:-1px; border-right:0; border-bottom:0; }
+  #tip::after{ bottom:-1px; right:-1px; border-left:0; border-top:0; }
+  #tip .scan::before{ top:-1px; right:-1px; border-left:0; border-bottom:0; }
+  #tip .scan::after{ bottom:-1px; left:-1px; border-right:0; border-top:0; }
+  #tip .scan{ position:absolute; inset:0; pointer-events:none; opacity:.6;
+    background:repeating-linear-gradient(0deg, transparent 0 2px, rgba(255,255,255,0.022) 2px 3px); }
+  #tip .src{ font-size:9px; letter-spacing:1.6px; text-transform:uppercase; color:var(--accent);
+    display:flex; align-items:center; gap:7px; margin-bottom:10px; padding-bottom:9px;
+    border-bottom:1px solid color-mix(in srgb, var(--accent) 24%, transparent); flex-wrap:wrap; }
+  #tip .src .swatch{ width:7px; height:7px; transform:rotate(45deg);
+    background:var(--accent); box-shadow:0 0 8px var(--accent); flex:none; }
+  #tip .src .frontier{ color:#f3ede2; opacity:.7; letter-spacing:.5px; }
+  #tip .n{ color:#f3ede2; font-weight:bold; font-size:13.5px; letter-spacing:1.4px;
+    text-transform:uppercase; line-height:1.35;
+    text-shadow:0 0 13px color-mix(in srgb, var(--accent) 55%, transparent); }
+  #tip .mem{ margin-top:9px; font-size:9.5px; opacity:.72; line-height:1.5; letter-spacing:.3px; }
+  #tip .mem b{ color:var(--accent); font-weight:normal; }
+  #tip .ch{ display:none; margin-top:9px; font-size:9.5px; line-height:1.5; color:#e8b25a;
+    border-left:2px solid #e0a13a; padding-left:8px; letter-spacing:.2px; }
+  #tip .ch.show{ display:block; }
+  #tip .cv{ display:none; margin-top:9px; font-size:9.5px; line-height:1.5; color:#f0d68a;
+    border-left:2px solid #e8c860; padding-left:8px; letter-spacing:.2px; }
+  #tip .cv.show{ display:block; }
+  #tip .media{ display:none; margin-top:9px; font-size:9.5px; color:#5ad7e6; letter-spacing:.3px; }
+  #tip .media.show{ display:block; }
+  #tip .rs{ display:none; margin-top:9px; font-size:9.5px; color:#7fd4a0; letter-spacing:.3px;
+    border-left:2px solid #7fd4a0; padding-left:8px; }
+  #tip .rs.show{ display:block; }
+  #tip .lnk{ margin-top:10px; display:flex; flex-wrap:wrap; gap:4px 5px; }
+  #tip .lnk .hd{ width:100%; opacity:.42; font-size:8px; letter-spacing:1px; text-transform:uppercase; margin-bottom:1px; }
+  #tip .lnk .c{ display:inline-flex; align-items:center; gap:4px; padding:1px 6px; font-size:8.5px;
+    border-radius:9px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.08); letter-spacing:.2px; }
+  #tip .lnk .c i{ width:6px; height:6px; border-radius:50%; background:var(--cc,#888); box-shadow:0 0 5px var(--cc,#888); flex:none; }
+  #tip .lnk .c em{ font-style:normal; opacity:.5; font-size:7.5px; letter-spacing:.5px; }
+  #tip .d{ opacity:.82; margin-top:11px; font-size:11.5px; line-height:1.55; }
+  #tip .f{ opacity:.55; margin-top:12px; font-size:9px; letter-spacing:.5px; word-break:break-all;
+    padding-top:9px; border-top:1px solid rgba(255,255,255,0.07); color:var(--accent); }
+  #tip .f::before{ content:"▸ "; opacity:.8; }
+  #tip .x{ display:none; position:absolute; top:9px; right:11px; z-index:3;
+    background:transparent; border:0; color:var(--accent); font-size:13px; cursor:pointer;
+    font-family:inherit; line-height:1; padding:3px 5px; opacity:.75; }
+  #tip .x:hover{ opacity:1; }
+  #tip.expanded{ width:440px; max-width:48vw; pointer-events:auto; }
+  #tip.expanded .x{ display:block; }
+  #tip.expanded .body{ max-height:72vh; overflow-y:auto; padding-right:9px; }
+  #tip.expanded .d{ font-size:12px; line-height:1.7; white-space:pre-wrap; opacity:.9; }
+  #tip .body::-webkit-scrollbar{ width:7px; }
+  #tip .body::-webkit-scrollbar-thumb{ background:color-mix(in srgb, var(--accent) 40%, transparent); border-radius:4px; }
+  #tip .hint2{ display:none; }
+  #tip.expanded .hint2{ display:block; margin-top:12px; font-size:8.5px; letter-spacing:.5px;
+    text-transform:uppercase; opacity:.4; }
+
+  #hint{ position:fixed; bottom:14px; right:16px; font-size:10px; opacity:.5; text-align:right; line-height:1.6; }
+
+  /* viewer 3D rejouable (Étage 4) */
+  #viewer{ position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at center, rgba(16,20,30,0.96), rgba(3,4,7,0.985)); }
+  #viewer.show{ display:flex; }
+  #viewer #vc{ width:min(70vw,720px); height:min(70vh,560px); cursor:grab; touch-action:none; }
+  #viewer #vc:active{ cursor:grabbing; }
+  #viewer .vcap{ position:absolute; bottom:7%; left:50%; transform:translateX(-50%); max-width:62vw;
+    text-align:center; font-size:12px; color:#cfe0f0; letter-spacing:.3px; line-height:1.55; text-shadow:0 0 10px #000; }
+  #viewer .vx{ position:absolute; top:20px; right:24px; background:transparent; border:1px solid #5ad7e6;
+    color:#5ad7e6; font-size:11px; cursor:pointer; border-radius:7px; padding:5px 11px; font-family:inherit; letter-spacing:1px; }
+  #viewer .vx:hover{ background:rgba(90,215,230,.12); }
+  #viewer .vhint{ position:absolute; top:22px; left:24px; font-size:10px; opacity:.5; letter-spacing:.5px; color:#5ad7e6; }
+</style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div id="title">🪐 PLANÈTE DE CONNAISSANCE</div>
+    <div id="counts">…</div>
+    <div id="viewtag"></div>
+    <div id="modes">
+      <button data-mode="3d">◉ 3D planète</button>
+      <button data-mode="struct">▦ structure</button>
+      <button data-mode="sens">✦ sens</button>
+      <button data-mode="usage" title="liens d'usage : fiches activées ensemble en session">⚡ usage</button>
+    </div>
+    <div id="grow"></div>
+    <div id="session"></div>
+  </div>
+  <div id="legend"></div>
+  <div id="tip">
+    <i class="scan"></i>
+    <button class="x" type="button" title="fermer (Échap)">✕</button>
+    <div class="body">
+      <div class="src"><span class="swatch"></span><span class="lbl"></span></div>
+      <div class="n"></div>
+      <div class="mem"></div>
+      <div class="ch"></div>
+      <div class="cv"></div>
+      <div class="rs"></div>
+      <div class="media"></div>
+      <div class="lnk"></div>
+      <div class="d"></div>
+      <div class="hint2">défiler · échap / ✕ pour fermer</div>
+      <div class="f"></div>
+    </div>
+  </div>
+  <div id="hint">glisser = tourner · molette = zoom<br>survol = aimant ✦ + liens éclairés<br><b>V</b> = 3D planète ⇄ 2D carte · <b>S</b> = structure ⇄ sens</div>
+  <div id="viewer">
+    <canvas id="vc"></canvas>
+    <div class="vcap"></div>
+    <button class="vx" type="button" title="fermer (Échap)">✕ FERMER</button>
+    <div class="vhint">▷ capture 3D rejouée · glisser = tourner · molette = zoom · Échap</div>
+  </div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+// post-process « data-poésie » (réf. Anadol/Lieberman) : bloom doux = luminance organique
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';   // Étage 4 : nœuds rejouables (.glb)
+
+const R = 10;                                   // rayon du globe
+const S2 = 13;                                  // rayon de l'anneau des régions en vue 2D
+const SEM = 16;                                 // rayon de la carte SÉMANTIQUE (Étage 1 : proximité = sens)
+const UP = new THREE.Vector3(0,1,0), RIGHT = new THREE.Vector3(1,0,0);
+// régions « hors-ville » = un domaine sans projet (chacune son continent propre)
+const DOM_REGION = { lessons:'principes', meta:'méta', life:'vie', agents:'agents', projects:'projets' };
+const CENTER_REGION = 'principes';              // les leçons transverses = capitale au centre (2D)
+// palette désaturée/assourdie (data-poésie premium, pas néon)
+const FIXED_COLOR = { 'principes':0xd9bd63, 'méta':0x57b6c4, 'vie':0x5cbf92, 'agents':0xa183d4, 'projets':0x9298a2 };
+const BEAM_BASE = new THREE.Color(0xffffff);    // « paquet d'info » qui voyage le long des liens (blanc doux)
+const HOT = new THREE.Color(0xffffff);
+// sprite radial doux → points ronds et translucides (pas de carrés ni de glow additif criard)
+const BEAM_TEX = (function(){ const s=64, cv=document.createElement('canvas'); cv.width=cv.height=s;
+  const x=cv.getContext('2d'), g=x.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+  g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(.45,'rgba(255,255,255,.55)'); g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=g; x.fillRect(0,0,s,s); return new THREE.CanvasTexture(cv); })();
+const LINK_GREY = new THREE.Color(0x8a93a8);
+// anneau d'alerte (Étage 3 : avis du challenger) — cercle fin, billboardé via Sprite
+const RING_TEX = (function(){ const s=64, cv=document.createElement('canvas'); cv.width=cv.height=s;
+  const x=cv.getContext('2d'); x.strokeStyle='rgba(255,255,255,1)'; x.lineWidth=4;
+  x.beginPath(); x.arc(s/2, s/2, s/2-4, 0, Math.PI*2); x.stroke(); return new THREE.CanvasTexture(cv); })();
+// glyphe ▷ (Étage 4 : marqueur d'un nœud REJOUABLE = porte une capture 3D)
+const PLAY_TEX = (function(){ const s=64, cv=document.createElement('canvas'); cv.width=cv.height=s;
+  const x=cv.getContext('2d'); x.fillStyle='rgba(255,255,255,1)';
+  x.beginPath(); x.moveTo(s*0.36,s*0.26); x.lineTo(s*0.36,s*0.74); x.lineTo(s*0.76,s*0.5); x.closePath(); x.fill();
+  return new THREE.CanvasTexture(cv); })();
+// badges (petites icônes à côté du point) : ⚠ avis du challenger · ✦ conviction · ↻ à reprendre. Blanc → teinté par le Sprite.
+function glyphTex(ch, font){ const s=64, cv=document.createElement('canvas'); cv.width=cv.height=s;
+  const x=cv.getContext('2d'); x.fillStyle='#fff'; x.font=(font||'bold 44px')+' sans-serif';
+  x.textAlign='center'; x.textBaseline='middle'; x.fillText(ch, s/2, s/2+3); return new THREE.CanvasTexture(cv); }
+const WARN_TEX=glyphTex('!','bold 50px'), CONV_TEX=glyphTex('✦','42px'), RESUME_TEX=glyphTex('↻','bold 46px');
+
+// ---------- scène ----------
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+// PERF (leçon GPU overheating) : on plafonne le pixelRatio — le bloom coûte ∝ pixels ; la pleine
+// Retina ×2 + post-process ferait chauffer. 1.5 garde la netteté, divise ~la charge fragment.
+const DPR = Math.min(devicePixelRatio, 1.5);
+renderer.setPixelRatio(DPR);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
+camera.position.set(0, 6, 30);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 13; controls.maxDistance = 80; controls.autoRotate = true;
+controls.autoRotateSpeed = 0.35;
+const CAM2D = new THREE.Vector3(0, 0, 36), ORIGIN = new THREE.Vector3(0,0,0);
+
+// ---------- post-process : bloom cinématique (glow doux sur nœuds + beams) ----------
+// strength modéré + threshold > 0 → seuls les corps lumineux (nœuds, filaments) rayonnent ;
+// le fond sombre, le cœur et les liens gris discrets restent nets (pas de voile laiteux).
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+// doux : strength bas + threshold HAUT → seuls les cœurs les plus lumineux scintillent (pas de blobs pâles)
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.12, 0.32, 0.72);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+function resize(){ const w=innerWidth,h=innerHeight;
+  renderer.setSize(w,h,false); composer.setSize(w,h); bloom.setSize(w,h);
+  camera.aspect=w/h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+// ---------- fond ----------
+(function starfield(){
+  const N=1800, pos=new Float32Array(N*3);
+  for(let i=0;i<N;i++){ const r=400+Math.random()*600, u=Math.random(), v=Math.random(), th=2*Math.PI*u, ph=Math.acos(2*v-1);
+    pos[i*3]=r*Math.sin(ph)*Math.cos(th); pos[i*3+1]=r*Math.sin(ph)*Math.sin(th); pos[i*3+2]=r*Math.cos(ph); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color:0x8899bb, size:1.1, sizeAttenuation:false, transparent:true, opacity:.7 })));
+})();
+const coreMat = new THREE.MeshBasicMaterial({ color:0x10131c, transparent:true, opacity:0.55 });
+const core = new THREE.Mesh(new THREE.SphereGeometry(R*0.985, 48, 48), coreMat); scene.add(core);
+// (atmosphère supprimée — pas de halo bleuté autour du globe, sur demande)
+
+function hash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return (h>>>0)/4294967296; }
+
+// ---------- régions (continents) ----------
+const regionOf = n => n.primary_project || DOM_REGION[n.domain] || n.domain;
+let REGION_DIR={}, REGION_2D={}, REGION_COLOR={}, REGION_LIST=[], REGION_COUNT={};
+function layoutRegions(data){
+  REGION_DIR={}; REGION_2D={}; REGION_COLOR={}; REGION_COUNT={};
+  const projects = data.projects || [];
+  const present=[], seen=new Set(), nreg={};
+  for(const n of data.nodes){ const r=regionOf(n); REGION_COUNT[r]=(REGION_COUNT[r]||0)+1; nreg[n.id]=r; if(!seen.has(r)){ seen.add(r); present.push(r); } }
+  // affinité inter-régions = nb de liens qui croisent deux continents
+  const aff={}, deg={}; for(const r of present) deg[r]=0;
+  for(const l of data.links){ const ra=nreg[l.source], rb=nreg[l.target]; if(!ra||!rb||ra===rb) continue;
+    const k=ra<rb?ra+'|'+rb:rb+'|'+ra; aff[k]=(aff[k]||0)+1; deg[ra]++; deg[rb]++; }
+  const affOf=(a,b)=> aff[a<b?a+'|'+b:b+'|'+a]||0;
+  // ordre glouton : on enchaîne les continents les plus reliés → voisins sur la spirale
+  const order=[], used=new Set();
+  let cur=present.slice().sort((a,b)=>deg[b]-deg[a])[0]; order.push(cur); used.add(cur);
+  while(order.length<present.length){
+    let best=null, bs=-1;
+    for(const r of present){ if(used.has(r)) continue; const s=affOf(cur,r);
+      if(s>bs || (s===bs && best && deg[r]>deg[best])){ bs=s; best=r; } }
+    if(best===null) best=present.find(r=>!used.has(r));
+    order.push(best); used.add(best); cur=best;
+  }
+  REGION_LIST = order;
+  const n=order.length, ga=Math.PI*(3-Math.sqrt(5));
+  order.forEach((r,i)=>{ const y=1-2*(i+0.5)/n, rad=Math.sqrt(Math.max(0,1-y*y));
+    REGION_DIR[r]=new THREE.Vector3(Math.cos(ga*i)*rad, y, Math.sin(ga*i)*rad).normalize(); });
+  // 2D : capitale (principes) au centre, le reste sur un anneau (même ordre d'affinité)
+  const ring=order.filter(r=>r!==CENTER_REGION);
+  ring.forEach((r,i)=>{ const a=2*Math.PI*i/Math.max(1,ring.length); REGION_2D[r]={x:Math.cos(a),y:Math.sin(a)}; });
+  REGION_2D[CENTER_REGION]={x:0,y:0};
+  order.forEach(r=>{
+    if(FIXED_COLOR[r]!=null){ REGION_COLOR[r]=new THREE.Color(FIXED_COLOR[r]); return; }
+    const pi=projects.indexOf(r);
+    REGION_COLOR[r]=new THREE.Color().setHSL((pi>=0?pi/Math.max(1,projects.length):hash(r)), 0.5, 0.56); });
+}
+const colorOf = n => REGION_COLOR[regionOf(n)] || new THREE.Color(0xffffff);
+const spreadOf = r => 0.12 + 0.05*Math.sqrt(REGION_COUNT[r]||1);   // continent plus grand si plus peuplé
+
+// ---------- placement 3D (continent) & 2D (carte) ----------
+function anchor3(n){
+  const m=n.membership||{};
+  if(n.primary_project){ const v=new THREE.Vector3(); let tot=0;
+    for(const c in m){ if(REGION_DIR[c]){ v.addScaledVector(REGION_DIR[c], m[c]); tot+=m[c]; } }
+    if(tot>0) return v.normalize(); }
+  return (REGION_DIR[regionOf(n)]||UP).clone();
+}
+function anchor2(n){
+  const m=n.membership||{};
+  if(n.primary_project){ let x=0,y=0,tot=0;
+    for(const c in m){ if(REGION_2D[c]){ x+=REGION_2D[c].x*m[c]; y+=REGION_2D[c].y*m[c]; tot+=m[c]; } }
+    if(tot>0) return {x:x/tot,y:y/tot}; }
+  const b=REGION_2D[regionOf(n)]||{x:0,y:0}; return {x:b.x,y:b.y};
+}
+// placement INTELLIGENT : tournesol par continent, rangé par échelle (cœur=vision → bord=détail)
+let posById={};
+function layoutNodes(data){
+  posById={};
+  const groups={};
+  for(const n of data.nodes){ const r=regionOf(n); (groups[r]=groups[r]||[]).push(n); }
+  for(const r in groups){
+    const arr=groups[r].sort((a,b)=>(a.scale-b.scale)||(hash(a.id)-hash(b.id)));
+    const m=arr.length, sp=spreadOf(r), base=(REGION_DIR[r]||UP).clone();
+    const t1=new THREE.Vector3().crossVectors(base, Math.abs(base.y)<0.9?UP:RIGHT).normalize();
+    const t2=new THREE.Vector3().crossVectors(base, t1).normalize();
+    const c2=REGION_2D[r]||{x:0,y:0};
+    arr.forEach((n,i)=>{
+      const f=(i+0.5)/m, ang=i*2.39996323;                 // angle d'or → packing régulier
+      const rr=sp*Math.sqrt(f);                             // centre-out : i=0 (scale faible) au cœur
+      const dir=base.clone().multiplyScalar(Math.cos(rr))
+        .add(t1.clone().multiplyScalar(Math.sin(rr)*Math.cos(ang)))
+        .add(t2.clone().multiplyScalar(Math.sin(rr)*Math.sin(ang))).normalize();
+      const RR=(0.6+7*sp)*Math.sqrt(f);
+      posById[n.id]={ p3:dir.multiplyScalar(R), p2:new THREE.Vector3(c2.x*S2+Math.cos(ang)*RR, c2.y*S2+Math.sin(ang)*RR, 0) };
+    });
+  }
+  // frontières : posées SUR la frontière entre leurs deux villes (mélange des ancres)
+  for(const n of data.nodes){ if(n.frontier){
+    const d3=anchor3(n), b2=anchor2(n);
+    posById[n.id]={ p3:d3.multiplyScalar(R*1.004), p2:new THREE.Vector3(b2.x*S2, b2.y*S2, 0) }; }}
+}
+
+// ---------- état du graphe ----------
+let group=new THREE.Group(); scene.add(group);
+let nodeObjs=[], linkObjs=[], coactObjs=[];
+let beamGeo=null, beamPos=null, beamCol=null, beams=null;
+let prevIds=new Set();
+const tip=document.getElementById('tip');
+const SEG=14;
+
+function clearGroup(){ group.removeFromParent(); group.traverse(o=>{ o.geometry?.dispose?.(); o.material?.dispose?.(); }); group=new THREE.Group(); scene.add(group); nodeObjs=[]; linkObjs=[]; coactObjs=[]; beams=null; beamGeo=null; }
+
+function build(data){
+  clearGroup();
+  layoutRegions(data); layoutNodes(data);
+  const meshById={};
+  for(const nd of data.nodes){
+    const pp=posById[nd.id]||{p3:new THREE.Vector3(0,R,0), p2:new THREE.Vector3()};
+    const p3=pp.p3, p2=pp.p2, col=colorOf(nd);
+    // position SÉMANTIQUE (Étage 1) : projetée par le SENS (embeddings), indépendante du rangement.
+    // fallback sur la position structurelle si une fiche n'a pas encore de vecteur.
+    const e2=nd.embed2, p2s = e2 ? new THREE.Vector3(e2[0]*SEM, e2[1]*SEM, 0) : p2.clone();
+    const m=new THREE.Mesh(new THREE.SphereGeometry(nd.frontier?0.16:0.125, 12, 12),
+      new THREE.MeshBasicMaterial({ color:col }));
+    const start=p3.clone(); m.position.copy(start);
+    const isNew = prevIds.size && !prevIds.has(nd.id);
+    m.userData={ data:nd, isNew, p3, p2, p2s, base:start.clone(), hatching:isNew, _pull:0, links:[] };
+    m.scale.setScalar(isNew?0.01:1);
+    const haloBaseOp=nd.frontier?0.18:0.07;
+    const halo=new THREE.Mesh(new THREE.SphereGeometry(0.30,12,12),
+      new THREE.MeshBasicMaterial({ color:nd.frontier?0xffffff:col, transparent:true, opacity:haloBaseOp }));
+    m.add(halo);
+    // CHALEUR (Étage 2) : PAS de teinte fixe — les fiches chaudes PULSENT (le halo respire dans la
+    // couleur de la région) ∝ usage récent. Plus chaud = pulsation plus ample & plus rapide. Animé dans tick().
+    m.userData.halo=halo; m.userData.haloBaseOp=haloBaseOp;
+    m.userData.heat=nd.heat||0; m.userData.pulse=hash(nd.id)*6.283;
+    // ANNEAU = ACTIVITÉ EN DIRECT (fiches de la session courante) — pulse = vivant
+    if(nd.active){
+      const ring=new THREE.Sprite(new THREE.SpriteMaterial({ map:RING_TEX, color:0x7fe9ff,
+        transparent:true, opacity:0.6, depthTest:false, depthWrite:false }));
+      ring.scale.setScalar(0.95); m.add(ring); m.userData.activeRing=ring;
+    }
+    // BADGES (petites icônes À CÔTÉ du point, empilées à droite) : ⚠ avis du challenger · ✦ conviction · ↻ à reprendre
+    const badges=[];
+    if(nd.challenge)  badges.push([WARN_TEX,   0xe0a13a]);
+    if(nd.conviction) badges.push([CONV_TEX,   0xf5e2a0]);
+    if(nd.resume)     badges.push([RESUME_TEX, 0x7fd4a0]);
+    badges.forEach(([tex,col],i)=>{
+      const b=new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, color:col,
+        transparent:true, opacity:0.95, depthTest:false, depthWrite:false }));
+      b.scale.setScalar(0.34); b.position.set(0.3, 0.34 - i*0.27, 0); m.add(b);
+    });
+    // nœud REJOUABLE (Étage 4) : glyphe ▷ cyan au-dessus → double-clic ouvre la capture 3D
+    if(nd.media){
+      const pl=new THREE.Sprite(new THREE.SpriteMaterial({ map:PLAY_TEX, color:0x5ad7e6,
+        transparent:true, opacity:0.9, depthTest:false, depthWrite:false }));
+      pl.scale.setScalar(0.42); pl.position.set(0,0.34,0); m.add(pl); m.userData.playMark=pl;
+    }
+    group.add(m); nodeObjs.push(m); meshById[nd.id]=m;
+  }
+  // liens : 1 matériau par lien (surlignage individuel) + géométrie pré-allouée
+  let idx=0;
+  for(const l of data.links){
+    const a=meshById[l.source], b=meshById[l.target]; if(!a||!b) continue;
+    const arr=new Float32Array((SEG+1)*3);
+    const g=new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(arr,3));
+    // depthTest:false → l'arc n'est jamais TRANCHÉ par le corps de la planète (atténué via `facing`, pas coupé)
+    const mat=new THREE.LineBasicMaterial({ color:LINK_GREY.clone(), transparent:true, opacity:0.16, depthTest:false, depthWrite:false });
+    group.add(new THREE.Line(g, mat));
+    const L={ a, b, attr:g.getAttribute('position'), mat, hot:false, idx:idx++,
+              ca:colorOf(a.userData.data).clone(), cb:colorOf(b.userData.data).clone(),
+              phase:hash(l.source+l.target), speed:0.18+0.22*hash(l.target+l.source) };
+    linkObjs.push(L); a.userData.links.push(L); b.userData.links.push(L);
+  }
+  // beams : un point lumineux par lien, voyageant en continu (Points additif = glow)
+  const N=linkObjs.length;
+  beamPos=new Float32Array(N*3); beamCol=new Float32Array(N*3);
+  beamGeo=new THREE.BufferGeometry();
+  beamGeo.setAttribute('position', new THREE.BufferAttribute(beamPos,3));
+  beamGeo.setAttribute('color', new THREE.BufferAttribute(beamCol,3));
+  beams=new THREE.Points(beamGeo, new THREE.PointsMaterial({ map:BEAM_TEX, size:0.40, vertexColors:true,
+    transparent:true, opacity:0.5, blending:THREE.NormalBlending, depthWrite:false, depthTest:false, sizeAttenuation:true }));
+  group.add(beams);
+
+  // liens d'USAGE (co-activation, Étage 2) — golden, invisibles jusqu'au mode ⚡ usage
+  const cmax=(data.coact && data.coact[0] && data.coact[0][2]) || 1;
+  for(const e of (data.coact||[])){
+    const a=meshById[e[0]], b=meshById[e[1]]; if(!a||!b) continue;
+    const arr=new Float32Array((SEG+1)*3);
+    const g=new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(arr,3));
+    const mat=new THREE.LineBasicMaterial({ color:0xffb24d, transparent:true, opacity:0, depthTest:false, depthWrite:false });
+    group.add(new THREE.Line(g, mat));
+    coactObjs.push({ a, b, attr:g.getAttribute('position'), mat, w:e[2]/cmax });
+  }
+
+  prevIds=new Set(data.nodes.map(n=>n.id));
+  document.getElementById('counts').innerHTML =
+    `${data.counts.nodes} fiches · ${data.counts.links} liens · ${REGION_LIST.length} régions · ${data.counts.frontier} frontière${data.counts.frontier>1?'s':''}`
+    + (data.counts.challenged ? ` · <span style="color:#e0a13a">⚠ ${data.counts.challenged} contestée${data.counts.challenged>1?'s':''}</span>` : '');
+  // reprise (Étage 2) : régions où la dernière session a travaillé — orientation au démarrage
+  const act=data.nodes.filter(n=>n.active), sEl=document.getElementById('session');
+  if(act.length){
+    const rc={}; for(const n of act){ const r=regionOf(n); rc[r]=(rc[r]||0)+1; }
+    const top=Object.entries(rc).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([r])=>`<b>${r}</b>`);
+    sEl.innerHTML=`◉ dernière activité : ${top.join(' · ')} <span style="opacity:.6">(${act.length} fiches)</span>`;
+  } else sEl.textContent='';
+  buildLegend(data);
+}
+
+function buildLegend(data){
+  const projects=data.projects||[];
+  const isProj=r=>projects.includes(r);
+  const order=REGION_LIST.slice().sort((a,b)=>(REGION_COUNT[b]||0)-(REGION_COUNT[a]||0));
+  const row=r=>{ const c='#'+REGION_COLOR[r].getHexString();
+    return `<div class="row"><span class="dot" style="color:${c};background:${c}"></span>${r} (${REGION_COUNT[r]||0})</div>`; };
+  const villes=order.filter(isProj).map(row).join('');
+  const autres=order.filter(r=>!isProj(r)).map(row).join('');
+  document.getElementById('legend').innerHTML =
+    `<div class="hd">villes (projets)</div>${villes}`+
+    `<div class="hd">régions transverses</div>${autres}`+
+    `<div class="hd">marqueur</div><div class="row"><span class="dot" style="color:#fff;background:#fff"></span>frontière (${data.counts.frontier})</div>`+
+    (data.counts.active ? `<div class="row"><span class="dot" style="color:#7fe9ff;background:transparent;box-shadow:0 0 0 2px #7fe9ff inset"></span>anneau = activité en direct (${data.counts.active})</div>` : '')+
+    (data.counts.challenged ? `<div class="row"><span class="bdg" style="color:#e0a13a">⚠</span>avis du challenger (${data.counts.challenged})</div>` : '')+
+    (data.counts.convictions ? `<div class="row"><span class="bdg" style="color:#f5e2a0">✦</span>conviction (${data.counts.convictions})</div>` : '')+
+    (data.counts.resume ? `<div class="row"><span class="bdg" style="color:#7fd4a0">↻</span>à reprendre (${data.counts.resume})</div>` : '')+
+    (data.counts.media ? `<div class="row"><span class="dot" style="color:#5ad7e6;background:#5ad7e6"></span>▷ rejouable — capture 3D (${data.counts.media})</div>` : '');
+}
+
+// ---------- bascule de vue ----------
+// view : 0 = planète 3D ↔ 1 = carte 2D plate.  sem : 0 = 2D STRUCTURE (membership) ↔ 1 = 2D SENS (embeddings).
+// usage : overlay des liens d'USAGE (co-activation, Étage 2), indépendant de la vue.
+let view=0, viewTarget=0, sem=0, semTarget=0, usage=0, usageTarget=0;
+addEventListener('keydown', e=>{
+  if(e.key==='v'||e.key==='V'){ viewTarget = viewTarget>0.5?0:1; if(viewTarget<0.5) semTarget=0; }  // retour planète = structure
+  if(e.key==='s'||e.key==='S'){ semTarget = semTarget>0.5?0:1; if(semTarget>0.5) viewTarget=1; }      // le sens n'a de sens qu'à plat
+  if(e.key==='u'||e.key==='U'){ usageTarget = usageTarget>0.5?0:1; }                                  // overlay usage on/off
+});
+// boutons cliquables (sans dépendre du focus clavier)
+function setMode(m){
+  if(m==='3d'){ viewTarget=0; semTarget=0; }
+  else if(m==='struct'){ viewTarget=1; semTarget=0; }
+  else if(m==='sens'){ viewTarget=1; semTarget=1; }
+  else if(m==='usage'){ usageTarget = usageTarget>0.5?0:1; }   // toggle overlay (ne touche pas la vue)
+}
+document.querySelectorAll('#modes button').forEach(b=>
+  b.addEventListener('click', ()=> setMode(b.dataset.mode)));
+function syncModeButtons(){
+  const active = view<0.5 ? '3d' : (sem>0.5 ? 'sens' : 'struct');
+  document.querySelectorAll('#modes button').forEach(b=>{
+    if(b.dataset.mode==='usage') b.classList.toggle('on', usage>0.5);
+    else b.classList.toggle('on', b.dataset.mode===active);
+  });
+}
+
+// ---------- survol + MAGNET + surlignage ----------
+const MAGNET_RADIUS=95, MAGNET_PULL=0.45, MAGNET_SCALE=1.9;
+let hovered=null, hotMesh=null, pointerPx={x:-1e4,y:-1e4}, pointerIn=false;
+const camRight=new THREE.Vector3(), camUp=new THREE.Vector3(), _ndc=new THREE.Vector3();
+addEventListener('pointermove', e=>{ pointerPx.x=e.clientX; pointerPx.y=e.clientY; pointerIn=true; });
+addEventListener('pointerleave', ()=>{ pointerIn=false; });
+
+function applyHot(m){
+  if(hotMesh===m) return;
+  if(hotMesh) for(const L of hotMesh.userData.links) L.hot=false;
+  hotMesh=m;
+  if(hotMesh) for(const L of hotMesh.userData.links) L.hot=true;
+}
+
+// ---- panneau ----
+let pinned=null;
+function memLine(n){
+  const m=n.membership||{}, ks=Object.keys(m);
+  if(!n.primary_project) return `<b>${regionOf(n)}</b> · transverse, sans ville`;
+  return (n.frontier?'frontière · ':'ville · ')+ks.map(c=>`<b>${c}</b> ${m[c]}`).join('  ·  ');
+}
+function showPanel(mesh, expanded){
+  const n=mesh.userData.data;
+  tip.style.setProperty('--accent', '#'+colorOf(n).getHexString());
+  const title=n.title || (n.name||'').replace(/-/g,' ').replace(/^\w/, c=>c.toUpperCase());
+  tip.querySelector('.lbl').innerHTML=(n.primary_project||regionOf(n))+(n.frontier?' <span class="frontier">⟡ frontière</span>':'');
+  tip.querySelector('.n').textContent=title;
+  tip.querySelector('.mem').innerHTML=memLine(n);
+  // avis du challenger (Étage 3) : la carte donne son avis sur cette fiche
+  const chEl=tip.querySelector('.ch');
+  if(n.challenge){ chEl.textContent='⚠ avis du challenger — '+n.challenge; chEl.classList.add('show'); }
+  else { chEl.classList.remove('show'); chEl.textContent=''; }
+  const cvEl=tip.querySelector('.cv');
+  if(n.conviction){ cvEl.textContent='✦ conviction — '+n.conviction; cvEl.classList.add('show'); }
+  else { cvEl.classList.remove('show'); cvEl.textContent=''; }
+  const rsEl=tip.querySelector('.rs');
+  if(n.resume){ rsEl.textContent='↻ point à reprendre — fil ouvert dans cette fiche'; rsEl.classList.add('show'); }
+  else { rsEl.classList.remove('show'); rsEl.textContent=''; }
+  const mEl=tip.querySelector('.media');
+  if(n.media){ mEl.textContent='▷ capture 3D rejouable — double-clic pour l\'ouvrir'; mEl.classList.add('show'); }
+  else { mEl.classList.remove('show'); mEl.textContent=''; }
+  // connexions : les fiches reliées à ce point (titre descriptif + région si autre catégorie)
+  const others=(mesh.userData.links||[]).map(L=> L.a===mesh?L.b:L.a), CAP=16, rn=regionOf(n);
+  let lh='';
+  if(others.length){
+    const chips=others.slice(0,CAP).map(o=>{ const d=o.userData.data, col='#'+colorOf(d).getHexString();
+      const cross = regionOf(d)!==rn ? ` <em>· ${regionOf(d)}</em>` : '';
+      return `<span class="c" style="--cc:${col}"><i></i>${d.title||(d.name||'').replace(/-/g,' ')}${cross}</span>`; }).join('');
+    lh=`<span class="hd">connexions (${others.length})</span>${chips}`+(others.length>CAP?`<span class="c">+${others.length-CAP}</span>`:'');
+  }
+  tip.querySelector('.lnk').innerHTML=lh;
+  tip.querySelector('.d').textContent=expanded?(n.long||n.desc||'(pas de contenu)'):(n.desc||'(pas de description)');
+  tip.querySelector('.f').textContent=n.file;
+  tip.classList.add('show'); tip.classList.toggle('expanded', !!expanded);
+}
+function unpin(){ pinned=null; tip.classList.remove('expanded'); if(hovered) showPanel(hovered,false); else tip.classList.remove('show'); }
+addEventListener('dblclick', ()=>{ if(hovered){
+  const nd=hovered.userData.data;
+  if(nd.media){ openViewer(nd.media); return; }      // nœud REJOUABLE → ouvre la capture 3D (Étage 4)
+  pinned=hovered; showPanel(pinned,true); tip.querySelector('.body').scrollTop=0; } });
+tip.querySelector('.x').addEventListener('click', unpin);
+addEventListener('keydown', e=>{ if(e.key==='Escape'&&pinned) unpin(); });
+
+function toScreen(p){ _ndc.copy(p).project(camera); if(_ndc.z>1) return null;
+  return { x:(_ndc.x*0.5+0.5)*innerWidth, y:(-_ndc.y*0.5+0.5)*innerHeight }; }
+
+function magnet(){
+  camera.matrixWorld.extractBasis(camRight, camUp, new THREE.Vector3());
+  const camDir=camera.position.clone().normalize();
+  let best=null, bestD=MAGNET_RADIUS;
+  for(const m of nodeObjs){
+    m.userData._pull=0;
+    if(m.userData.hatching) continue;
+    if(view<0.5 && m.position.clone().normalize().dot(camDir)<0.12) continue;
+    const s=toScreen(m.userData.base); if(!s) continue;
+    const d=Math.hypot(s.x-pointerPx.x, s.y-pointerPx.y);
+    m.userData._screen=s;
+    if(pointerIn && d<bestD){ bestD=d; best=m; }
+  }
+  if(best) best.userData._pull=MAGNET_PULL*(1-bestD/MAGNET_RADIUS);
+  if(best!==hovered){ hovered=best; if(!pinned){ if(best) showPanel(best,false); else tip.classList.remove('show'); } }
+  applyHot(pinned||best);
+}
+
+const _off=new THREE.Vector3(), _tgt=new THREE.Vector3(), _p2=new THREE.Vector3();
+function easeMagnet(m){
+  _p2.copy(m.userData.p2).lerp(m.userData.p2s, sem);   // 2D : structure → sens
+  _tgt.copy(m.userData.p3).lerp(_p2, view);            // 3D → 2D
+  m.userData.base.copy(_tgt);
+  const pull=m.userData._pull||0;
+  if(pull>0){
+    const s=m.userData._screen, dist=camera.position.distanceTo(m.position);
+    const wpp=(2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*dist)/innerHeight;
+    const dx=(pointerPx.x-s.x)*wpp, dy=(pointerPx.y-s.y)*wpp;
+    _off.set(0,0,0).addScaledVector(camRight, dx*pull).addScaledVector(camUp, -dy*pull);
+    _tgt.add(_off);
+  }
+  m.position.lerp(_tgt, 0.3);
+}
+
+// arcs PAR-DESSUS le globe (jamais à l'intérieur) + beams le long de chaque lien
+const _cd=new THREE.Vector3();
+function updateLinks(time){
+  _cd.copy(camera.position).normalize();
+  const flat=view;                               // 0=sphère, 1=plan
+  for(const L of linkObjs){
+    const a=L.a.position, b=L.b.position, arr=L.attr.array;
+    // distance angulaire → plus les points sont loin, plus l'arc monte haut (reste hors de la sphère)
+    const an=a.length()||1, bn=b.length()||1;
+    const dot=THREE.MathUtils.clamp((a.x*b.x+a.y*b.y+a.z*b.z)/(an*bn), -1, 1);
+    const lift=R*(1.12 + 0.6*(1-dot)/2);          // rayon du point de contrôle (toujours > R)
+    const mdx=a.x+b.x, mdy=a.y+b.y, mdz=a.z+b.z, ml=Math.hypot(mdx,mdy,mdz)||1;
+    // contrôle : bombé vers l'extérieur en 3D, ramené au milieu plat en 2D
+    const ox=mdx/ml*lift, oy=mdy/ml*lift, oz=mdz/ml*lift;
+    const cx=ox*(1-flat)+(mdx/2)*flat, cy=oy*(1-flat)+(mdy/2)*flat, cz=oz*(1-flat)+(mdz/2)*flat;
+    for(let i=0;i<=SEG;i++){ const t=i/SEG, it=1-t, w=it*it, w2=2*it*t, w3=t*t;
+      arr[i*3]=w*a.x+w2*cx+w3*b.x; arr[i*3+1]=w*a.y+w2*cy+w3*b.y; arr[i*3+2]=w*a.z+w2*cz+w3*b.z; }
+    L.attr.needsUpdate=true;
+    // opacité/couleur : éclairé si relié au survol ; sinon discret + estompé sur la face cachée (3D)
+    const mid=new THREE.Vector3(cx,cy,cz);
+    const facing = view<0.5 ? THREE.MathUtils.clamp(mid.clone().normalize().dot(_cd)*0.5+0.5, 0.18, 1) : 1;
+    if(L.hot){ L.mat.opacity=0.92; L.mat.color.copy(colorOf(L.a.userData.data)).lerp(HOT,0.45); }
+    else { L.mat.opacity=0.14*facing*(1-0.8*usage); L.mat.color.copy(LINK_GREY); }   // s'estompe sous l'overlay usage
+    // beam : position le long de l'arc + couleur (blanc vif si relié au survol)
+    if(beams){
+      const tt=((time*L.speed+L.phase)%1), it2=1-tt;
+      const bx=it2*it2*a.x+2*it2*tt*cx+tt*tt*b.x;
+      const by=it2*it2*a.y+2*it2*tt*cy+tt*tt*b.y;
+      const bz=it2*it2*a.z+2*it2*tt*cz+tt*tt*b.z;
+      beamPos[L.idx*3]=bx; beamPos[L.idx*3+1]=by; beamPos[L.idx*3+2]=bz;
+      // couleur du beam = mélange région source → cible selon l'avancée (passe par le jaune, puis le rose…)
+      if(L.hot){ beamCol[L.idx*3]=beamCol[L.idx*3+1]=beamCol[L.idx*3+2]=1; }
+      else { const k=0.92;
+        beamCol[L.idx*3]  =(L.ca.r+(L.cb.r-L.ca.r)*tt)*k;
+        beamCol[L.idx*3+1]=(L.ca.g+(L.cb.g-L.ca.g)*tt)*k;
+        beamCol[L.idx*3+2]=(L.ca.b+(L.cb.b-L.ca.b)*tt)*k; }
+    }
+  }
+  if(beams){ beamGeo.getAttribute('position').needsUpdate=true; beamGeo.getAttribute('color').needsUpdate=true; }
+  // liens d'USAGE (co-activation, Étage 2) : mêmes arcs, dorés, visibles selon `usage`
+  for(const C of coactObjs){
+    const a=C.a.position, b=C.b.position, arr=C.attr.array;
+    const an=a.length()||1, bn=b.length()||1;
+    const dot=THREE.MathUtils.clamp((a.x*b.x+a.y*b.y+a.z*b.z)/(an*bn), -1, 1);
+    const lift=R*(1.12 + 0.6*(1-dot)/2);
+    const mdx=a.x+b.x, mdy=a.y+b.y, mdz=a.z+b.z, ml=Math.hypot(mdx,mdy,mdz)||1;
+    const ox=mdx/ml*lift, oy=mdy/ml*lift, oz=mdz/ml*lift;
+    const cx=ox*(1-flat)+(mdx/2)*flat, cy=oy*(1-flat)+(mdy/2)*flat, cz=oz*(1-flat)+(mdz/2)*flat;
+    if(usage>0.001) for(let i=0;i<=SEG;i++){ const t=i/SEG, it=1-t, w=it*it, w2=2*it*t, w3=t*t;
+      arr[i*3]=w*a.x+w2*cx+w3*b.x; arr[i*3+1]=w*a.y+w2*cy+w3*b.y; arr[i*3+2]=w*a.z+w2*cz+w3*b.z; }
+    C.attr.needsUpdate=true;
+    C.mat.opacity = usage*(0.12 + 0.55*C.w);            // les paires les plus co-activées brillent plus
+  }
+}
+
+// ---------- chargement ----------
+let lastStamp='';
+async function poll(){
+  try{
+    const r=await fetch('graph.json?_='+Date.now()); const data=await r.json();
+    if(data.generated_at!==lastStamp){
+      lastStamp=data.generated_at; const before=prevIds.size; build(data);
+      const added=data.counts.nodes-before;
+      if(before && added>0){ const g=document.getElementById('grow');
+        g.textContent=`✦ +${added} fiche${added>1?'s':''} — la planète grandit`;
+        g.style.opacity='1'; setTimeout(()=>g.style.opacity='0',4000); }
+    }
+  }catch(e){ document.getElementById('counts').textContent='graph.json introuvable — lance launch.sh'; }
+}
+poll(); setInterval(poll, 3000);
+
+// ---------- viewer 3D rejouable (Étage 4) : double-clic sur un nœud média → la capture apparaît, tournable ----------
+let vR=null, vS, vCam, vCtrl, vModel=null, vOpen=false;
+const vEl=document.getElementById('viewer'), vc=document.getElementById('vc');
+function vResize(){ const w=vc.clientWidth||720, h=vc.clientHeight||560; vR.setSize(w,h,false); vCam.aspect=w/h; vCam.updateProjectionMatrix(); }
+function openViewer(media){
+  vEl.classList.add('show'); vOpen=true;
+  if(!vR){                                            // init paresseuse d'un MINI renderer dédié
+    vR=new THREE.WebGLRenderer({ canvas:vc, antialias:true, alpha:true }); vR.setPixelRatio(Math.min(devicePixelRatio,1.5));
+    vR.toneMapping=THREE.ACESFilmicToneMapping; vR.toneMappingExposure=1.35;
+    vS=new THREE.Scene(); vCam=new THREE.PerspectiveCamera(45,1,0.01,100); vCam.position.set(0,0,3.2);
+    vCtrl=new OrbitControls(vCam,vc); vCtrl.enableDamping=true; vCtrl.dampingFactor=0.08;
+    vCtrl.autoRotate=true; vCtrl.autoRotateSpeed=1.1; vCtrl.enablePan=false;
+    // éclairage FORT (Bennu est très sombre, albédo ~4%) : ambiant + hémisphère + 3 lumières dont un rim
+    vS.add(new THREE.AmbientLight(0xffffff,1.1));
+    vS.add(new THREE.HemisphereLight(0xcfe0ff, 0x3a2a1e, 1.1));
+    const dl=new THREE.DirectionalLight(0xffffff,2.4); dl.position.set(3,4,5); vS.add(dl);
+    const dl2=new THREE.DirectionalLight(0x9fc0ff,1.2); dl2.position.set(-4,-1,-3); vS.add(dl2);
+    const rim=new THREE.DirectionalLight(0x6fe0ff,1.6); rim.position.set(-2,2,-5); vS.add(rim);
+  }
+  vResize();
+  vEl.querySelector('.vcap').textContent=media.caption||'';
+  if(vModel){ vS.remove(vModel); vModel=null; }
+  if(media.type==='glb'){
+    new GLTFLoader().load(media.src, g=>{
+      const model=g.scene;
+      // normalise le matériau : modèle scanné → souvent normales manquantes / winding inversé / base sombre.
+      // DoubleSide + normales recalculées + texture conservée, éclairé proprement → l'astéroïde devient visible.
+      model.traverse(o=>{ if(o.isMesh){
+        if(!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+        const map = (o.material && o.material.map) || null;
+        o.material = new THREE.MeshStandardMaterial({ color: map?0xffffff:0x9b9286, map, roughness:0.92, metalness:0.02, side:THREE.DoubleSide });
+        o.frustumCulled=false;
+      }});
+      // centre + cadre via un GROUPE (scaler le groupe, jamais setScalar sur la racine du glb → écraserait son échelle)
+      const wrap=new THREE.Group(); wrap.add(model);
+      const box=new THREE.Box3().setFromObject(model), c=box.getCenter(new THREE.Vector3()), s=box.getSize(new THREE.Vector3());
+      model.position.sub(c);
+      const md=Math.max(s.x,s.y,s.z)||1; wrap.scale.setScalar(1.8/md);
+      vS.add(wrap); vModel=wrap;
+    }, undefined, e=>{ vEl.querySelector('.vcap').textContent='⚠ échec de chargement de '+media.src; console.log('GLB ERREUR', e&&e.message); });
+  }
+  vLoop();
+}
+function closeViewer(){ vEl.classList.remove('show'); vOpen=false; }
+function vLoop(){ if(!vOpen) return; requestAnimationFrame(vLoop); vCtrl.update(); vR.render(vS,vCam); }
+vEl.querySelector('.vx').addEventListener('click', closeViewer);
+addEventListener('keydown', e=>{ if(e.key==='Escape'&&vOpen) closeViewer(); });
+addEventListener('resize', ()=>{ if(vOpen) vResize(); });
+
+// ---------- boucle ----------
+const vtag=document.getElementById('viewtag');
+let _last=0;
+function tick(now){
+  requestAnimationFrame(tick);
+  if(document.hidden) return;                 // PERF : 0 calcul quand l'onglet est caché
+  if(vOpen) return;                           // viewer 3D rejouable ouvert → planète en pause (un seul GPU à la fois)
+  if(now - _last < 16) return;                // cap ~60 fps (ProMotion 120 → on ne double pas la charge bloom)
+  _last = now;
+  const time=now/1000;
+  view += (viewTarget-view)*0.08; if(Math.abs(viewTarget-view)<0.001) view=viewTarget;
+  sem  += (semTarget-sem)*0.08;   if(Math.abs(semTarget-sem)<0.001)   sem=semTarget;
+  usage += (usageTarget-usage)*0.08; if(Math.abs(usageTarget-usage)<0.001) usage=usageTarget;
+  const morphing = Math.abs(viewTarget-view)>0.001;
+  controls.autoRotate  = view<0.5;
+  controls.enableRotate = view<0.5;                 // 2D = carte plate : zoom/pan oui, rotation non
+  controls.minDistance = view>0.5 ? 4 : 13;          // en 2D on peut zoomer plus près dans un cluster
+  // on ne recadre la caméra que PENDANT la bascule vers la 2D — ensuite le zoom molette est libre
+  if(viewTarget>0.5 && morphing){ camera.position.lerp(CAM2D, 0.06); controls.target.lerp(ORIGIN, 0.08); }
+  controls.update();
+  coreMat.opacity=0.55*(1-view); core.visible=view<0.98;
+  magnet();
+  for(const m of nodeObjs){
+    if(m.userData.hatching){ m.scale.multiplyScalar(1.08); if(m.scale.x>=1){ m.scale.setScalar(1); m.userData.hatching=false; } continue; }
+    easeMagnet(m);
+    const ts=(m===hovered)?MAGNET_SCALE:1;
+    m.scale.setScalar(THREE.MathUtils.lerp(m.scale.x, ts, 0.25));
+    // pulsation des fiches CHAUDES (Étage 2) : halo qui respire ∝ chaleur, dans la couleur de région.
+    // heartbeat organique = sinus élevé à une puissance → long repos calme + gonflement net (qui rayonne sous le bloom).
+    const ht=m.userData.heat||0;
+    if(ht>0.25){                                       // seules les fiches VRAIMENT chaudes pulsent (~10, pas 76)
+      const s=0.5+0.5*Math.sin(time*(1.1+1.2*ht)+m.userData.pulse);
+      const k=s*s*s;                                   // ease : creux étirés, pic franc
+      m.userData.halo.scale.setScalar(1 + (0.14+0.4*ht)*k);      // gonflement discret
+      m.userData.halo.material.opacity = m.userData.haloBaseOp + (0.06+0.12*ht)*k;
+    }
+    // anneau d'ACTIVITÉ EN DIRECT : pulse vif (vivant)
+    if(m.userData.activeRing) m.userData.activeRing.material.opacity = 0.35 + 0.4*(0.5+0.5*Math.sin(time*2.4));
+    // glyphe ▷ rejouable (Étage 4) : clignote doucement pour signaler « double-clic = rejouer »
+    if(m.userData.playMark) m.userData.playMark.material.opacity = 0.55 + 0.35*(0.5+0.5*Math.sin(time*2.2));
+  }
+  updateLinks(time);
+  vtag.textContent = view<0.5 ? '◉ 3D planète — V carte · S sens'
+    : (sem>0.5 ? '✦ 2D SÉMANTIQUE — proximité = sens · S structure · V planète'
+               : '▦ 2D structure — S sens · V planète');
+  syncModeButtons();
+  composer.render();                            // rendu via le post-process (bloom + output)
+}
+tick(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# brain — point d'entrée unique du Claude Brain.
+# Usage : brain <status|doctor|audit|push|metrics|selftest|backup>
+set -euo pipefail
+BRAIN="$HOME/claude-brain"
+cd "$BRAIN"
+
+cmd="${1:-status}"
+case "$cmd" in
+  status)
+    python3 hooks/brain_status.py show 2>/dev/null || cat state/status.json 2>/dev/null || echo "(pas de statut)"
+    ;;
+  doctor)
+    python3 hooks/brain_doctor.py "${@:2}"
+    ;;
+  audit)
+    # état OPÉRATIONNEL du pipeline : qu'est-ce qui est distillé / en file / non capté + santé
+    python3 hooks/brain_audit.py "${@:2}"
+    ;;
+  review)
+    # AUDIT GLOBAL du tronc (contenu/topologie) : agrège topology + utility +
+    # challenger + doctor + fiches périmées + chemins infra → state/review.{json,md}
+    python3 hooks/brain_review.py "${@:2}"
+    ;;
+  recall|search)
+    python3 hooks/brain_recall.py "${@:2}"
+    ;;
+  embed)
+    # (re)construire l'index embeddings sémantiques (backend optionnel)
+    if [ -x .venv/bin/python ]; then .venv/bin/python hooks/brain_embed.py build; else echo "venv embeddings absent (BM25 par défaut)"; fi
+    ;;
+  next|reprises)
+    python3 hooks/brain_anticipate.py
+    ;;
+  utility|usage)
+    python3 hooks/brain_utility.py "${@:2}"
+    ;;
+  coherence)
+    # paires de fiches à fort recouvrement en attente d'arbitrage par le jardinier
+    if [ -f state/coherence.json ]; then python3 -m json.tool state/coherence.json; else echo "✅ aucune paire en attente"; fi
+    ;;
+  metrics)
+    # dernières tendances (10 derniers relevés)
+    if [ -f state/metrics.jsonl ]; then tail -10 state/metrics.jsonl; else echo "(pas encore de métriques)"; fi
+    ;;
+  push|backup)
+    git add -A
+    git commit -q -m "backup manuel via brain $(date +%F\ %H:%M)" || echo "(rien à committer)"
+    git push --quiet origin main && echo "✅ poussé sur origin/main" || echo "⚠️ push échoué (remote ?)"
+    ;;
+  selftest)
+    bash hooks/selftest.sh
+    ;;
+  update)
+    # Mise à jour du MOTEUR uniquement. Le tronc — tes fiches — n'est jamais touché.
+    bash "$HOME/.c-brain/engine/cbrain/update.sh" "${@:2}"
+    ;;
+  version)
+    cat "$HOME/.c-brain/VERSION" 2>/dev/null || echo "(version inconnue)"
+    ;;
+  *)
+    echo "Usage : brain <status|doctor|audit|review|recall|next|coherence|utility|embed|push|metrics|selftest|backup|update|version>"
+    echo "        (recall accepte --semantic pour le backend embeddings)"
+    exit 1
+    ;;
+esac

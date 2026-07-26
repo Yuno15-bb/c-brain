@@ -1,0 +1,12 @@
+{
+  "name": "claude-brain-capsule",
+  "version": "1.0.0",
+  "description": "Petite capsule Tamagotchi qui anime le travail des agents du Claude Brain",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}
