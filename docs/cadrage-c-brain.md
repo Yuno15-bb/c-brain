@@ -246,7 +246,11 @@ c-brain/
 | **L4** ✅ | Planète + `.command` Bureau | `launch.sh` → `200` sur index/graph/glb ; capture headless du globe + légende |
 | **L5** ✅ | Companion | hooks pre/post rejoués : `+3 −1` agrégé, statusline à **2 lignes** |
 | **L6** ✅ | `brain update` + `check_update.py` + `migrations/` + `VERSION` | dépôt distant factice, 2 tags : mise à jour, migration jouée 1× seule, rollback, fiche intacte à chaque étape |
-| **L7** 🔸 | README + `docs/verification.md` + dépôt **local** initialisé | leakcheck `--history` vert · **reste en attente d'un feu vert** : `gh repo create --private` et suppression de `bbly-agents` |
+| **L7** ✅ | README + `docs/verification.md` + `publish.sh` + dépôt en ligne | `Yuno15-bb/c-brain` **privé**, `v1.0.2` publiée · clone depuis GitHub → `install.sh` → selftest + doctor **verts** |
+
+**Reste un seul geste, non scriptable** : la suppression de `bbly-agents` exige le droit
+`delete_repo`, accordé par une authentification interactive (`gh auth refresh -h github.com -s
+delete_repo`), puis `gh repo delete Yuno15-bb/bbly-agents --yes`.
 
 Chemin critique : **L0 → L1 → L2 → L6**. L3/L4/L5 se parallélisent après L2.
 `bbly-agents` n'est supprimé qu'**après** C Brain en ligne et vérifié — jamais avant.
