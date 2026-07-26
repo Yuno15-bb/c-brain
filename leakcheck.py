@@ -67,6 +67,12 @@ SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
 # normalement : seul le nom du propriétaire est exempté.
 EXEMPT = {"personne — propriétaire": ("docs/",)}
 
+# Adresses qui ressemblent à un mail sans en être un. Liste FERMÉE de littéraux
+# exacts — jamais un assouplissement du motif, qui rouvrirait la porte à tout.
+FAUX_POSITIFS = {
+    "adresse mail": ("git@github.com",),   # syntaxe SSH, pas une personne
+}
+
 
 def exempted(label: str, source: str) -> bool:
     # « historique:docs/… » doit être exempté comme « docs/… » : c'est le même
@@ -103,6 +109,8 @@ def scan(label_source, text, compiled, leaks):
         if exempted(label, label_source):
             continue
         for m in rx.finditer(text):
+            if m.group(0) in FAUX_POSITIFS.get(label, ()):
+                continue
             leaks.append((label_source, label, context(text, m.start(), m.end())))
 
 
