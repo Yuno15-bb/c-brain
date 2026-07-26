@@ -26,6 +26,47 @@ RSYNC_FLAGS=(-a --delete --itemize-changes)
 [ -d "$SRC" ] || { echo "❌ Source introuvable : $SRC"; exit 1; }
 [ "$SRC" = "$DEST" ] && { echo "❌ Source et destination identiques."; exit 1; }
 
+# --- EMPREINTE DE LA SOURCE ------------------------------------------------
+# `--check` ne peut PAS comparer le paquet à la source : generalize.py réécrit
+# les fichiers juste après la copie, donc ils diffèrent par construction et la
+# comparaison serait rouge à jamais.
+#
+# La bonne question est « la SOURCE a-t-elle bougé depuis la dernière copie ? ».
+# On y répond avec une empreinte des fichiers sources au moment du sync.
+MANIFEST="$DEST/.sync-manifest"
+
+empreinte_source() {
+  {
+    shasum -a 256 "$SRC/brain" "$CLAUDE_DIR/statusline.py" 2>/dev/null
+    find "$SRC/hooks" "$SRC/agents" "$SRC/capsule" "$SRC/planet" \
+         "$SRC/companion" "$SRC/tests" -type f \
+         ! -path "*/node_modules/*" ! -name "*.pyc" ! -name ".DS_Store" \
+         ! -name "graph.json" ! -name "desktop_sync.py" \
+         ! -name "com.dylan.desktop-sync.plist.template" \
+         ! -name "com.claudebrain.resume.plist" \
+         ! -path "*/capsule/assets/*" 2>/dev/null \
+      | sort | xargs shasum -a 256 2>/dev/null
+  } | sed "s|$SRC/||; s|$CLAUDE_DIR/||" | sort -k2
+}
+
+if [ "$MODE" = "check" ]; then
+  echo "🔄 C Brain — le Brain vivant a-t-il bougé depuis la dernière copie ?"
+  if [ ! -f "$MANIFEST" ]; then
+    echo "  ⚠️  aucune empreinte enregistrée — lance ./sync.sh une fois."
+    exit 1
+  fi
+  DIFF="$(diff <(cat "$MANIFEST") <(empreinte_source) || true)"
+  if [ -z "$DIFF" ]; then
+    echo "  ✅ inchangé — le paquet est à jour."
+    exit 0
+  fi
+  echo "  ⚠️  la source a changé :"
+  printf '%s\n' "$DIFF" | grep -E '^[<>]' | awk '{print "      " $1 " " $3}' | sort -u | head -20
+  echo
+  echo "  → ./sync.sh pour reporter les changements, puis relis le diff git."
+  exit 1
+fi
+
 DIVERGED=0
 report() {  # report <étiquette> <sortie rsync>
   if [ -n "$2" ]; then
@@ -115,15 +156,6 @@ sync_dir tests '__pycache__' '*.pyc'
 sync_file "$CLAUDE_DIR/statusline.py" "statusline.py"
 
 echo
-if [ "$MODE" = "check" ]; then
-  if [ "$DIVERGED" = "1" ]; then
-    echo "⚠️  DIVERGENCE — le paquet a pris du retard sur ~/claude-brain. Lance ./sync.sh"
-    exit 1
-  fi
-  echo "✅ À jour — le paquet correspond au Brain vivant."
-  exit 0
-fi
-
 # --- 9. Généralisation ----------------------------------------------------
 # ENCHAÎNÉE, jamais optionnelle : la copie qui vient d'avoir lieu a RÉINTRODUIT
 # les noms de l'auteur, de ses clients et de ses projets. Un sync sans
@@ -131,6 +163,11 @@ fi
 # avant le leakcheck.
 echo "───"
 python3 "$DEST/generalize.py"
+
+# Empreinte écrite APRÈS la généralisation : elle atteste « voici l'état de la
+# source que ce paquet reflète ». L'écrire avant laisserait croire le paquet à
+# jour si la généralisation venait d'échouer.
+empreinte_source > "$MANIFEST"
 
 echo
 echo "✅ Synchronisé et généralisé. Contrôle final : python3 leakcheck.py"
