@@ -29,7 +29,7 @@ conversation history, which only gets longer.
 Paste this into your CLI:
 
 ```
-Install C Brain: clone <REPO-URL> into ~/dev/c-brain, read its INSTALL.md,
+Install C Brain: clone https://github.com/Yuno15-bb/c-brain into ~/dev/c-brain, read its INSTALL.md,
 then run ./install.sh and show me the final verification output.
 ```
 
@@ -85,6 +85,10 @@ pretending otherwise.
 `main` is English. The French original lives on the **`fr` branch** — it is the
 source the engine is extracted from, and English is derived from it. See
 [`docs/translation.md`](docs/translation.md).
+
+> **In progress**: the docs, the installer, the CLI and the eight agents are
+> English. The hook comments and the capsule/planet interface strings are still
+> being translated.
 
 ## For the curious
 

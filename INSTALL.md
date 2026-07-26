@@ -5,7 +5,7 @@
 Paste this into your CLI (Claude Code or another command-line agent):
 
 ```
-Install C Brain: clone <REPO-URL> into ~/dev/c-brain, read its INSTALL.md,
+Install C Brain: clone https://github.com/Yuno15-bb/c-brain into ~/dev/c-brain, read its INSTALL.md,
 then run ./install.sh and show me the final verification output.
 ```
 
@@ -14,7 +14,7 @@ That's it. The agent clones, installs, and hands you back the selftest result.
 ## The manual way
 
 ```bash
-git clone <REPO-URL> ~/dev/c-brain
+git clone https://github.com/Yuno15-bb/c-brain ~/dev/c-brain
 cd ~/dev/c-brain
 ./install.sh
 ```
@@ -47,21 +47,6 @@ The installer:
 - **checks its own work** (`selftest` + `doctor`) and shows you the result.
 
 It deletes nothing, sends nothing over the network, and reads none of your data.
-
-## Private repo: authenticate once
-
-C Brain is distributed by invitation. Without git credentials, both the clone
-**and** updates fail — `brain update` will then tell you it "could not reach the
-remote versions", without ever blocking your session.
-
-Simplest, once:
-
-```bash
-gh auth login          # then: gh auth setup-git
-```
-
-Or over SSH: add your key to your GitHub account and clone via
-`git@github.com:…` rather than `https://…`.
 
 ## Prerequisites
 
