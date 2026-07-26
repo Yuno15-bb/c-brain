@@ -48,6 +48,21 @@ L'installeur :
 
 Il ne supprime rien, n'envoie rien sur le réseau, et ne lit aucune de tes données.
 
+## Dépôt privé : s'authentifier une fois
+
+C Brain est distribué sur invitation. Sans identifiants git, le clone **et** les
+mises à jour échouent — `brain update` te dira alors « impossible de récupérer
+les versions distantes », sans jamais bloquer ta session.
+
+Le plus simple, une seule fois :
+
+```bash
+gh auth login          # puis : gh auth setup-git
+```
+
+Ou en SSH : ajoute ta clé à ton compte GitHub et clone via
+`git@github.com:…` plutôt que `https://…`.
+
 ## Prérequis
 
 | Requis | Pour quoi |
