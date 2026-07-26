@@ -1,108 +1,107 @@
-# Installer C Brain
+# Installing C Brain
 
-## La façon courte : demande-le à ton agent
+## The short way: ask your agent
 
-Colle ceci dans ton CLI (Claude Code ou un autre agent en ligne de commande) :
+Paste this into your CLI (Claude Code or another command-line agent):
 
 ```
-Installe C Brain : clone <URL-DU-DÉPÔT> dans ~/dev/c-brain, lis son INSTALL.md,
-puis exécute ./install.sh et montre-moi le résultat de la vérification finale.
+Install C Brain: clone <REPO-URL> into ~/dev/c-brain, read its INSTALL.md,
+then run ./install.sh and show me the final verification output.
 ```
 
-C'est tout. L'agent clone, installe, et te rend le compte-rendu du selftest.
+That's it. The agent clones, installs, and hands you back the selftest result.
 
-## La façon manuelle
+## The manual way
 
 ```bash
-git clone <URL-DU-DÉPÔT> ~/dev/c-brain
+git clone <REPO-URL> ~/dev/c-brain
 cd ~/dev/c-brain
 ./install.sh
 ```
 
-Options : `--dry-run` (n'écrit rien, montre ce qui serait fait) ·
-`--no-launchd` (pas de tâches planifiées) · `--no-capsule` (pas d'Electron).
+Options: `--dry-run` (writes nothing, shows what would happen) ·
+`--no-launchd` (no scheduled jobs) · `--no-capsule` (no Electron).
 
 ---
 
-## Ce que l'installation fait — et ne fait pas
+## What the install does — and does not do
 
-Deux emplacements, et la séparation est le cœur du système :
+Two locations, and keeping them apart is the heart of the system:
 
 ```
-~/.c-brain/engine  → lien vers ce dépôt. Du CODE, rien d'autre. Se met à jour.
-~/claude-brain     → TON tronc. Tes fiches. Jamais écrasé, jamais mis à jour.
+~/.c-brain/engine  → link to this repo. CODE only. Updates.
+~/claude-brain     → YOUR trunk. Your notes. Never overwritten, never updated.
 ```
 
-L'installeur :
+The installer:
 
-- crée ton tronc **vide** s'il n'existe pas (il ne touche à rien s'il existe) ;
-- relie le moteur dans le tronc par liens symboliques ;
-- pose la commande `brain` dans `~/.local/bin` ;
-- rend les agents visibles par ton CLI ;
-- **ajoute** ses hooks à `~/.claude/settings.json` sans toucher au reste — ton
-  modèle, ton thème, tes propres hooks sont conservés, et une sauvegarde est
-  écrite avant toute modification ;
-- installe la capsule et les tâches planifiées, sauf si tu les refuses ;
-- pose un lanceur de la planète sur le Bureau ;
-- **vérifie son propre travail** (`selftest` + `doctor`) et te montre le résultat.
+- creates your **empty** trunk if none exists (and touches nothing if one does);
+- links the engine into the trunk with symlinks;
+- puts the `brain` command in `~/.local/bin`;
+- makes the agents visible to your CLI;
+- **adds** its hooks to `~/.claude/settings.json` without touching the rest —
+  your model, your theme, your own hooks are preserved, and a backup is written
+  before any modification;
+- installs the capsule and the scheduled jobs, unless you decline them;
+- drops a planet launcher on your Desktop;
+- **checks its own work** (`selftest` + `doctor`) and shows you the result.
 
-Il ne supprime rien, n'envoie rien sur le réseau, et ne lit aucune de tes données.
+It deletes nothing, sends nothing over the network, and reads none of your data.
 
-## Dépôt privé : s'authentifier une fois
+## Private repo: authenticate once
 
-C Brain est distribué sur invitation. Sans identifiants git, le clone **et** les
-mises à jour échouent — `brain update` te dira alors « impossible de récupérer
-les versions distantes », sans jamais bloquer ta session.
+C Brain is distributed by invitation. Without git credentials, both the clone
+**and** updates fail — `brain update` will then tell you it "could not reach the
+remote versions", without ever blocking your session.
 
-Le plus simple, une seule fois :
+Simplest, once:
 
 ```bash
-gh auth login          # puis : gh auth setup-git
+gh auth login          # then: gh auth setup-git
 ```
 
-Ou en SSH : ajoute ta clé à ton compte GitHub et clone via
-`git@github.com:…` plutôt que `https://…`.
+Or over SSH: add your key to your GitHub account and clone via
+`git@github.com:…` rather than `https://…`.
 
-## Prérequis
+## Prerequisites
 
-| Requis | Pour quoi |
+| Required | For |
 |---|---|
 | macOS | launchd, Electron, `open` |
-| `python3` | tous les hooks et la CLI |
-| `git` | les mises à jour |
-| `npm` *(optionnel)* | la capsule Electron — le reste marche sans |
+| `python3` | every hook and the CLI |
+| `git` | updates |
+| `npm` *(optional)* | the Electron capsule — everything else works without it |
 
-## Si tu n'utilises pas Claude Code
+## If you don't use Claude Code
 
-C Brain s'installe quand même, et te donne le tronc, les agents, la CLI `brain`,
-la planète et la capsule.
+C Brain still installs, and gives you the trunk, the agents, the `brain` CLI, the
+planet and the capsule.
 
-**Ce que tu n'auras pas** : la boucle automatique. Le rappel au début d'une
-session, l'archivage à la fin, la maintenance autonome passent par les hooks de
-`~/.claude/settings.json`, qui sont propres à Claude Code. Ailleurs, C Brain
-fonctionne **à la demande** : `brain recall`, `brain status`, agents invoqués
-explicitement. L'installeur le détecte et te le dit — il ne fait pas semblant.
+**What you won't get**: the closed loop. Recall at the start of a session,
+archiving at the end, autonomous maintenance — all go through the hooks in
+`~/.claude/settings.json`, which are specific to Claude Code. Elsewhere, C Brain
+works **on demand**: `brain recall`, `brain status`, agents invoked explicitly.
+The installer detects this and tells you — it does not pretend.
 
-## Premiers gestes
+## First steps
 
 ```bash
-brain status          # où en est le tronc
-brain recall <mot>    # chercher dans ta mémoire
-brain doctor          # santé de l'arbre
-brain selftest        # revérifier l'installation
+brain status          where the trunk stands
+brain recall <word>   search your memory
+brain doctor          tree health
+brain selftest        verify the installation
 ```
 
-Puis ouvre `~/claude-brain/MEMORY.md` : c'est l'index chargé au début de chaque
-session, et le format des fiches y est expliqué. Ton arbre part vide — il grandit
-avec le travail, pas avant.
+Then open `~/claude-brain/MEMORY.md`: it is the index loaded at the start of every
+session, and it explains the note format. Your tree starts empty — it grows with
+the work, not before.
 
-## Désinstaller
+## Uninstalling
 
 ```bash
 ~/dev/c-brain/uninstall.sh
 ```
 
-**Ton tronc et tes fiches ne sont jamais supprimés.** Sont retirés : les hooks
-C Brain (le reste de `settings.json` intact), les liens du moteur, la commande
-`brain`, le lanceur du Bureau, les tâches planifiées. Les sauvegardes restent
-dans `~/.c-brain/backups/`.
+**Your trunk and your notes are never deleted.** Removed: the C Brain hooks (the
+rest of `settings.json` untouched), the engine symlinks, the `brain` command, the
+Desktop launcher, the scheduled jobs. Backups stay in `~/.c-brain/backups/`.

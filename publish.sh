@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
-# publish.sh — publier une version. Le SEUL chemin autorisé vers un `git push`.
+# publish.sh — publish a version. The ONLY sanctioned path to a `git push`.
 #
-# Pourquoi ce script existe : le contrôle de fuite a été lancé une fois en fin
-# de pipe (`leakcheck.py | tail -1 && git push`). `tail` réussit toujours — le
-# `&&` testait donc le mauvais code de retour, et la publication est partie
-# alors que le contrôle était ROUGE. Le garde-fou existait, il était juste
-# court-circuité par la façon de l'appeler.
+# Why this script exists: the leak check was once run at the end of a pipe
+# (`leakcheck.py | tail -1 && git push`). `tail` always succeeds — so the `&&`
+# tested the wrong exit code, and a push went out while the check was RED. The
+# guard existed; it was simply short-circuited by how it was called.
 #
-# Ici, aucun pipe, aucun `&&` : le contrôle est un `if` explicite, et son échec
-# arrête tout.
+# Here there is no pipe and no `&&`: the check is an explicit `if`, and its
+# failure stops everything.
 #
-# Usage : ./publish.sh v1.2.3 "message du tag"
+# Usage: ./publish.sh v1.2.3 "tag message"
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd -P)"
@@ -18,40 +17,50 @@ cd "$ROOT"
 
 TAG="${1:-}"
 MSG="${2:-}"
-[ -n "$TAG" ] || { echo "Usage : ./publish.sh v1.2.3 \"message du tag\""; exit 1; }
-[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "❌ Tag attendu au format vX.Y.Z"; exit 1; }
-[ -n "$MSG" ] || { echo "❌ Un message de tag est requis."; exit 1; }
+[ -n "$TAG" ] || { echo "Usage: ./publish.sh v1.2.3 \"tag message\""; exit 1; }
+[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+)?$ ]] || { echo "❌ Expected a vX.Y.Z tag"; exit 1; }
+[ -n "$MSG" ] || { echo "❌ A tag message is required."; exit 1; }
 
-echo "▸ Le paquet colle-t-il au Brain vivant ?"
-if ! ./sync.sh --check >/dev/null 2>&1; then
-  echo "❌ Le paquet a divergé. Lance ./sync.sh, relis le diff, puis recommence."
-  exit 1
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+
+echo "▸ Does the package still match the living Brain?"
+if [ "$BRANCH" = "fr" ]; then
+  if ! ./sync.sh --check >/dev/null 2>&1; then
+    echo "❌ The package has drifted. Run ./sync.sh, read the diff, then retry."
+    exit 1
+  fi
+  echo "  ✅ up to date"
+else
+  # Only `fr` is synced from the living Brain; `main` is translated from `fr`.
+  # Running the drift check here would compare English files against a French
+  # source and always fail.
+  echo "  ⤳ skipped on \`$BRANCH\` (only \`fr\` syncs from the Brain)"
 fi
-echo "  ✅ à jour"
 
-echo "▸ Arbre de travail propre ?"
+echo "▸ Is the working tree clean?"
 if ! git diff --quiet || ! git diff --cached --quiet; then
-  echo "❌ Modifications non commitées. Commite d'abord."
+  echo "❌ Uncommitted changes. Commit first."
   exit 1
 fi
-echo "  ✅ propre"
+echo "  ✅ clean"
 
-echo "▸ Contrôle de fuite (historique compris)"
+echo "▸ Leak check (history included)"
 if ! python3 leakcheck.py --history; then
   echo
-  echo "⛔ FUITE — rien n'est publié."
+  echo "⛔ LEAK — nothing is published."
   exit 1
 fi
 
-echo "▸ Tag déjà utilisé ?"
+echo "▸ Is the tag already taken?"
 if git rev-parse "$TAG" >/dev/null 2>&1; then
-  echo "❌ $TAG existe déjà. Prends le numéro suivant."
-  echo "   Ne déplace JAMAIS un tag publié : chez les utilisateurs encore sur"
-  echo "   une ancienne version, le fetch échoue et les mises à jour se bloquent."
+  echo "❌ $TAG already exists. Take the next number."
+  echo "   NEVER move a published tag: for users still on an older version the"
+  echo "   fetch fails and updates lock up for good."
   exit 1
 fi
 
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 git tag -a "$TAG" -m "$MSG"
-git push origin main "$TAG"
+git push origin "$BRANCH" "$TAG"
 echo
-echo "✅ $TAG publiée."
+echo "✅ $TAG published on $BRANCH."

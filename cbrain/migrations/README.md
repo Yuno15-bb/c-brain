@@ -1,36 +1,36 @@
 # Migrations
 
-Un script par changement qui demande une adaptation chez l'utilisateur déjà
-installé. Nommés `001-quelque-chose.sh`, joués **dans l'ordre**, **une seule
-fois** (le journal est `~/.c-brain/state/migrations-appliquees.txt`).
+One script per change that requires an adaptation on an already-installed
+machine. Named `001-something.sh`, run **in order**, **exactly once** (the log
+lives at `~/.c-brain/state/applied-migrations.txt`).
 
-## Les trois règles
+## The three rules
 
-1. **Jamais destructif sur le contenu.** `lessons/`, `projects/`, `meta/`,
-   `life/`, `sessions/` ne se modifient pas ici. Une migration touche à
-   l'installation, pas à la connaissance de quelqu'un.
-2. **Idempotent quand même.** Le journal peut être perdu (restauration,
-   nouvelle machine). Rejouer une migration ne doit rien casser.
-3. **Échec = arrêt.** Un `exit != 0` interrompt la mise à jour et laisse
-   `brain update --rollback` faire son travail. Mieux vaut s'arrêter net
-   qu'avancer à moitié.
+1. **Never destructive to content.** `lessons/`, `projects/`, `meta/`, `life/`,
+   `sessions/` are not modified here. A migration touches the installation, not
+   somebody's knowledge.
+2. **Idempotent anyway.** The log can be lost (restore, new machine). Replaying a
+   migration must break nothing.
+3. **Failure means stop.** A non-zero exit halts the update and lets
+   `brain update --rollback` do its job. Better to stop dead than proceed
+   halfway.
 
-## Gabarit
+## Template
 
 ```bash
 #!/usr/bin/env bash
-# 001-exemple.sh — <ce que ça adapte, et pourquoi c'était nécessaire>
+# 001-example.sh — <what it adapts, and why it was needed>
 set -euo pipefail
 
 TRUNK="$HOME/claude-brain"
 
-# Vérifier AVANT d'agir : c'est ce qui rend le rejeu inoffensif.
-if [ -f "$TRUNK/state/vieux-fichier.json" ]; then
-  mv "$TRUNK/state/vieux-fichier.json" "$TRUNK/state/nouveau-fichier.json"
-  echo "  état renommé"
+# Check BEFORE acting: that is what makes a replay harmless.
+if [ -f "$TRUNK/state/old-file.json" ]; then
+  mv "$TRUNK/state/old-file.json" "$TRUNK/state/new-file.json"
+  echo "  state renamed"
 else
-  echo "  rien à faire"
+  echo "  nothing to do"
 fi
 ```
 
-Aucune migration à ce jour — le dossier attend la première vraie rupture.
+No migration to date — this folder is waiting for the first real break.

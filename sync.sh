@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# sync.sh — ~/claude-brain (Brain vivant de l'auteur, source de vérité) → dépôt C Brain.
+# sync.sh — ~/claude-brain (the author's living Brain, source of truth) → C Brain repo.
 #
-# PRINCIPE : liste blanche. Ce qui n'est pas listé ici ne sort pas, point.
-# Une liste noire laisserait passer par défaut ; un seul oubli = fuite de PII.
+# PRINCIPLE: allowlist. What is not listed here does not ship, full stop.
+# A denylist would let things through by default; one omission = a PII leak.
 #
-# Sens UNIQUE : ce script LIT ~/claude-brain et n'y écrit jamais rien.
+# ONE WAY: this script READS ~/claude-brain and never writes to it.
 #
-# Usage :
-#   ./sync.sh            copie effective
-#   ./sync.sh --check    n'écrit rien, signale la divergence (sortie 1 si divergé)
+# Usage:
+#   ./sync.sh            actual copy
+#   ./sync.sh --check    writes nothing, reports drift (exit 1 if drifted)
 set -euo pipefail
 
 SRC="${CBRAIN_SRC:-$HOME/claude-brain}"
@@ -18,24 +18,37 @@ CLAUDE_DIR="${CBRAIN_CLAUDE_DIR:-$HOME/.claude}"
 MODE="copy"
 [ "${1:-}" = "--check" ] && MODE="check"
 
-# --itemize-changes dans les DEUX modes : le rapport doit dire ce qui a bougé,
-# pas seulement ce qui aurait bougé.
+# --itemize-changes in BOTH modes: the report must say what moved,
+# not only what would have moved.
 RSYNC_FLAGS=(-a --delete --itemize-changes)
 [ "$MODE" = "check" ] && RSYNC_FLAGS+=(--dry-run)
 
-[ -d "$SRC" ] || { echo "❌ Source introuvable : $SRC"; exit 1; }
-[ "$SRC" = "$DEST" ] && { echo "❌ Source et destination identiques."; exit 1; }
+[ -d "$SRC" ] || { echo "❌ Source not found: $SRC"; exit 1; }
+[ "$SRC" = "$DEST" ] && { echo "❌ Source and destination are the same."; exit 1; }
 
-# --- EMPREINTE DE LA SOURCE ------------------------------------------------
-# `--check` ne peut PAS comparer le paquet à la source : generalize.py réécrit
-# les fichiers juste après la copie, donc ils diffèrent par construction et la
-# comparaison serait rouge à jamais.
+# The source Brain is in French. Syncing straight onto the English branch would
+# silently overwrite every translated file with its French original — and the
+# damage would only surface for readers, never for any test.
+# `fr` is the sync branch; `main` is derived from it. See docs/translation.md.
+BRANCH="$(git -C "$DEST" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')"
+if [ "$BRANCH" = "main" ] && [ "${CBRAIN_ALLOW_SYNC_ON_MAIN:-0}" != "1" ]; then
+  echo "❌ ./sync.sh runs on the \`fr\` branch, not on \`main\`."
+  echo "   main holds the English translation; a sync would overwrite it with French."
+  echo "   Workflow:  git checkout fr && ./sync.sh   then port the diff onto main."
+  echo "   (CBRAIN_ALLOW_SYNC_ON_MAIN=1 forces it, if you know why.)"
+  exit 1
+fi
+
+# --- SOURCE FINGERPRINT ------------------------------------------------
+# `--check` CANNOT compare the package to the source: generalize.py rewrites
+# the files right after the copy, so they differ by construction and the
+# comparison would be red forever.
 #
-# La bonne question est « la SOURCE a-t-elle bougé depuis la dernière copie ? ».
-# On y répond avec une empreinte des fichiers sources au moment du sync.
+# The right question is "has the SOURCE moved since the last copy?".
+# We answer it with a fingerprint of the source files taken at sync time.
 MANIFEST="$DEST/.sync-manifest"
 
-empreinte_source() {
+source_fingerprint() {
   {
     shasum -a 256 "$SRC/brain" "$CLAUDE_DIR/statusline.py" 2>/dev/null
     find "$SRC/hooks" "$SRC/agents" "$SRC/capsule" "$SRC/planet" \
@@ -50,25 +63,25 @@ empreinte_source() {
 }
 
 if [ "$MODE" = "check" ]; then
-  echo "🔄 C Brain — le Brain vivant a-t-il bougé depuis la dernière copie ?"
+  echo "🔄 C Brain — has the living Brain moved since the last copy?"
   if [ ! -f "$MANIFEST" ]; then
-    echo "  ⚠️  aucune empreinte enregistrée — lance ./sync.sh une fois."
+    echo "  ⚠️  no fingerprint on record — run ./sync.sh once."
     exit 1
   fi
-  DIFF="$(diff <(cat "$MANIFEST") <(empreinte_source) || true)"
+  DIFF="$(diff <(cat "$MANIFEST") <(source_fingerprint) || true)"
   if [ -z "$DIFF" ]; then
-    echo "  ✅ inchangé — le paquet est à jour."
+    echo "  ✅ unchanged — the package is up to date."
     exit 0
   fi
-  echo "  ⚠️  la source a changé :"
+  echo "  ⚠️  the source has changed:"
   printf '%s\n' "$DIFF" | grep -E '^[<>]' | awk '{print "      " $1 " " $3}' | sort -u | head -20
   echo
-  echo "  → ./sync.sh pour reporter les changements, puis relis le diff git."
+  echo "  → ./sync.sh to carry the changes over, then read the git diff."
   exit 1
 fi
 
 DIVERGED=0
-report() {  # report <étiquette> <sortie rsync>
+report() {  # report <label> <rsync output>
   if [ -n "$2" ]; then
     DIVERGED=1
     echo "  ~ $1"
@@ -78,35 +91,35 @@ report() {  # report <étiquette> <sortie rsync>
   fi
 }
 
-sync_dir() {  # sync_dir <sous-chemin> <exclusions...>
+sync_dir() {  # sync_dir <subpath> <exclusions...>
   local rel="$1"; shift
   local excludes=()
   for e in "$@"; do excludes+=(--exclude "$e"); done
   mkdir -p "$DEST/$rel"
   local out
-  # ${a[@]+"${a[@]}"} : bash 3.2 (celui de macOS) traite un tableau vide comme
-  # une variable non définie sous `set -u`. Cette forme le protège.
+  # ${a[@]+"${a[@]}"}: bash 3.2 (the macOS one) treats an empty array as an
+  # unset variable under `set -u`. This form guards against that.
   out="$(rsync "${RSYNC_FLAGS[@]}" ${excludes[@]+"${excludes[@]}"} \
         "$SRC/$rel/" "$DEST/$rel/" 2>/dev/null || true)"
   report "$rel/" "$out"
 }
 
-sync_file() {  # sync_file <source absolue> <destination relative>
-  # PAS de rsync ici. macOS 27 fournit openrsync, qui sur un fichier SEUL en
-  # --dry-run signale toujours un transfert, même à contenu identique → fausse
-  # divergence permanente en mode --check. `cmp` est déterministe.
+sync_file() {  # sync_file <absolute source> <relative destination>
+  # NO rsync here. macOS 27 ships openrsync, which on a SINGLE file under
+  # --dry-run always reports a transfer, even on identical content → a
+  # permanent false drift in --check mode. `cmp` is deterministic.
   local src="$1" dst="$DEST/$2"
   if [ ! -f "$src" ]; then
-    DIVERGED=1; echo "  ! $2 — source absente ($src)"; return
+    DIVERGED=1; echo "  ! $2 — source missing ($src)"; return
   fi
   if cmp -s "$src" "$dst" 2>/dev/null; then
     report "$2" ""
   else
-    report "$2" ">f  contenu différent"
-    # `[ … ] && { … }` en DERNIÈRE instruction renvoie 1 quand le test est faux :
-    # sous `set -e`, ça tuait le script au 1ᵉʳ fichier divergent en mode --check,
-    # SANS message — on croyait le reste à jour alors que rien n'avait été scanné.
-    # Le `if/fi` + `return 0` explicite ferme le trou.
+    report "$2" ">f  content differs"
+    # `[ … ] && { … }` as the LAST statement returns 1 when the test is false:
+    # under `set -e` that killed the script on the 1st drifting file in --check
+    # mode, with NO message — the rest looked up to date while nothing was scanned.
+    # The explicit `if/fi` + `return 0` closes the hole.
     if [ "$MODE" = "copy" ]; then
       mkdir -p "$(dirname "$dst")"
       cp -p "$src" "$dst"
@@ -115,17 +128,17 @@ sync_file() {  # sync_file <source absolue> <destination relative>
   return 0
 }
 
-echo "🔄 C Brain — synchronisation depuis $SRC"
-[ "$MODE" = "check" ] && echo "   (mode --check : rien n'est écrit)"
+echo "🔄 C Brain — syncing from $SRC"
+[ "$MODE" = "check" ] && echo "   (--check mode: nothing is written)"
 echo
 
 # --- 1. CLI ---------------------------------------------------------------
 sync_file "$SRC/brain" "brain"
 
 # --- 2. Hooks -------------------------------------------------------------
-# EXCLUS : desktop_sync.py + son plist (sauvegarde du Bureau de l'auteur vers SON
-# GitHub — perso, et destructeur chez un tiers), et le .plist non-template qui
-# porte /Users/mac en dur (seul le .template part).
+# EXCLUDED: desktop_sync.py + its plist (backs up the author's Desktop to THEIR
+# own GitHub — personal, and destructive on someone else's machine), and the
+# non-template .plist carrying a hardcoded home (only the .template ships).
 sync_dir hooks \
   'desktop_sync.py' \
   'com.dylan.desktop-sync.plist.template' \
@@ -136,14 +149,14 @@ sync_dir hooks \
 sync_dir agents
 
 # --- 4. Capsule -----------------------------------------------------------
-# EXCLUS : node_modules (282 Mo, réinstallé par install.sh) et assets/ (7,4 Mo
-# de poids MORT — vérifié le 2026-07-26 : le sprite est inline dans index.html,
-# aucun fichier de assets/ n'est référencé par le code).
+# EXCLUDED: node_modules (282 MB, reinstalled by install.sh) and assets/ (7.4 MB
+# of DEAD weight — verified 2026-07-26: the sprite is inline in index.html,
+# no file under assets/ is referenced by the code).
 sync_dir capsule 'node_modules' 'assets'
 
-# --- 5. Planète -----------------------------------------------------------
-# EXCLU : graph.json — 1,4 Mo contenant le TEXTE INTÉGRAL des fiches, noms de
-# clients compris. Régénéré à chaque lancement par graph_export.py.
+# --- 5. Planet -----------------------------------------------------------
+# EXCLUDED: graph.json — 1.4 MB holding the FULL TEXT of the notes, client
+# names included. Regenerated on every launch by graph_export.py.
 sync_dir planet 'graph.json'
 
 # --- 6. Companion ---------------------------------------------------------
@@ -152,22 +165,22 @@ sync_dir companion '__pycache__' '*.pyc'
 # --- 7. Tests --------------------------------------------------------------
 sync_dir tests '__pycache__' '*.pyc'
 
-# --- 8. Statusline (vit dans ~/.claude, pas dans le tronc) ----------------
+# --- 8. Status line (lives in ~/.claude, not in the trunk) ----------------
 sync_file "$CLAUDE_DIR/statusline.py" "statusline.py"
 
 echo
-# --- 9. Généralisation ----------------------------------------------------
-# ENCHAÎNÉE, jamais optionnelle : la copie qui vient d'avoir lieu a RÉINTRODUIT
-# les noms de l'auteur, de ses clients et de ses projets. Un sync sans
-# généralisation laisse le paquet en état de fuite, et rien ne le signalerait
-# avant le leakcheck.
+# --- 9. Generalization ----------------------------------------------------
+# CHAINED, never optional: the copy that just happened REINTRODUCED the
+# author's name, their clients and their projects. A sync without
+# generalization leaves the package leaking, and nothing would flag it
+# before the leak check.
 echo "───"
 python3 "$DEST/generalize.py"
 
-# Empreinte écrite APRÈS la généralisation : elle atteste « voici l'état de la
-# source que ce paquet reflète ». L'écrire avant laisserait croire le paquet à
-# jour si la généralisation venait d'échouer.
-empreinte_source > "$MANIFEST"
+# Fingerprint written AFTER generalization: it attests "this is the state of the
+# source this package reflects". Writing it earlier would make the package look
+# up to date when generalization had just failed.
+source_fingerprint > "$MANIFEST"
 
 echo
-echo "✅ Synchronisé et généralisé. Contrôle final : python3 leakcheck.py"
+echo "✅ Synced and generalized. Final check: python3 leakcheck.py"

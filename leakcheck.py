@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""C Brain — contrôle de fuite. Le garde-fou qui a le droit de bloquer le commit.
+"""C Brain — leak check. The guard entitled to block a commit.
 
-Adapté de claude-brain-v2/build/leakcheck.py (2026-07-25), qui tourne déjà vert
-sur le pipeline d'anonymisation du portfolio.
+Adapted from an anonymization pipeline that already runs green on a public
+portfolio build.
 
-Il ne relit PAS la source : il scanne ce qui va réellement sortir — le dépôt
-lui-même, et son historique git avec --history. Un marqueur qui survit = rouge.
+It does NOT re-read the source: it scans what will actually ship — the repo
+itself, and its git history with --history. One surviving marker = red.
 
-Usage :
-  python3 leakcheck.py              scanne l'arbre de travail
-  python3 leakcheck.py --history    scanne EN PLUS tout l'historique git
+Usage:
+  python3 leakcheck.py              scans the working tree
+  python3 leakcheck.py --history    ALSO scans the whole git history
 
-Sortie 0 = propre · Sortie 1 = fuite détectée.
+Exit 0 = clean · Exit 1 = leak detected.
 """
 
 import os
@@ -22,62 +22,62 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 
-# Ce qui ne doit JAMAIS sortir. Deux familles : identités réelles de tiers,
-# et secrets. Les deux bloquent de la même façon.
+# What must NEVER ship. Two families: real identities of third parties,
+# and secrets. Both block the same way.
 MARKERS = [
-    ("nom du client",           r"DG\s*CHARPENTE|DG\s*Charpente"),
-    ("sigle client",            r"\bDGC\b|\bdgc-"),
-    ("produit client",          r"BIG\s*GABY|\bGaby\b|\bgaby\b"),
-    ("personne — propriétaire", r"\bDylan\b|\bDylanp\b"),
-    ("personne — gestionnaire", r"\bClarisse\b"),
-    ("personne — technicien",   r"\bLaurent\b"),
-    ("personne — dirigeant",    r"\bGabriel\b"),
-    ("nom de famille client",   r"\bRoume\b"),
-    ("ville du client",         r"\bToulouse\b|\btoulousain"),
-    ("commune du client",       r"\bCastanet-Tolosan\b|\bColomiers\b|\bBlagnac\b"
+    ("client name",           r"DG\s*CHARPENTE|DG\s*Charpente"),
+    ("client acronym",            r"\bDGC\b|\bdgc-"),
+    ("client product",          r"BIG\s*GABY|\bGaby\b|\bgaby\b"),
+    ("person — owner", r"\bDylan\b|\bDylanp\b"),
+    ("person — manager", r"\bClarisse\b"),
+    ("person — field tech",   r"\bLaurent\b"),
+    ("person — director",    r"\bGabriel\b"),
+    ("client surname",   r"\bRoume\b"),
+    ("client city",         r"\bToulouse\b|\btoulousain"),
+    ("client town",       r"\bCastanet-Tolosan\b|\bColomiers\b|\bBlagnac\b"
                                 r"|\bTournefeuille\b|\bMURET\b"),
-    ("code postal local",       r"\b31\d{3}\b"),
-    ("cadre personnel",         r"Mission Locale|\bCEJ\b"),
-    ("tiers identifié",         r"\b(GAILLOUSTE|TREMBLET|GAUBE|DELEST|MARRE|CHOUIALI"
+    ("local postcode",       r"\b31\d{3}\b"),
+    ("personal programme",         r"Mission Locale|\bCEJ\b"),
+    ("identified third party",         r"\b(GAILLOUSTE|TREMBLET|GAUBE|DELEST|MARRE|CHOUIALI"
                                 r"|NAJMEDDINE|WILLHEM|AGESTIS|ALTRAD|FONCIA|SERCOB"
                                 r"|PERSONAZ|RENOVAZ|CHAMAYOU|Barhoumi|Faouz|Merwan"
                                 r"|Alexis|Joris)\b"),
-    ("adresse mail",            r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
-    ("téléphone",               r"(?<![\d.])0[1-9](?:[ .-]?\d{2}){4}(?![\d.])"),
-    ("adresse postale",         r"\b\d{1,3}\s+(?:rue|avenue|impasse|chemin|boulevard|route)\s+\w+"),
-    ("chemin personnel",        r"/Users/[A-Za-z0-9_.-]+/"),
-    ("clé Anthropic",           r"sk-ant-[A-Za-z0-9_\-]{8,}"),
-    ("jeton GitHub",            r"gh[pousr]_[A-Za-z0-9]{16,}"),
-    ("jeton JWT",               r"eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}"),
-    ("secret assigné en clair", r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{12,}"),
+    ("email address",            r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
+    ("phone number",               r"(?<![\d.])0[1-9](?:[ .-]?\d{2}){4}(?![\d.])"),
+    ("street address",         r"\b\d{1,3}\s+(?:rue|avenue|impasse|chemin|boulevard|route)\s+\w+"),
+    ("personal path",        r"/Users/[A-Za-z0-9_.-]+/"),
+    ("Anthropic key",           r"sk-ant-[A-Za-z0-9_\-]{8,}"),
+    ("GitHub token",            r"gh[pousr]_[A-Za-z0-9]{16,}"),
+    ("JWT token",               r"eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}"),
+    ("secret assigned in clear", r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{12,}"),
 ]
 
-# Deux fichiers CONTIENNENT forcément les marqueurs, c'est leur métier :
-# le contrôleur (la liste) et les règles de généralisation (les motifs à traiter).
-# Les scanner reviendrait à se mordre la queue.
+# Two files necessarily CONTAIN the markers — that is their job:
+# the checker (the list) and the generalization rules (the patterns to handle).
+# Scanning them would be chasing our own tail.
 SKIP_NAMES = {"leakcheck.py", "rules.json"}
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
 
-# Exemptions NOMMÉES, marqueur par marqueur. Jamais un dossier entier :
-# une exemption large finirait par couvrir une vraie fuite.
+# NAMED exemptions, marker by marker. Never a whole folder:
+# a broad exemption eventually covers a real leak.
 #
-# `docs/` = prose rédigée et relue à la main. Le propriétaire y garde son nom,
-# c'est SON design-doc (même décision que pour le portfolio Claude Brain V2).
-# Tous les autres marqueurs — clients, tiers, secrets, chemins — s'y appliquent
-# normalement : seul le nom du propriétaire est exempté.
-EXEMPT = {"personne — propriétaire": ("docs/",)}
+# `docs/` = prose written and reviewed by hand. The owner keeps their name there,
+# it is THEIR design doc.
+# Every other marker — clients, third parties, secrets, paths — still applies
+# there: only the owner's name is exempt.
+EXEMPT = {"person — owner": ("docs/",)}
 
-# Adresses qui ressemblent à un mail sans en être un. Liste FERMÉE de littéraux
-# exacts — jamais un assouplissement du motif, qui rouvrirait la porte à tout.
-FAUX_POSITIFS = {
-    "adresse mail": ("git@github.com",),   # syntaxe SSH, pas une personne
+# Strings that look like an email without being one. A CLOSED list of exact
+# literals — never a loosening of the pattern, which would reopen the door.
+FALSE_POSITIVES = {
+    "email address": ("git@github.com",),   # SSH syntax, not a person
 }
 
 
 def exempted(label: str, source: str) -> bool:
-    # « historique:docs/… » doit être exempté comme « docs/… » : c'est le même
-    # fichier, vu à deux moments.
-    src = source[len("historique:"):] if source.startswith("historique:") else source
+    # "history:docs/…" must be exempt just like "docs/…": same file, seen at
+    # two different moments.
+    src = source[len("history:"):] if source.startswith("history:") else source
     return any(src.startswith(p) for p in EXEMPT.get(label, ()))
 
 
@@ -109,7 +109,7 @@ def scan(label_source, text, compiled, leaks):
         if exempted(label, label_source):
             continue
         for m in rx.finditer(text):
-            if m.group(0) in FAUX_POSITIFS.get(label, ()):
+            if m.group(0) in FALSE_POSITIVES.get(label, ()):
                 continue
             leaks.append((label_source, label, context(text, m.start(), m.end())))
 
@@ -124,7 +124,7 @@ def main():
         scan(path.relative_to(ROOT).as_posix(),
              path.read_text(encoding="utf-8", errors="replace"), compiled, leaks)
 
-    scanned = f"{len(files)} fichier(s)"
+    scanned = f"{len(files)} file(s)"
 
     if with_history:
         try:
@@ -132,13 +132,13 @@ def main():
                                    capture_output=True, text=True, timeout=30).stdout.split()
         except (OSError, subprocess.SubprocessError):
             paths = []
-            print("⚠️  Historique git illisible — scan limité à l'arbre de travail.")
+            print("⚠️  Git history unreadable — scan limited to the working tree.")
 
-        # CHEMIN PAR CHEMIN, pas en un seul bloc. Deux raisons :
-        #  · les exemptions (docs/, contrôleur, règles) ne s'appliquent que si
-        #    l'on sait de quel fichier vient chaque ligne ;
-        #  · `--format=` retire les en-têtes de commit, sinon la ligne « Author:
-        #    Prénom Nom <mail> » remonte comme fuite à chaque commit.
+        # PATH BY PATH, not one big blob. Two reasons:
+        #  · exemptions (docs/, checker, rules) only apply if we know which
+        #    file each line came from;
+        #  · `--format=` strips commit headers, otherwise the "Author: First
+        #    Last <mail>" line surfaces as a leak on every commit.
         n_hist = 0
         for rel in paths:
             if os.path.basename(rel) in SKIP_NAMES:
@@ -151,31 +151,31 @@ def main():
                 continue
             if d:
                 n_hist += 1
-                scan(f"historique:{rel}", d, compiled, leaks)
+                scan(f"history:{rel}", d, compiled, leaks)
         if n_hist:
-            scanned += f" + historique de {n_hist} fichier(s)"
+            scanned += f" + history of {n_hist} file(s)"
 
-    print(f"🔍 Contrôle de fuite — {scanned}, {len(MARKERS)} marqueurs")
+    print(f"🔍 Leak check — {scanned}, {len(MARKERS)} markers")
 
     if not leaks:
-        print("\n✅ PROPRE — aucun marqueur sensible. Commit autorisé.")
+        print("\n✅ CLEAN — no sensitive marker. Commit allowed.")
         return 0
 
     by_label = {}
     for _, label, _ in leaks:
         by_label[label] = by_label.get(label, 0) + 1
 
-    print(f"\n⛔ ROUGE — {len(leaks)} fuite(s). Rien ne sort.\n")
+    print(f"\n⛔ RED — {len(leaks)} leak(s). Nothing ships.\n")
     for label, count in sorted(by_label.items(), key=lambda kv: -kv[1]):
         print(f"   {count:>5}×  {label}")
 
-    print("\n   Cas :")
+    print("\n   Cases:")
     for path, label, ctx in leaks[:20]:
         print(f"     · [{label}] {path}\n       {ctx}")
     if len(leaks) > 20:
-        print(f"     … et {len(leaks) - 20} autre(s).")
+        print(f"     … and {len(leaks) - 20} more.")
 
-    print("\n   → Corrige à la source (généralise le fichier), pas en assouplissant les marqueurs.")
+    print("\n   → Fix at the source (generalize the file), not by loosening the markers.")
     return 1
 
 

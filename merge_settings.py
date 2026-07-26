@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""C Brain — branchement des hooks dans ~/.claude/settings.json.
+"""C Brain — wiring the hooks into ~/.claude/settings.json.
 
-NON DESTRUCTIF, et c'est tout l'enjeu : ce fichier appartient à l'utilisateur.
-Il peut déjà contenir son modèle, son thème, ses permissions, ses propres hooks.
-On AJOUTE les nôtres, on ne réécrit jamais le reste.
+NON-DESTRUCTIVE, and that is the whole point: this file belongs to the user.
+It may already hold their model, theme, permissions and their own hooks.
+We ADD ours; we never rewrite the rest.
 
-Idempotent : l'appartenance se juge sur la commande exacte. Relancer n'ajoute
-pas de doublon. Désinstaller ne retire QUE nos entrées.
+Idempotent: ownership is judged on the exact command. Re-running adds no
+duplicate. Uninstalling removes ONLY our entries.
 
-Usage :
-  python3 merge_settings.py install [--settings <chemin>]
-  python3 merge_settings.py remove  [--settings <chemin>]
+Usage:
+  python3 merge_settings.py install [--settings <path>]
+  python3 merge_settings.py remove  [--settings <path>]
 """
 
 import json
@@ -24,10 +24,10 @@ DEFAULT_SETTINGS = os.path.join(HOME, ".claude", "settings.json")
 BRAIN = os.path.join(HOME, "claude-brain")
 CB = os.path.join(HOME, ".c-brain")
 
-# (événement, matcher ou None, chemin du script, timeout, message d'état)
+# (event, matcher or None, script path, timeout, status message)
 HOOKS = [
     ("SessionStart", None, "hooks/brain_anticipate.py --hook", 10, None),
-    # Signale une nouvelle version, n'installe rien. Throttlé à 1×/24 h côté script.
+    # Reports a new version, installs nothing. Throttled to 1×/24 h in the script.
     ("SessionStart", None, "@cbrain/check_update.py", 20, None),
     ("UserPromptSubmit", None, "hooks/inject_recall.py", 10, None),
     ("PostToolUse", "Write|Edit", "hooks/on_fiche_write.py", 15, None),
@@ -37,26 +37,26 @@ HOOKS = [
     ("PreToolUse", "Write|Edit|MultiEdit|NotebookEdit",
      "companion/hooks/pre_snapshot.py", 5, None),
     ("SessionEnd", None, "hooks/archive_session.py", 30,
-     "Archivage de la session dans le tronc..."),
+     "Archiving the session into the trunk..."),
     ("SessionEnd", None, "hooks/auto_maintain.py", 15,
-     "Maintenance autonome du tronc (distille + range)..."),
+     "Autonomous trunk maintenance (distill + file)..."),
     ("SessionEnd", None, "companion/hooks/session_close.py", 5, None),
 ]
 
-# Ce qui identifie NOS commandes au moment de désinstaller. Deux racines :
-# le tronc (~/claude-brain/...) et le moteur (~/.c-brain/engine/...).
+# What identifies OUR commands at uninstall time. Two roots:
+# the trunk (~/claude-brain/...) and the engine (~/.c-brain/engine/...).
 MARKERS = ("claude-brain", ".c-brain")
 
-# La statusline se COPIE dans ~/.claude, mais elle ne s'affiche que si elle est
-# DÉCLARÉE ici. Copier le fichier sans écrire cette clé donnait une statusline
-# installée et invisible — l'échec silencieux typique.
+# The status line is COPIED into ~/.claude, but it only shows if it is DECLARED
+# here. Copying the file without writing this key produced a status line that
+# was installed and invisible — the textbook silent failure.
 STATUSLINE_CMD = f"python3 {os.path.join(HOME, '.claude', 'statusline.py')}"
 
 
 def command_for(script):
-    """Deux origines possibles. Un script préfixé `@` vit dans le MOTEUR
-    (spécifique à C Brain, absent du Brain d'origine) ; les autres vivent dans
-    le tronc, où les symlinks les rendent visibles."""
+    """Two possible origins. A script prefixed with `@` lives in the ENGINE
+    (specific to C Brain, absent from the original Brain); the others live in
+    the trunk, where the symlinks make them visible."""
     if script.startswith("@"):
         return f"python3 {os.path.join(CB, 'engine', script[1:])}"
     return f"python3 {os.path.join(BRAIN, script)}"
@@ -69,8 +69,8 @@ def load(path):
         with open(path, encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError as e:
-        sys.exit(f"❌ {path} est un JSON invalide ({e}).\n"
-                 f"   Répare-le à la main : on ne réécrit pas un fichier qu'on ne comprend pas.")
+        sys.exit(f"❌ {path} is invalid JSON ({e}).\n"
+                 f"   Fix it by hand: we do not rewrite a file we cannot parse.")
 
 
 def backup(path, tag):
@@ -91,7 +91,7 @@ def install(settings):
         cmd = command_for(script)
         groups = entries_of(settings, event)
 
-        # Déjà branché ? On compare la commande exacte, pas la présence du fichier.
+        # Already wired? We compare the exact command, not the file's presence.
         if any(h.get("command") == cmd for g in groups for h in g.get("hooks", [])):
             continue
 
@@ -99,8 +99,8 @@ def install(settings):
         if status:
             hook["statusMessage"] = status
 
-        # On se greffe sur un groupe au matcher identique s'il existe (c'est la
-        # forme attendue par Claude Code), sinon on en crée un.
+        # We graft onto a group with the same matcher if one exists (that is the
+        # shape Claude Code expects), otherwise we create one.
         target = next((g for g in groups if g.get("matcher") == matcher), None)
         if target is None:
             target = {"hooks": []}
@@ -110,8 +110,8 @@ def install(settings):
         target["hooks"].append(hook)
         added += 1
 
-    # Statusline : on ne l'impose QUE si l'utilisateur n'en a pas déjà une.
-    # Écraser sa ligne d'état serait s'inviter sur son écran.
+    # Status line: we impose it ONLY if the user has none already.
+    # Overwriting theirs would be inviting ourselves onto their screen.
     if "statusLine" not in settings:
         settings["statusLine"] = {"type": "command", "command": STATUSLINE_CMD}
         added += 1
@@ -134,8 +134,8 @@ def remove(settings):
     if not hooks:
         settings.pop("hooks", None)
 
-    # On ne retire la statusline que si c'est BIEN la nôtre. Si l'utilisateur
-    # l'a remplacée par la sienne entre-temps, elle reste.
+    # We remove the status line only if it really is ours. If the user replaced
+    # it with their own in the meantime, it stays.
     if settings.get("statusLine", {}).get("command") == STATUSLINE_CMD:
         settings.pop("statusLine")
         dropped += 1
@@ -155,7 +155,7 @@ def main():
     n = install(settings) if action == "install" else remove(settings)
 
     if n == 0:
-        print(f"   settings.json — rien à faire ({'déjà branché' if action == 'install' else 'rien de nôtre'})")
+        print(f"   settings.json — nothing to do ({'already wired' if action == 'install' else 'nothing of ours'})")
         return 0
 
     b = backup(path, tag)
@@ -164,8 +164,8 @@ def main():
         json.dump(settings, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
-    verb = "branché(s)" if action == "install" else "retiré(s)"
-    print(f"   settings.json — {n} hook(s) {verb}" + (f" · sauvegarde : {os.path.basename(b)}" if b else ""))
+    verb = "wired" if action == "install" else "removed"
+    print(f"   settings.json — {n} hook(s) {verb}" + (f" · backup: {os.path.basename(b)}" if b else ""))
     return 0
 
 

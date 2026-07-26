@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# install.sh — installe C Brain. Point d'entrée UNIQUE.
+# install.sh — installs C Brain. The SINGLE entry point.
 #
-# Trois promesses, tenues par construction :
-#   · IDEMPOTENT — relancer ne casse rien et ne duplique rien.
-#   · NON DESTRUCTIF — tout ce qui existe déjà est sauvegardé avant d'être touché.
-#   · RÉVERSIBLE — chaque geste est journalisé ; ./uninstall.sh les défait.
+# Three promises, kept by construction:
+#   · IDEMPOTENT — re-running breaks nothing and duplicates nothing.
+#   · NON-DESTRUCTIVE — anything already there is backed up before being touched.
+#   · REVERSIBLE — every action is logged; ./uninstall.sh undoes them.
 #
-# Disposition installée :
-#   ~/.c-brain/engine  → lien vers CE dépôt (le MOTEUR : du code, rien d'autre)
-#   ~/claude-brain     → TON tronc (tes fiches). Jamais écrasé, jamais mis à jour.
+# Installed layout:
+#   ~/.c-brain/engine  → link to THIS repo (the ENGINE: code, nothing else)
+#   ~/claude-brain     → YOUR trunk (your notes). Never overwritten, never updated.
 #
-# Usage : ./install.sh [--no-launchd] [--no-capsule] [--dry-run]
+# Usage: ./install.sh [--no-launchd] [--no-capsule] [--dry-run]
 set -euo pipefail
 
 ENGINE="$(cd "$(dirname "$0")" && pwd -P)"
@@ -26,7 +26,7 @@ for a in "$@"; do
     --no-launchd) DO_LAUNCHD=0 ;;
     --no-capsule) DO_CAPSULE=0 ;;
     --dry-run)    DRY=1 ;;
-    *) echo "Option inconnue : $a"; exit 1 ;;
+    *) echo "Unknown option: $a"; exit 1 ;;
   esac
 done
 
@@ -35,25 +35,25 @@ step() { echo; echo "▸ $*"; }
 warn() { echo "  ⚠️  $*"; }
 die()  { echo; echo "❌ $*"; exit 1; }
 
-# Journalise ce qu'on crée, pour que la désinstallation sache quoi défaire.
+# Logs what we create, so uninstall knows what to undo.
 note() { [ "$DRY" = "1" ] || { mkdir -p "$CB"; echo "$1|$2" >> "$MANIFEST"; }; }
 
-# Sauvegarde avant d'écraser. Le contenu de l'utilisateur ne disparaît jamais.
+# Back up before overwriting. User content never disappears.
 save() {
   [ -e "$1" ] || return 0
-  [ "$DRY" = "1" ] && { say "(dry-run) sauvegarderait $1"; return 0; }
+  [ "$DRY" = "1" ] && { say "(dry-run) would back up $1"; return 0; }
   mkdir -p "$BACKUPS"
   cp -R "$1" "$BACKUPS/$(basename "$1")" 2>/dev/null || true
-  say "sauvegardé : $1 → $BACKUPS/"
+  say "backed up: $1 → $BACKUPS/"
 }
 
 run() { [ "$DRY" = "1" ] && { say "(dry-run) $*"; return 0; }; "$@"; }
 
-# Pose un lien symbolique de façon idempotente : déjà bon → on ne touche à rien.
-link() {  # link <cible> <lien>
+# Places a symlink idempotently: already correct → nothing is touched.
+link() {  # link <target> <link>
   local target="$1" path="$2"
   if [ -L "$path" ] && [ "$(readlink "$path")" = "$target" ]; then
-    say "= $path (déjà relié)"; return 0
+    say "= $path (already linked)"; return 0
   fi
   if [ -e "$path" ] || [ -L "$path" ]; then
     save "$path"
@@ -66,85 +66,85 @@ link() {  # link <cible> <lien>
 }
 
 echo "🧠 C Brain — installation"
-echo "   moteur : $ENGINE"
-echo "   tronc  : $TRUNK"
-[ "$DRY" = "1" ] && echo "   (DRY-RUN : rien ne sera écrit)"
+echo "   engine : $ENGINE"
+echo "   trunk  : $TRUNK"
+[ "$DRY" = "1" ] && echo "   (DRY-RUN: nothing will be written)"
 
-# ─── 0. Préalables ────────────────────────────────────────────────────────
-step "Préalables"
-[ "$(uname)" = "Darwin" ] || die "C Brain vise macOS (launchd, Electron, \`open\`)."
-command -v python3 >/dev/null || die "python3 est requis (il fait tourner tous les hooks)."
+# ─── 0. Prerequisites ────────────────────────────────────────────────────────
+step "Prerequisites"
+[ "$(uname)" = "Darwin" ] || die "C Brain targets macOS (launchd, Electron, \`open\`)."
+command -v python3 >/dev/null || die "python3 is required (it runs every hook)."
 say "python3 $(python3 -c 'import sys;print(".".join(map(str,sys.version_info[:3])))')"
-command -v git >/dev/null || warn "git absent — \`brain update\` ne pourra pas tirer les mises à jour."
+command -v git >/dev/null || warn "git missing — \`brain update\` will not be able to pull updates."
 
 HAS_CLAUDE_CODE=0
 [ -d "$HOME/.claude" ] && HAS_CLAUDE_CODE=1
 if [ "$HAS_CLAUDE_CODE" = "0" ]; then
-  warn "~/.claude absent : Claude Code ne semble pas installé."
-  warn "C Brain s'installera quand même, mais SANS boucle automatique :"
-  warn "les hooks (rappel, archivage, maintenance) sont propres à Claude Code."
-  warn "Tu garderas la CLI \`brain\`, les agents, la planète et la capsule."
+  warn "~/.claude missing: Claude Code does not appear to be installed."
+  warn "C Brain will still install, but WITHOUT the closed loop:"
+  warn "the hooks (recall, archiving, maintenance) are specific to Claude Code."
+  warn "You keep the \`brain\` CLI, the agents, the planet and the capsule."
 fi
 
-# ─── 1. Racine C Brain ────────────────────────────────────────────────────
-step "Racine C Brain (~/.c-brain)"
+# ─── 1. C Brain root ────────────────────────────────────────────────────
+step "C Brain root (~/.c-brain)"
 run mkdir -p "$CB"
 link "$ENGINE" "$CB/engine"
-[ "$DRY" = "1" ] || { git -C "$ENGINE" describe --tags --always 2>/dev/null > "$CB/VERSION" || echo "sans-tag" > "$CB/VERSION"; }
-say "version : $(cat "$CB/VERSION" 2>/dev/null || echo '?')"
+[ "$DRY" = "1" ] || { git -C "$ENGINE" describe --tags --always 2>/dev/null > "$CB/VERSION" || echo "untagged" > "$CB/VERSION"; }
+say "version: $(cat "$CB/VERSION" 2>/dev/null || echo '?')"
 
-# ─── 2. Le tronc ──────────────────────────────────────────────────────────
-step "Tronc (~/claude-brain)"
+# ─── 2. The trunk ──────────────────────────────────────────────────────────
+step "Trunk (~/claude-brain)"
 if [ -d "$TRUNK" ]; then
-  # Un tronc existe. S'il contient un VRAI dossier hooks/ (pas un lien), c'est
-  # une installation antérieure autonome : on refuse de la démolir en silence.
+  # A trunk exists. If it holds a REAL hooks/ folder (not a link), it is
+  # a previous standalone install: we refuse to demolish it silently.
   if [ -d "$TRUNK/hooks" ] && [ ! -L "$TRUNK/hooks" ]; then
-    die "$TRUNK/hooks est un dossier RÉEL, pas un lien.
-   Il y a déjà un Brain installé « à l'ancienne » ici. Je ne le remplace pas tout seul :
-   ses fichiers pourraient être les tiens. Sauvegarde-le, puis relance :
-     mv $TRUNK $TRUNK.avant-c-brain && ./install.sh"
+    die "$TRUNK/hooks is a REAL folder, not a link.
+   There is already an old-style Brain installed here. I will not replace it on my own:
+   its files might be yours. Back it up, then re-run:
+     mv $TRUNK $TRUNK.before-c-brain && ./install.sh"
   fi
-  say "= tronc existant conservé (tes fiches ne sont pas touchées)"
+  say "= existing trunk kept (your notes are untouched)"
 else
   run mkdir -p "$TRUNK"
   run cp -R "$ENGINE/skeleton/." "$TRUNK/"
   note dir "$TRUNK"
-  say "+ tronc créé depuis skeleton/ (vide, prêt à grandir)"
+  say "+ trunk created from skeleton/ (empty, ready to grow)"
 fi
 run mkdir -p "$TRUNK/state" "$TRUNK/sessions/archive"
 
-# ─── 3. Le moteur, relié dans le tronc ────────────────────────────────────
-step "Moteur relié au tronc"
+# ─── 3. The engine, linked into the trunk ────────────────────────────────────
+step "Engine linked into the trunk"
 for d in hooks agents capsule planet companion tests; do
   link "$CB/engine/$d" "$TRUNK/$d"
 done
 
-# ─── 4. La commande `brain` ───────────────────────────────────────────────
-step "Commande \`brain\`"
+# ─── 4. The `brain` command ───────────────────────────────────────────────
+step "The \`brain\` command"
 link "$CB/engine/brain" "$HOME/.local/bin/brain"
 case ":$PATH:" in
-  *":$HOME/.local/bin:"*) say "~/.local/bin est dans le PATH" ;;
-  *) warn "~/.local/bin n'est PAS dans ton PATH. Ajoute à ton ~/.zshrc :"
+  *":$HOME/.local/bin:"*) say "~/.local/bin is on PATH" ;;
+  *) warn "~/.local/bin is NOT on your PATH. Add to your ~/.zshrc:"
      warn "  export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
 esac
 
-# ─── 5. Agents visibles par Claude Code ───────────────────────────────────
-# Le piège nº1 : sans ce lien, les agents existent mais Claude Code ne les voit
-# pas. Aucune erreur, juste une boucle autonome qui tourne à vide.
-step "Agents visibles par l'agent CLI"
+# ─── 5. Agents visible to Claude Code ───────────────────────────────────
+# Trap #1: without this link the agents exist but Claude Code cannot see
+# them. No error, just an autonomous loop spinning on nothing.
+step "Agents visible to the CLI agent"
 if [ "$HAS_CLAUDE_CODE" = "1" ]; then
   link "$TRUNK/agents" "$HOME/.claude/agents"
 else
-  say "(sauté — ~/.claude absent)"
+  say "(skipped — ~/.claude missing)"
 fi
 
-# ─── 6. Hooks + statusline ────────────────────────────────────────────────
-step "Branchement des hooks"
+# ─── 6. Hooks + status line ────────────────────────────────────────────────
+step "Wiring the hooks"
 if [ "$HAS_CLAUDE_CODE" = "1" ]; then
-  if [ "$DRY" = "1" ]; then say "(dry-run) fusionnerait ~/.claude/settings.json"
+  if [ "$DRY" = "1" ]; then say "(dry-run) would merge ~/.claude/settings.json"
   else
-    # Pas de `save` ici : merge_settings.py ne sauvegarde QUE s'il écrit vraiment.
-    # Sauvegarder à chaque passe empilerait une copie inutile à chaque relance.
+    # No `save` here: merge_settings.py backs up ONLY when it actually writes.
+    # Backing up every pass would stack a useless copy on every re-run.
     python3 "$ENGINE/merge_settings.py" install
     note settings "$HOME/.claude/settings.json"
   fi
@@ -152,97 +152,97 @@ if [ "$HAS_CLAUDE_CODE" = "1" ]; then
     save "$HOME/.claude/statusline.py"
     run cp "$ENGINE/statusline.py" "$HOME/.claude/statusline.py"
     note file "$HOME/.claude/statusline.py"
-    say "+ statusline installée"
+    say "+ status line installed"
   fi
 else
-  say "(sauté — pas de Claude Code : C Brain fonctionnera à la demande)"
+  say "(skipped — no Claude Code: C Brain will work on demand)"
 fi
 
 # ─── 7. Capsule ───────────────────────────────────────────────────────────
-step "Capsule (fenêtre Electron)"
-capsule_ok() {  # Electron répond-il VRAIMENT ?
+step "Capsule (Electron window)"
+capsule_ok() {  # does Electron ACTUALLY respond?
   local bin="$ENGINE/capsule/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
   [ -x "$bin" ] && "$bin" --version >/dev/null 2>&1
 }
 
-if [ "$DO_CAPSULE" = "0" ]; then say "(sauté — --no-capsule)"
-elif ! command -v npm >/dev/null; then warn "npm absent — capsule non installée (le reste marche)."
-elif [ "$DRY" = "1" ]; then say "(dry-run) installerait les dépendances de la capsule"
-elif capsule_ok; then say "= capsule déjà opérationnelle"
+if [ "$DO_CAPSULE" = "0" ]; then say "(skipped — --no-capsule)"
+elif ! command -v npm >/dev/null; then warn "npm missing — capsule not installed (everything else works)."
+elif [ "$DRY" = "1" ]; then say "(dry-run) would install the capsule dependencies"
+elif capsule_ok; then say "= capsule already working"
 else
   say "npm install (Electron, ~1 min)…"
   npm --prefix "$ENGINE/capsule" install --silent >/dev/null 2>&1 || true
-  # `npm install` sort en SUCCÈS même quand le binaire Electron n'a pas été
-  # extrait (archive tronquée par @electron/get — piège déjà rencontré). Se fier
-  # au code de retour donnerait une capsule annoncée installée et incapable de
-  # démarrer. On vérifie le binaire lui-même.
+  # `npm install` exits SUCCESSFULLY even when the Electron binary was never
+  # extracted (archive truncated by @electron/get — a trap already hit). Trusting
+  # the exit code would report a capsule as installed while it cannot start.
+  # So we check the binary itself.
   if capsule_ok; then
-    say "+ capsule opérationnelle ($("$ENGINE/capsule/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" --version 2>/dev/null))"
+    say "+ capsule working ($("$ENGINE/capsule/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" --version 2>/dev/null))"
   else
-    warn "npm a rendu la main, mais le binaire Electron ne répond pas."
-    warn "C'est un défaut connu de son téléchargeur, pas de C Brain. Remède :"
+    warn "npm returned, but the Electron binary does not respond."
+    warn "This is a known flaw in its downloader, not in C Brain. Remedy:"
     warn "  rm -rf $ENGINE/capsule/node_modules/electron && npm --prefix $ENGINE/capsule install"
-    warn "Tout le reste de C Brain fonctionne sans la capsule."
+    warn "Everything else in C Brain works without the capsule."
   fi
 fi
 
-# ─── 8. Tâches planifiées ─────────────────────────────────────────────────
-step "Tâches planifiées (launchd)"
-if [ "$DO_LAUNCHD" = "0" ]; then say "(sauté — --no-launchd)"
+# ─── 8. Scheduled jobs ─────────────────────────────────────────────────
+step "Scheduled jobs (launchd)"
+if [ "$DO_LAUNCHD" = "0" ]; then say "(skipped — --no-launchd)"
 else
   run mkdir -p "$HOME/Library/LaunchAgents"
   for t in resume machiniste; do
     tpl="$ENGINE/hooks/com.claudebrain.$t.plist.template"
     [ -f "$tpl" ] || continue
     out="$HOME/Library/LaunchAgents/com.claudebrain.$t.plist"
-    if [ "$DRY" = "1" ]; then say "(dry-run) générerait $out"; continue; fi
-    # __HOME__ substitué ici : un chemin en dur dans un .plist est LE bug qui
-    # casse silencieusement une installation sur une autre machine.
+    if [ "$DRY" = "1" ]; then say "(dry-run) would generate $out"; continue; fi
+    # __HOME__ substituted here: a hardcoded path in a .plist is THE bug that
+    # silently breaks an install on another machine.
     sed "s|__HOME__|$HOME|g" "$tpl" > "$out"
     note file "$out"
     launchctl unload "$out" 2>/dev/null || true
-    launchctl load "$out" 2>/dev/null && say "+ com.claudebrain.$t chargé" \
-      || warn "com.claudebrain.$t généré mais non chargé (launchctl a refusé)"
+    launchctl load "$out" 2>/dev/null && say "+ com.claudebrain.$t loaded" \
+      || warn "com.claudebrain.$t generated but not loaded (launchctl refused)"
   done
 fi
 
-# ─── 9. Lanceur de la planète ─────────────────────────────────────────────
-step "Lanceur de la planète (Bureau)"
+# ─── 9. Planet launcher ─────────────────────────────────────────────
+step "Planet launcher (Desktop)"
 CMD="$HOME/Desktop/Planete-C-Brain.command"
-if [ "$DRY" = "1" ]; then say "(dry-run) créerait $CMD"
+if [ "$DRY" = "1" ]; then say "(dry-run) would create $CMD"
 elif [ -d "$HOME/Desktop" ]; then
   printf '#!/bin/bash\nexport PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"\nexec "%s/planet/launch.sh"\n' "$TRUNK" > "$CMD"
   chmod +x "$CMD"
   note file "$CMD"
-  say "+ $CMD (double-clic → globe sur localhost:8765)"
+  say "+ $CMD (double-click → globe on localhost:8765)"
 else
-  warn "~/Desktop introuvable — lanceur non créé. La planète reste accessible :"
+  warn "~/Desktop not found — launcher not created. The planet stays reachable at:"
   warn "  $TRUNK/planet/launch.sh"
 fi
 
-# ─── 10. Vérification ─────────────────────────────────────────────────────
-step "Vérification"
-if [ "$DRY" = "1" ]; then say "(dry-run) lancerait le selftest"
+# ─── 10. Verification ─────────────────────────────────────────────────────
+step "Verification"
+if [ "$DRY" = "1" ]; then say "(dry-run) would run the selftest"
 else
   if bash "$TRUNK/hooks/selftest.sh" >/tmp/c-brain-selftest.log 2>&1; then
-    say "✅ selftest OK — tous les hooks sains"
+    say "✅ selftest OK — every hook healthy"
   else
-    warn "selftest en échec — détail : /tmp/c-brain-selftest.log"
+    warn "selftest failed — details: /tmp/c-brain-selftest.log"
     tail -5 /tmp/c-brain-selftest.log | sed 's/^/     /'
   fi
   python3 "$TRUNK/hooks/brain_doctor.py" --quiet >/dev/null 2>&1 \
-    && say "✅ doctor — arbre cohérent" || say "ℹ️  doctor signale des points à voir (\`brain doctor\`)"
+    && say "✅ doctor — tree consistent" || say "ℹ️  doctor flags a few things to look at (\`brain doctor\`)"
 fi
 
 echo
-echo "✅ C Brain installé."
+echo "✅ C Brain installed."
 echo
-echo "   brain status     où en est le tronc"
-echo "   brain recall <q> chercher dans ta mémoire"
-echo "   brain doctor     santé de l'arbre"
-echo "   brain selftest   revérifier l'installation"
+echo "   brain status     where the trunk stands"
+echo "   brain recall <q> search your memory"
+echo "   brain doctor     tree health"
+echo "   brain selftest   re-check the installation"
 echo
 [ "$HAS_CLAUDE_CODE" = "1" ] \
-  && echo "   Redémarre ta session CLI pour que les hooks prennent effet." \
-  || echo "   Sans Claude Code : pas de boucle automatique, mais toute la CLI est là."
-echo "   Désinstallation : $ENGINE/uninstall.sh"
+  && echo "   Restart your CLI session for the hooks to take effect." \
+  || echo "   Without Claude Code: no closed loop, but the whole CLI is there."
+echo "   Uninstall: $ENGINE/uninstall.sh"

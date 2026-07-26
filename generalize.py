@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""C Brain — généralisation déclarative, jouée APRÈS la copie de sync.sh.
+"""C Brain — declarative generalization, run AFTER sync.sh has copied.
 
-Pourquoi un script et pas des corrections à la main : sync.sh recopie le moteur
-depuis le Brain vivant à chaque passe. Une correction manuelle serait écrasée en
-silence, et la fuite reviendrait au commit suivant. Une règle se rejoue.
+Why a script rather than hand edits: sync.sh re-copies the engine from the
+living Brain on every pass. A manual fix would be silently overwritten, and the
+leak would be back at the next commit. A rule replays.
 
-Règles dans rules.json. Deux familles :
-  · blocks       — réécriture d'un bloc de CODE (une table, une fonction).
-  · replacements — substitution de texte (commentaires, libellés, exemples).
+Rules live in rules.json. Two families:
+  · blocks       — rewriting a block of CODE (a table, a function).
+  · replacements — text substitution (comments, labels, examples).
 
-Un compteur tombé à 0 sur une règle attendue fait ÉCHOUER le script : ça veut
-dire que la source a changé de formulation et que la règle ne mord plus.
+A counter dropping to 0 on an expected rule FAILS the script: it means the
+source changed its wording and the rule no longer bites.
 
-Sortie 0 = généralisé · Sortie 1 = une règle ne mord plus, ou un bloc introuvable.
+Exit 0 = generalized · Exit 1 = a rule stopped biting, or a block was not found.
 """
 
 import json
@@ -25,7 +25,7 @@ RULES = ROOT / "rules.json"
 
 
 def targets(patterns):
-    """Fichiers du dépôt visés par une liste de globs, dédupliqués et triés."""
+    """Repo files targeted by a list of globs, deduplicated and sorted."""
     seen = {}
     for g in patterns:
         for p in ROOT.glob(g):
@@ -35,18 +35,18 @@ def targets(patterns):
 
 
 def validate(rules):
-    """Une règle mal formée doit produire un message, pas une trace Python.
-    Cas déjà rencontré : une règle de substitution rangée par erreur parmi les
-    blocs — le script mourait sur un KeyError, en plein milieu d'un sync."""
+    """A malformed rule must produce a message, not a Python traceback.
+    Already hit once: a substitution rule filed by mistake among the blocks —
+    the script died on a KeyError, in the middle of a sync."""
     ok = True
     for r in rules.get("blocks", []):
         if "file" not in r or "pattern" not in r or "replace" not in r:
-            print(f"  ⛔ bloc « {r.get('id', '?')} » — il faut file + pattern + replace"
-                  f"{' (une règle avec `files` va dans replacements)' if 'files' in r else ''}")
+            print(f"  ⛔ block '{r.get('id', '?')}' — needs file + pattern + replace"
+                  f"{' (a rule with `files` belongs in replacements)' if 'files' in r else ''}")
             ok = False
     for r in rules.get("replacements", []):
         if "files" not in r or "pattern" not in r or not ({"replace", "replace_map"} & set(r)):
-            print(f"  ⛔ substitution « {r.get('id', '?')} » — il faut files + pattern + replace|replace_map")
+            print(f"  ⛔ substitution '{r.get('id', '?')}' — needs files + pattern + replace|replace_map")
             ok = False
     return ok
 
@@ -56,15 +56,15 @@ def apply_blocks(rules, report):
     for rule in rules:
         path = ROOT / rule["file"]
         if not path.is_file():
-            print(f"  ⛔ {rule['id']} — fichier absent : {rule['file']}")
+            print(f"  ⛔ {rule['id']} — file missing: {rule['file']}")
             ok = False
             continue
         text = path.read_text(encoding="utf-8")
         new, n = re.subn(rule["pattern"], lambda _m: rule["replace"], text,
                          flags=re.S)
         if n == 0:
-            print(f"  ⛔ {rule['id']} — bloc INTROUVABLE dans {rule['file']}")
-            print(f"       la source a changé de forme ; la règle doit être remise à jour")
+            print(f"  ⛔ {rule['id']} — block NOT FOUND in {rule['file']}")
+            print(f"       the source changed shape; the rule must be updated")
             ok = False
             continue
         path.write_text(new, encoding="utf-8")
@@ -81,8 +81,8 @@ def apply_replacements(rules, report):
         for path in targets(rule["files"]):
             text = path.read_text(encoding="utf-8", errors="replace")
             if "replace_map" in rule:
-                # Plusieurs formulations autour du même nom : chacune a sa
-                # tournure de remplacement, sinon la phrase devient bancale.
+                # Several phrasings around the same name: each gets its own
+                # replacement, otherwise the sentence comes out lopsided.
                 def sub(m):
                     return rule["replace_map"].get(m.group(0), m.group(0))
                 new, n = rx.subn(sub, text)
@@ -94,8 +94,8 @@ def apply_replacements(rules, report):
                 touched.append(path.relative_to(ROOT).as_posix())
         expect = rule.get("expect", 1)
         if total < expect:
-            print(f"  ⛔ {rule['id']} — {total} occurrence(s), {expect} attendue(s)")
-            print(f"       un compteur qui baisse = la source a changé, PAS une bonne nouvelle")
+            print(f"  ⛔ {rule['id']} — {total} occurrence(s), {expect} expected")
+            print(f"       a falling counter = the source changed, NOT good news")
             ok = False
             continue
         report.append((rule["id"], total, ", ".join(touched), rule["why"]))
@@ -103,9 +103,9 @@ def apply_replacements(rules, report):
 
 
 def check_json_still_valid():
-    """Une règle qui retire un bloc d'un .json peut laisser une virgule orpheline.
-    Le fichier reste « du texte » — l'erreur ne se voit qu'au premier `npm` ou au
-    premier `json.load`, loin d'ici. On vérifie tout de suite."""
+    """A rule removing a block from a .json can leave an orphan comma.
+    The file is still "text" — the error only surfaces at the first `npm` or the
+    first `json.load`, far from here. We check right away."""
     broken = []
     for path in ROOT.rglob("*.json"):
         if {".git", "node_modules"} & set(path.relative_to(ROOT).parts):
@@ -115,17 +115,17 @@ def check_json_still_valid():
         except json.JSONDecodeError as e:
             broken.append((path.relative_to(ROOT).as_posix(), e))
     for rel, e in broken:
-        print(f"  ⛔ {rel} — JSON invalide après généralisation : {e}")
+        print(f"  ⛔ {rel} — invalid JSON after generalization: {e}")
     return not broken
 
 
 def main():
     if not RULES.is_file():
-        sys.exit(f"❌ rules.json introuvable ({RULES})")
+        sys.exit(f"❌ rules.json not found ({RULES})")
     rules = json.loads(RULES.read_text(encoding="utf-8"))
 
     if not validate(rules):
-        print("\n⛔ rules.json mal formé — rien n'a été appliqué.")
+        print("\n⛔ malformed rules.json — nothing was applied.")
         return 1
 
     report = []
@@ -133,16 +133,16 @@ def main():
     ok = apply_replacements(rules.get("replacements", []), report) and ok
     ok = check_json_still_valid() and ok
 
-    print(f"🧹 Généralisation — {len(report)} règle(s) appliquée(s), "
-          f"{sum(r[1] for r in report)} remplacement(s)\n")
+    print(f"🧹 Generalization — {len(report)} rule(s) applied, "
+          f"{sum(r[1] for r in report)} replacement(s)\n")
     for rid, n, where, _why in report:
         print(f"   {n:>4}×  {rid:<28} {where}")
 
     if not ok:
-        print("\n⛔ ÉCHEC — au moins une règle ne mord plus. Rien ne doit sortir en l'état.")
+        print("\n⛔ FAILED — at least one rule stopped biting. Nothing may ship as is.")
         return 1
 
-    print("\n✅ Généralisé. Contrôle maintenant : python3 leakcheck.py")
+    print("\n✅ Generalized. Now check: python3 leakcheck.py")
     return 0
 
 
