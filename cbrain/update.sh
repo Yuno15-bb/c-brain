@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# C Brain — Copyright (c) 2026 Dylan Peellaert. Source-available, see LICENSE.
+#   Running it is allowed. Redistributing or rebuilding from it is not.
 # update.sh — updates the ENGINE. Never touches the TRUNK.
 #
 # What it does:

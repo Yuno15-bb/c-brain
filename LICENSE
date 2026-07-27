@@ -1,21 +1,85 @@
-MIT License
+C Brain — Source-Available Licence
+Copyright (c) 2026 Dylan Peellaert. All rights reserved.
 
-Copyright (c) 2026 Dylan Peellaert
+This software is SOURCE-AVAILABLE, not open source. The source is published so
+you can read it, audit it, and run it. It is not published so it can be taken
+apart and rebuilt as something else.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+────────────────────────────────────────────────────────────────────────────
+1. WHAT YOU MAY DO
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+You are granted a personal, non-exclusive, non-transferable, revocable licence
+to:
+
+  a) download, install and RUN this software on machines you control, for your
+     own purposes — personal or professional, including inside a company;
+  b) read and study the source in full;
+  c) modify your own installed copy for your own use, including writing your
+     own configuration, your own agents and your own notes;
+  d) report bugs, and propose changes back to the author.
+
+Everything you write while using this software — your notes, your trunk, your
+skills, your configuration — is YOURS. This licence makes no claim on it
+whatsoever.
+
+────────────────────────────────────────────────────────────────────────────
+2. WHAT YOU MAY NOT DO
+
+Without prior written permission from the copyright holder, you may not:
+
+  a) REDISTRIBUTE this software, in whole or in substantial part, whether
+     modified or not, whether free of charge or not;
+  b) PUBLISH A DERIVATIVE WORK — that is, take this software, or a substantial
+     part of it, as the starting point of another project, product, package or
+     repository, whatever its name;
+  c) SELL, licence, rent or offer this software, or a substantial part of it,
+     as a product or as a hosted service;
+  d) remove, alter or obscure the copyright notices, the licence, or the
+     attribution present in the files;
+  e) republish the source publicly, in whole or in substantial part, including
+     as a public fork or as a mirror.
+
+"Substantial part" includes, without limitation: the engine/trunk separation
+and its installer, the extraction and generalization chain, the agent
+definitions, the capsule and the knowledge planet — taken individually or
+together.
+
+Only the copyright holder may iterate on this work and publish the result.
+
+────────────────────────────────────────────────────────────────────────────
+3. WHAT THIS LICENCE DOES NOT COVER
+
+  · Third-party dependencies keep their own licences.
+  · The ideas, the methods and the architecture described in the documentation
+    may of course inspire you. This licence covers this code, not thinking.
+  · Any file you author yourself belongs to you.
+
+────────────────────────────────────────────────────────────────────────────
+4. TERMINATION
+
+This licence terminates automatically if you breach section 2. On termination,
+stop using the software and delete your copies. Your own notes remain yours.
+
+────────────────────────────────────────────────────────────────────────────
+5. NO WARRANTY
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+────────────────────────────────────────────────────────────────────────────
+6. ASKING
+
+Permission is not a wall, it is a conversation. If you want to do something
+section 2 forbids, ask: https://github.com/Yuno15-bb/c-brain/issues
+
+────────────────────────────────────────────────────────────────────────────
+NOTE ON EARLIER VERSIONS
+
+Versions up to and including v1.5.0 were published under the MIT licence.
+Copies obtained under those versions keep the rights MIT granted them, for
+those versions. This licence governs v1.6.0 and everything after it.

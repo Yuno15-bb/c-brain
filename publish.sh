@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# C Brain — Copyright (c) 2026 Dylan Peellaert. Source-available, see LICENSE.
+#   Running it is allowed. Redistributing or rebuilding from it is not.
 # publish.sh — publish a version. The ONLY sanctioned path to a `git push`.
 #
 # Why this script exists: the leak check was once run at the end of a pipe

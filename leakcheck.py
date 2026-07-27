@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# C Brain — Copyright (c) 2026 Dylan Peellaert. Source-available, see LICENSE.
+#   Running it is allowed. Redistributing or rebuilding from it is not.
 """C Brain — leak check. The guard entitled to block a commit.
 
 Adapted from an anonymization pipeline that already runs green on a public
@@ -124,12 +126,28 @@ def context(text, start, end, width=45):
     return f"…{left}⟦{text[start:end]}⟧{right}…"
 
 
+def _on_a_copyright_line(text: str, pos: int) -> bool:
+    """Is this match sitting on a copyright / licence notice line?
+
+    The owner's name inside a copyright header is DELIBERATE — it is what makes
+    a copied file carry its origin. What the marker is really hunting is the
+    accidental mention ("the author's machine", "as requested by …"). Exempting
+    the notice line keeps the hunt sharp instead of blunting the pattern.
+    """
+    start = text.rfind("\n", 0, pos) + 1
+    end = text.find("\n", pos)
+    line = text[start:end if end != -1 else len(text)]
+    return "Copyright (c)" in line or "All rights reserved" in line
+
+
 def scan(label_source, text, compiled, leaks):
     for label, rx in compiled:
         if exempted(label, label_source):
             continue
         for m in rx.finditer(text):
             if m.group(0) in FALSE_POSITIVES.get(label, ()):
+                continue
+            if label == "person — owner" and _on_a_copyright_line(text, m.start()):
                 continue
             leaks.append((label_source, label, context(text, m.start(), m.end())))
 

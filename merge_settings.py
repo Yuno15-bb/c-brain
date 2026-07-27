@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# C Brain — Copyright (c) 2026 Dylan Peellaert. Source-available, see LICENSE.
+#   Running it is allowed. Redistributing or rebuilding from it is not.
 """C Brain — wiring the hooks into ~/.claude/settings.json.
 
 NON-DESTRUCTIVE, and that is the whole point: this file belongs to the user.

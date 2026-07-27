@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# C Brain — Copyright (c) 2026 Dylan Peellaert. Source-available, see LICENSE.
+#   Running it is allowed. Redistributing or rebuilding from it is not.
 # sync.sh — ~/claude-brain (the author's living Brain, source of truth) → C Brain repo.
 #
 # PRINCIPLE: allowlist. What is not listed here does not ship, full stop.

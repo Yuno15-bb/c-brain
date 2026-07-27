@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# C Brain — Copyright (c) 2026 Dylan Peellaert. Source-available, see LICENSE.
+#   Running it is allowed. Redistributing or rebuilding from it is not.
 # uninstall.sh — undoes what install.sh did, and NOTHING else.
 #
 # Absolute rule: **your trunk is never deleted**. Your notes are your work, not a
