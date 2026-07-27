@@ -85,11 +85,11 @@ def load_embed2():
 
 
 def load_coact():
-    """Chaleur (récence d'usage) par id + liens d'usage + ACTIVITÉ EN DIRECT — Étage 2. Stdlib.
+    """Heat (usage recency) per id + usage links + LIVE ACTIVITY. Stdlib.
 
-    `live` = { path: ts } des fiches lues dans la fenêtre glissante (quelques minutes), plus la
-    fenêtre elle-même : le visualizer en a besoin pour éteindre un anneau tout seul, en continu,
-    même si le graphe n'est pas régénéré entre-temps."""
+    `live` = { path: ts } for the notes read within the sliding window (a few minutes), plus the
+    window itself: the visualizer needs it to fade a ring out on its own, continuously, even when
+    the graph is not regenerated in between."""
     try:
         c = json.load(open(COACT, encoding="utf-8"))
         lv = c.get("live") or {}
@@ -180,11 +180,11 @@ def clean_body(text):
 def scan():
     nodes = {}      # id -> {id, name, domain, group, desc, file}
     raw_links = []  # (src_id, target_name)
-    embed2 = load_embed2()         # positions sémantiques par chemin de fiche (Étage 1)
-    heat, coact_edges, live, live_window_min = load_coact()   # chaleur + liens d'usage + activité en direct (Étage 2)
-    challenges = load_challenges()             # avis du challenger par fiche (Étage 3)
-    beliefs = load_beliefs()                   # convictions datées de l'auteur du tronc (Étage 3 : couche goût)
-    media = load_media()                       # captures rejouables par fiche (Étage 4)
+    embed2 = load_embed2()         # semantic positions keyed by note path
+    heat, coact_edges, live, live_window_min = load_coact()   # heat + usage links + live activity
+    challenges = load_challenges()             # the challenger's verdict per note
+    beliefs = load_beliefs()                   # the author's dated convictions (the taste layer)
+    media = load_media()                       # replayable captures per note
 
     for domain in DOMAINS:
         root = os.path.join(BRAIN, domain)
@@ -229,13 +229,13 @@ def scan():
                               "born_from": born, "scale": scale,
                               "long": clean_body(text),
                               "embed2": embed2.get(rel_file),   # semantic [x,y] or None
-                              "heat": heat.get(nid, 0.0),        # usage heat 0..1 (Tier 2)
-                              "active": rel_file in live,        # READ just now (sliding window, Tier 2)
-                              "active_ts": live.get(rel_file),   # timestamp of that read -> fade-out in the visualizer
-                              "challenge": challenges.get(rel_file),   # challenger's verdict (Tier 3) or None
-                              "conviction": beliefs.get(rel_file),     # dated conviction of the trunk author (Tier 3) or None
-                              "media": media.get(rel_file),            # replayable capture (Tier 4) or None
-                              "resume": bool(RESUME_RE.search(text)),  # carries a "resume point" (badge)
+                              "heat": heat.get(nid, 0.0),        # usage heat 0..1
+                              "active": rel_file in live,        # READ just now (sliding window)
+                              "active_ts": live.get(rel_file),   # timestamp of that read → fade-out in the visualizer
+                              "challenge": challenges.get(rel_file),   # the challenger's verdict, or None
+                              "conviction": beliefs.get(rel_file),     # a dated conviction, or None
+                              "media": media.get(rel_file),            # a replayable capture, or None
+                              "resume": bool(RESUME_RE.search(text)),  # carries a resume point (↻ badge)
                               "file": rel_file}
                 # outgoing links (deduplicated below)
                 for tgt in set(LINK.findall(text)):
@@ -301,8 +301,8 @@ def scan():
                    "active": sum(1 for n in nodes.values() if n.get("active")),
                    "resume": sum(1 for n in nodes.values() if n.get("resume"))},
         "domains": DOMAINS,
-        # fenêtre de l'ACTIVITÉ EN DIRECT (minutes) : le visualizer éteint lui-même un anneau
-        # dont `active_ts` est sorti de la fenêtre, sans attendre une régénération du graphe.
+        # LIVE ACTIVITY window (minutes): the visualizer fades out a ring whose `active_ts`
+        # has left the window on its own, without waiting for a graph regeneration.
         "live_window_min": live_window_min,
         "projects": projects,
         "nodes": sorted(nodes.values(), key=lambda n: (n["domain"], n["group"], n["id"])),

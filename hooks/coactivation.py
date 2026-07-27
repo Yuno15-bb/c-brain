@@ -100,9 +100,9 @@ def compute():
     edges.sort(key=lambda e: -e[2])
     edges = edges[:TOP_EDGES]
 
-    # ACTIVITÉ EN DIRECT : fiches RÉELLEMENT lues dans les LIVE_WINDOW_MIN dernières minutes.
-    # `at` + `window_min` sont publiés pour que le visualizer ÉTEIGNE tout seul, en continu,
-    # sans attendre une régénération du graphe (l'anneau ne peut pas rester allumé par inertie).
+    # LIVE ACTIVITY: notes ACTUALLY read within the last LIVE_WINDOW_MIN minutes.
+    # `at` + `window_min` are published so the visualizer can FADE the ring out on its own,
+    # continuously, without waiting for a graph regeneration (no ring left lit by inertia).
     cutoff = now - LIVE_WINDOW_MIN * 60
     last_read = defaultdict(float)
     for _sid, path, ts in read_events(READ, keep):
@@ -113,8 +113,8 @@ def compute():
             "items": [[p, int(ts)] for p, ts in live_items]}
 
     return {"generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "counts": {"events": len(events), "fiches_chaudes": len(heat_n),
-                       "liens_usage": len(edges), "en_direct": len(live_items)},
+            "counts": {"events": len(events), "hot_notes": len(heat_n),
+                       "usage_links": len(edges), "live_notes": len(live_items)},
             "heat": heat_n, "edges": edges, "live": live,
             "heat_id": {keep[p]: v for p, v in heat_n.items()}}
 
@@ -124,8 +124,8 @@ def main():
     json.dump(data, open(OUT, "w", encoding="utf-8"), ensure_ascii=False)
     if sys.stdout.isatty() or "--show" in sys.argv:
         c = data["counts"]
-        print(f"⚡ co-activation : {c['events']} activations - {c['fiches_chaudes']} hot notes - "
-              f"{c['liens_usage']} usage links - {c['en_direct']} live (<={LIVE_WINDOW_MIN} min)")
+        print(f"⚡ co-activation: {c['events']} activations · {c['hot_notes']} hot notes · "
+              f"{c['usage_links']} usage links · {c['live_notes']} live (≤{LIVE_WINDOW_MIN} min)")
         top = sorted(data["heat"].items(), key=lambda kv: -kv[1])[:8]
         print("  🔥 hottest:")
         for p, v in top:

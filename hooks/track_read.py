@@ -42,9 +42,9 @@ def main():
 
 
 def refresh_live():
-    """Rallume la fiche sur la planète TOUT DE SUITE (~0,15 s) : sans ça, l'activité « en direct »
-    n'apparaîtrait qu'à la prochaine écriture de fiche ou à la fin de session — donc jamais en direct.
-    Best-effort et silencieux : un échec ici ne doit rien casser du hook."""
+    """Light the note up on the planet RIGHT NOW (~0.15 s): without this, "live" activity would
+    only surface at the next note written or at session end — so never live.
+    Best-effort and silent: a failure here must break nothing in the hook."""
     import subprocess
     for script in ("coactivation.py", "graph_export.py"):
         try:
