@@ -100,14 +100,11 @@ source the engine is extracted from, and English is derived from it. See
 
 ## Licence
 
-**Source-available, not open source.** You may run it, read it, study it and
-adapt your own installation. You may not redistribute it, republish it, or use
-it as the starting point of another project — see [LICENSE](LICENSE).
+**Apache 2.0** — see [LICENSE](LICENSE).
 
-The reasoning: this is meant to be **used**, not taken apart and rebuilt as
-something else. Only the author iterates on C Brain itself.
+You may use it, study it, modify it, redistribute it, and build on it, including
+commercially. The licence includes a patent grant, and asks only that you keep
+the attribution and state your changes.
 
 Everything you write with it — your notes, your trunk, your skills — is yours,
 and this licence makes no claim on it.
-
-Want to do something the licence forbids? Ask in an issue.
