@@ -19,7 +19,9 @@ cd "$ROOT"
 TAG="${1:-}"
 MSG="${2:-}"
 [ -n "$TAG" ] || { echo "Usage : ./publish.sh v1.2.3 \"message du tag\""; exit 1; }
-[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "❌ Tag attendu au format vX.Y.Z"; exit 1; }
+# Le suffixe `-fr` est la convention de tag de la branche française (cf docs/translation.md).
+# Sans lui dans le motif, la branche fr ne pouvait tout simplement pas être publiée.
+[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+)?$ ]] || { echo "❌ Tag attendu au format vX.Y.Z (suffixe -fr accepté)"; exit 1; }
 [ -n "$MSG" ] || { echo "❌ Un message de tag est requis."; exit 1; }
 
 echo "▸ Le paquet colle-t-il au Brain vivant ?"
