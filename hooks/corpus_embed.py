@@ -114,7 +114,7 @@ def cmd_query(k, q):
     """Semantic search over the cold corpus — a channel SEPARATE from the notes (it does NOT pollute
     brain_recall: thousands of raw conversations would drown the curated notes)."""
     if not os.path.exists(NPZ):
-        print("Pas d'index — lance d'abord: corpus_embed.py (build)", file=sys.stderr); return
+        print("No index — run corpus_embed.py (build) first", file=sys.stderr); return
     meta = json.load(open(META, encoding="utf-8"))
     X = np.load(NPZ)["v"].astype(np.float64)
     X = X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-9)

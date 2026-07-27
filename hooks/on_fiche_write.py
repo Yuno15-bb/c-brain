@@ -122,7 +122,7 @@ def main(data):
         if INBOX_HEADER in mem:
             mem = mem.replace(INBOX_HEADER, INBOX_HEADER + "\n" + line, 1)
         else:
-            mem = mem.rstrip() + f"\n\n---\n\n{INBOX_HEADER}\n\n*The hook drops any note not yet on the map here; the gardener files them afterte dans la bonne section.*\n\n{line}\n"
+            mem = mem.rstrip() + f"\n\n---\n\n{INBOX_HEADER}\n\n*The hook drops any note not yet on the map here; the gardener files them into the right section afterwards.*\n\n{line}\n"
         try:
             open(MEMORY, "w", encoding="utf-8").write(mem)
         except Exception:

@@ -87,10 +87,10 @@ def main():
 
     print(f"📊 Usefulness — {len(stats)} notes | {len(recalls)} surfaced, {len(reads)} read")
     if len(recalls) + len(reads) < 5:
-        print("  ⏳ Pas encore assez d'historique d'usage (le signal se construit "
-              "au fil des sessions).")
+        print("  ⏳ Not enough usage history yet (the signal builds up "
+              "over the sessions).")
     if pillars:
-        print("\n  ⭐ Piliers (les plus lues) :")
+        print("\n  ⭐ Pillars (the most read):")
         for s in pillars:
             print(f"     {s['read']:3}×  {s['path']}")
     if ignored:
@@ -103,7 +103,7 @@ def main():
         for s in dead[:8]:
             print(f"        {s['path']}")
     if not (pillars or ignored or dead):
-        print("  (rien de notable — l'usage est encore jeune)")
+        print("  (nothing notable — usage is still young)")
 
 
 if __name__ == "__main__":

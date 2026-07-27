@@ -1,36 +1,36 @@
 #!/usr/bin/env python3
-"""brain_upkeep — SECONDE COUCHE autonome du Claude Brain (veille de cohésion).
+"""brain_upkeep — the SECOND autonomous layer (cohesion watch).
 
-La boucle SessionEnd (auto_maintain.py) ne réveille que 2 agents sur 7 :
-  distillateur (écrit) → jardinier (range) → commit.
-Les 4 agents de VEILLE (challenger, architecte, archiviste, mécanicien) ne
-tournaient qu'à la main. Ce module les branche dans l'auto, SANS exploser le coût.
+The SessionEnd loop (auto_maintain.py) wakes only two agents:
+  distiller (writes) → gardener (files) → commit.
+The four WATCH agents (challenger, architect, archivist, mechanic) used to
+run only by hand. This module wires them into the automation WITHOUT blowing up the cost.
 
 Principe « cadence + seuil capteur » :
-  1. O1 — on ne RÉGÉNÈRE que les capteurs des agents dont le cooldown est ouvert
-     (gratuits, zéro LLM ; inutile de recalculer la topologie si l'architecte dort) :
+  1. we only REGENERATE the sensors of agents whose cooldown has elapsed
+     (free, zero LLM; no point recomputing topology while the architect sleeps):
        brain_topology --json  → state/topology.json   (architecte)
        brain_utility  --json  → state/utility.json     (archiviste)
-       brain_doctor   --json  → state/doctor.json       (mécanicien)
-       coherence.json         → accumulé par check_coherence (challenger, pas de régén)
-  2. chaque agent n'est ÉLIGIBLE que si SON capteur dépasse un seuil
-     (vrai travail à faire) ET qu'il a respecté son cooldown (pas de thrash).
-  3. on n'en réveille AU PLUS UN par passage (garantie de coût : ~1 run LLM
-     en plus, et seulement quand il y a réellement matière). Sur la durée,
-     toutes les dimensions finissent tendues, par priorité.
-  F1 — résilience quota : preflight AVANT dépense, et cooldown gravé SEULEMENT si
-     l'agent a réellement réussi (un échec quota/login est réessayé, pas « brûlé »).
+       brain_doctor   --json  → state/doctor.json       (mechanic)
+       coherence.json         → accumulated by check_coherence (challenger, no regen)
+  2. each agent is ELIGIBLE only if ITS sensor crosses a threshold
+     (real work to do) AND its cooldown has elapsed (no thrashing).
+  3. AT MOST ONE is woken per pass (a cost guarantee: about one extra LLM run,
+     and only when there is genuinely something to do). Over time,
+     every dimension gets attention, by priority.
+  quota resilience: preflight BEFORE spending, and the cooldown is engraved ONLY if
+     the agent actually succeeded (a quota/login failure is retried, not "burned").
 
-Séparation des pouvoirs respectée : ICI on MESURE + on DÉCIDE qui réveiller ;
+Separation of powers respected: HERE we MEASURE and DECIDE who to wake;
 l'agent LLM, lui, JUGE et agit. On ne touche jamais au contenu des fiches.
 
-Appelé depuis le wrapper headless de auto_maintain (déjà sous quota préflighté,
-CLAUDE_BRAIN_GARDENING=1). Best-effort : si un agent échoue (quota/login), la
-veille est simplement sautée — contrairement à la distillation, rien n'est perdu.
+Called from auto_maintain's headless wrapper (already under a preflighted quota,
+CLAUDE_BRAIN_GARDENING=1). Best effort: if an agent fails (quota/login), the
+watch pass is simply skipped — unlike distillation, nothing is lost.
 
 Usage :
-  brain_upkeep.py decide        → JSON de la décision (debug, zéro effet)
-  brain_upkeep.py run [sid]      → régénère, décide, réveille au plus 1 agent
+  brain_upkeep.py decide        → the decision as JSON (debug, no effect)
+  brain_upkeep.py run [sid]      → regenerates, decides, wakes at most one agent
 Sort toujours 0 (ne bloque jamais un hook).
 """
 import os, sys, json, time, shutil, subprocess
@@ -41,42 +41,42 @@ try:
 except Exception:
     def write_status(*a, **k): pass
 try:
-    import brain_guard as guard          # résilience quota/compte (même garde que la couche 1)
+    import brain_guard as guard          # quota/account resilience (the same guard as layer 1)
 except Exception:
     guard = None
 
 BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
 HOOKS = os.path.dirname(os.path.abspath(__file__))
 STATE = os.path.join(BRAIN, "state")
-CADENCE = os.path.join(STATE, "upkeep.json")   # mémoire des derniers réveils
+CADENCE = os.path.join(STATE, "upkeep.json")   # memory of the last wake-ups
 LOG = os.path.join(BRAIN, "sessions", "gardening.log")
 COST = os.path.join(BRAIN, "sessions", "cost.jsonl")
 
-# Cooldown : un même agent ne se relance pas avant N heures, même si son capteur
+# Cooldown: the same agent does not run again for N hours, even if its sensor
 # reste au-dessus du seuil (anti-thrash : laisse le temps qu'une passe porte ses
 # fruits avant d'en redemander une).
 COOLDOWN_H = 12
 
-# Priorité de réveil (au plus un par passage) : l'honnêteté d'abord (contradictions),
-# puis la cohésion (liens/îlots), l'élagage (poids mort), enfin l'infra (défauts doctor).
+# Wake priority (at most one per pass): honesty first (contradictions),
+# then cohesion (links/islands), pruning (dead weight), finally infrastructure (doctor defects).
 ORDER = ["challenger", "architect", "archivist", "mechanic"]
 
-# Modèle par agent (cohérent avec leur frontmatter ; le shell parent force haiku
-# pour distill/jardin, ici on respecte le besoin réel de chaque rôle).
+# Model per agent (consistent with their front matter; the parent shell forces haiku
+# for distill/garden, here we respect what each role actually needs).
 MODEL = {"architect": "sonnet", "challenger": "sonnet",
          "archivist": "haiku", "mechanic": "sonnet"}
 
-# Activité capsule par agent (clés DÉJÀ reconnues par capsule/index.html : la
-# créature montre le bon rôle au travail). L'architecte a SA scène propre
+# Capsule activity per agent (keys ALREADY recognized by capsule/index.html: the
+# creature shows the right role at work). The architect has ITS own scene
 # ('architecting' : ponts inter-domaines) — distincte du 'mapping' du jardinier.
 ACT = {"architect": "architecting", "challenger": "challenging",
        "archivist": "archiving", "mechanic": "auditing"}
 
-# Capteur mécanique à régénérer pour CHAQUE agent (optimisation O1 : on ne régénère
+# The mechanical sensor to regenerate for EACH agent (we do not recompute a
 # QUE les capteurs des agents dont le cooldown est ouvert — inutile de recalculer la
-# topologie TF-IDF de 151 fiches si l'architecte est de toute façon en cooldown).
-# Le challenger n'a pas de capteur à régénérer (coherence.json est accumulé en
-# continu par check_coherence à chaque écriture de fiche).
+# TF-IDF topology over every note if the architect is on cooldown anyway).
+# The challenger has no sensor to regenerate (coherence.json is accumulated
+# continuously by check_coherence on every note written).
 REGEN = {"architect": ("brain_topology.py", ["--json"]),
          "archivist": ("brain_utility.py", ["--json"]),
          "mechanic": ("brain_doctor.py", ["--json"])}
@@ -90,7 +90,7 @@ def load_json(path, default):
 
 
 def regen_sensors(agents):
-    """Régénère SEULEMENT les capteurs des `agents` donnés (cheap, zéro LLM).
+    """Regenerates ONLY the sensors of the given `agents` (cheap, zero LLM).
     Optimisation O1 : on ne recalcule pas un capteur dont l'agent est en cooldown."""
     py = sys.executable
     seen = set()
@@ -105,45 +105,45 @@ def regen_sensors(agents):
                            cwd=BRAIN, stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL, timeout=60)
         except Exception:
-            pass  # capteur muet → l'agent concerné sera simplement jugé non éligible
+            pass  # a silent sensor → that agent is simply judged ineligible
 
 
 def sensor_signal():
-    """Lit les 4 capteurs et renvoie, par agent, (a-t-il du travail ?, raison lisible)."""
+    """Reads the four sensors and returns, per agent, (does it have work?, a readable reason)."""
     topo = load_json(os.path.join(STATE, "topology.json"), {})
     util = load_json(os.path.join(STATE, "utility.json"), {})
     coh = load_json(os.path.join(STATE, "coherence.json"), [])
     doc = load_json(os.path.join(STATE, "doctor.json"), {})
 
-    n_miss = len(topo.get("liens_manquants", []))
-    n_iso = len(topo.get("isolees", []))
-    n_bad = len(topo.get("placement_incoherent", []))
-    n_comp = topo.get("n_composantes", 1)
+    n_miss = len(topo.get("missing_links", []))
+    n_iso = len(topo.get("isolated", []))
+    n_bad = len(topo.get("odd_placement", []))
+    n_comp = topo.get("n_components", 1)
     n_dead = len(util.get("poids_mort", []))
-    # Un capteur compte des UNITÉS DE TRAVAIL, pas des lignes. coherence.json peut porter
-    # des notes d'arbitrage (« ✓ faux positif ») laissées par un agent : les compter
-    # gardait le challenger éligible à vie → un run sonnet toutes les 12 h pour rien, qui
-    # préemptait l'architecte (1er dans ORDER). Seule une paire (a,b) est du travail.
+    # A sensor counts UNITS OF WORK, not lines. coherence.json may carry
+    # arbitration notes ("✓ false positive") left by an agent: counting those
+    # kept the challenger eligible forever → a sonnet run every 12 h for nothing, which
+    # preempted the architect (first in ORDER). Only an (a,b) pair is work.
     n_contra = sum(1 for f in coh if isinstance(f, dict)
                    and isinstance(f.get("a"), str) and isinstance(f.get("b"), str)
                    ) if isinstance(coh, list) else 0
     n_defaut = doc.get("total", 0) if isinstance(doc, dict) else 0
 
     sig = {}
-    # ARCHITECTE : la cohésion globale s'effrite — îlot détaché, fiche isolée,
-    # placement douteux, ou un tas de liens évidents manquants.
+    # ARCHITECT: global cohesion is fraying — a detached island, an isolated note,
+    # a doubtful placement, or a pile of obvious missing links.
     arch_ok = n_iso >= 1 or n_bad >= 3 or n_comp >= 2 or n_miss >= 8
     sig["architect"] = (arch_ok,
-        f"{n_miss} liens manquants, {n_iso} isolées, {n_bad} placements douteux, "
+        f"{n_miss} missing links, {n_iso} isolated, {n_bad} doubtful placements, "
         f"{n_comp} composante(s)")
-    # CHALLENGER : au moins une paire signalée « doublon OU contradiction » à trancher.
-    sig["challenger"] = (n_contra >= 1, f"{n_contra} recouvrement(s) fort(s) à arbitrer")
-    # ARCHIVISTE : du poids mort s'accumule (fiches froides candidates à l'archivage).
-    sig["archivist"] = (n_dead >= 3, f"{n_dead} fiche(s) en poids mort")
-    # MÉCANICIEN : le docteur signale des défauts d'infra (liens morts, orphelins,
-    # frontmatter, nommage, hors-index). Ne se réveille QUE s'il y a un vrai défaut —
+    # CHALLENGER: at least one pair flagged "duplicate OR contradiction" to settle.
+    sig["challenger"] = (n_contra >= 1, f"{n_contra} heavy overlap(s) to arbitrate")
+    # ARCHIVIST: dead weight is piling up (cold notes, archiving candidates).
+    sig["archivist"] = (n_dead >= 3, f"{n_dead} note(s) of dead weight")
+    # MECHANIC: the doctor reports infrastructure defects (dead links, orphans,
+    # front matter, naming, off-index). It wakes ONLY on a real defect —
     # donc rare, exactement quand on en a besoin (sinon doctor.total = 0).
-    sig["mechanic"] = (n_defaut >= 1, f"{n_defaut} défaut(s) infra signalé(s) par le docteur")
+    sig["mechanic"] = (n_defaut >= 1, f"{n_defaut} infrastructure defect(s) reported by the doctor")
     return sig
 
 
@@ -167,7 +167,7 @@ def record_run(agent, now):
 
 
 def decide(now=None):
-    """Renvoie l'agent à réveiller (ou None) + le détail par agent, sans rien lancer."""
+    """Returns the agent to wake (or None) plus the per-agent detail, launching nothing."""
     now = now or time.time()
     sig = sensor_signal()
     report = {}
@@ -179,37 +179,37 @@ def decide(now=None):
         report[agent] = {"has_work": has_work, "cooldown_ok": cd,
                          "eligible": eligible, "reason": reason}
         if eligible and chosen is None:
-            chosen = agent          # premier éligible par ordre de priorité
+            chosen = agent          # the first eligible one, in priority order
     return {"chosen": chosen, "agents": report}
 
 
 TASKS = {
     "architect": (
-        "Veille de COHÉSION (auto). Le capteur state/topology.json est à jour : "
-        "lis-le et traite EN PRIORITÉ les îlots détachés, les fiches isolées, les "
-        "placements incohérents, puis quelques liens manquants inter-domaines à plus "
-        "forte valeur. Tisse les liens [[...]] manquants, raccroche l'isolé. "
-        "ÉCONOMIE DE TOKENS : appuie-toi sur le JSON du capteur, n'ouvre que les "
-        "fiches que tu modifies. NE committe PAS (le shell s'en charge). Rapport bref."),
+        "COHESION watch (automatic). The state/topology.json sensor is up to date: "
+        "read it and handle, IN PRIORITY ORDER, the detached islands, the isolated notes, "
+        "the odd placements, then a few of the highest-value cross-domain missing "
+        "links. Weave the missing [[...]] links, reattach what is isolated. "
+        "TOKEN ECONOMY: lean on the sensor JSON, open only the "
+        "notes you modify. Do NOT commit (the shell handles it). Short report."),
     "challenger": (
-        "Veille d'HONNÊTETÉ (auto). state/coherence.json liste des paires à fort "
-        "recouvrement (doublon OU contradiction). Pour chacune, tranche : vrai "
-        "doublon à fusionner, contradiction à signaler, ou faux positif. Produis tes "
-        "doutes étayés (tu ne réécris pas le savoir, tu le mets à l'épreuve). "
-        "ÉCONOMIE DE TOKENS : n'ouvre que les fiches concernées. NE committe PAS. Rapport bref."),
+        "HONESTY watch (automatic). state/coherence.json lists pairs with heavy "
+        "overlap (duplicate OR contradiction). For each one, decide: a real "
+        "a duplicate to merge, a contradiction to report, or a false positive. Produce your "
+        "substantiated doubts (you do not rewrite the knowledge, you test it). "
+        "TOKEN ECONOMY: open only the notes involved. Do NOT commit. Short report."),
     "archivist": (
-        "Veille de FRAÎCHEUR (auto). state/utility.json liste le poids mort (fiches "
-        "froides). PROPOSE l'archivage des plus clairement périmées (ne supprime "
-        "JAMAIS seul : marque/déplace selon la convention d'archivage). "
-        "ÉCONOMIE DE TOKENS : appuie-toi sur le JSON. NE committe PAS. Rapport bref."),
+        "FRESHNESS watch (automatic). state/utility.json lists the dead weight (cold "
+        "notes). PROPOSE archiving the most clearly stale ones (never delete "
+        "on your own: mark or move them following the archiving convention). "
+        "TOKEN ECONOMY: lean on the JSON. Do NOT commit. Short report."),
     "mechanic": (
-        "Veille d'INFRA (auto). state/doctor.json liste des défauts mécaniques : "
+        "INFRASTRUCTURE watch (automatic). state/doctor.json lists mechanical defects: "
         "liens_morts, orphelins, frontmatter, nommage, hors_index. Corrige UNIQUEMENT "
-        "ces défauts ciblés et SÛRS (lien mort → bon lien ou retrait, frontmatter "
-        "manquant → complété, nommage → kebab-case). PRUDENCE ABSOLUE : ne touche aux "
-        "hooks/settings/symlinks QUE si le docteur les pointe explicitement ; au moindre "
-        "doute, ne fais rien et signale-le dans le rapport. ÉCONOMIE DE TOKENS : "
-        "appuie-toi sur le JSON, n'ouvre que ce que tu corriges. NE committe PAS. Rapport bref."),
+        "those targeted and SAFE defects (dead link → right link or removal, missing "
+        "front matter → completed, naming → kebab-case). ABSOLUTE CAUTION: touch "
+        "hooks, settings or symlinks ONLY if the doctor points at them explicitly; at the slightest "
+        "doubt, do nothing and say so in the report. TOKEN ECONOMY: "
+        "lean on the JSON, open only what you fix. Do NOT commit. Short report."),
 }
 
 
@@ -227,17 +227,17 @@ def _last_cost_line():
 
 def run(sid=""):
     now = time.time()
-    # O1 — quels agents ont leur cooldown OUVERT ? Si aucun, on s'arrête AVANT toute
-    # dépense : pas de régénération de capteur, pas d'appel LLM. Coût strictement nul.
+    # Which agents have an elapsed cooldown? If none, we stop BEFORE any
+    # spending: no sensor regeneration, no LLM call. Cost strictly zero.
     open_agents = [a for a in ORDER if cooldown_ok(a, now)]
     if not open_agents:
         return
-    # F1 — garde quota AVANT de dépenser quoi que ce soit (même résilience que la
-    # couche 1). Quota épuisé → on diffère sans graver de cooldown : la veille
-    # repassera au prochain SessionEnd authentifié, rien n'est « brûlé ».
+    # Quota guard BEFORE spending anything (the same resilience as layer 1).
+    # Quota spent → we defer without engraving a cooldown: the watch pass
+    # will come round again at the next authenticated SessionEnd, nothing is "burned".
     if guard is not None and not guard.preflight_ok():
         return
-    regen_sensors(open_agents)         # O1 — seulement les capteurs des agents éligibles
+    regen_sensors(open_agents)         # only the sensors of eligible agents
     d = decide(now)
     agent = d["chosen"]
     if not agent:
@@ -255,17 +255,17 @@ def run(sid=""):
             subprocess.run(cmd, cwd=BRAIN, stdin=subprocess.DEVNULL,
                            stdout=cf, stderr=lf, timeout=900)
     except Exception:
-        return  # best-effort : un échec de veille ne perd aucune donnée
-    # F1 — ne GRAVE le cooldown 12 h que si l'agent a VRAIMENT réussi. Un échec
+        return  # best effort: a failed watch pass loses no data
+    # ENGRAVE the 12 h cooldown only if the agent REALLY succeeded. A failure
     # quota/login sort en code 0 avec is_error=true (pas d'exception Python) : sans ce
-    # garde, on brûlait 12 h de veille sans rien faire. interpret_result pose aussi les
-    # marqueurs quota/login → la couche 1 sait différer au prochain coup.
+    # guard, we burned 12 h of watch doing nothing. interpret_result also sets the
+    # quota/login markers → layer 1 knows to defer next time.
     ok = True
     if guard is not None:
         try:
             ok = guard.interpret_result(_last_cost_line(), sid, is_distill=False)
         except Exception:
-            ok = True   # en cas de doute on grave (évite une boucle si interpret casse)
+            ok = True   # when in doubt we engrave (avoids a loop if interpret breaks)
     if ok:
         record_run(agent, now)
 

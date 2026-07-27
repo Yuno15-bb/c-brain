@@ -93,7 +93,7 @@ def compute():
     hot = {"sid": hot_sid, "paths": sorted(by_sid.get(hot_sid, []))} if hot_sid else {}
 
     return {"generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "counts": {"events": len(events), "fiches_chaudes": len(heat_n), "liens_usage": len(edges)},
+            "counts": {"events": len(events), "hot_notes": len(heat_n), "usage_links": len(edges)},
             "heat": heat_n, "edges": edges, "hot_session": hot,
             "heat_id": {keep[p]: v for p, v in heat_n.items()}}
 
@@ -103,9 +103,9 @@ def main():
     json.dump(data, open(OUT, "w", encoding="utf-8"), ensure_ascii=False)
     if sys.stdout.isatty() or "--show" in sys.argv:
         c = data["counts"]
-        print(f"⚡ co-activation: {c['events']} activations · {c['fiches_chaudes']} hot notes · {c['liens_usage']} usage links d'usage")
+        print(f"⚡ co-activation: {c['events']} activations · {c['hot_notes']} hot notes · {c['usage_links']} usage links d'usage")
         top = sorted(data["heat"].items(), key=lambda kv: -kv[1])[:8]
-        print("  🔥 plus chaudes :")
+        print("  🔥 hottest:")
         for p, v in top:
             print(f"     {v:.2f}  {os.path.basename(p)[:-3]}")
         print("  🔗 strong usage links (co-activated, not necessarily linked with [[…]]):")

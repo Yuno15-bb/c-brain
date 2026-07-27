@@ -94,7 +94,7 @@ def claude_text(msg):
 # ───────────────────── normalisation par source ─────────────────────
 def parse_chatgpt(conv):
     cid = conv.get("conversation_id") or conv.get("id") or ""
-    title = conv.get("title") or "(sans titre)"
+    title = conv.get("title") or "(untitled)"
     created = conv.get("create_time")
     rows = []
     for node in (conv.get("mapping") or {}).values():
@@ -115,7 +115,7 @@ def parse_chatgpt(conv):
 
 def parse_claude(conv):
     cid = conv.get("uuid") or conv.get("id") or ""
-    title = conv.get("name") or "(sans titre)"
+    title = conv.get("name") or "(untitled)"
     created = conv.get("created_at")
     rows = []
     for m in conv.get("chat_messages") or []:
@@ -142,7 +142,7 @@ def detect_and_parse(conv):
 
 # ───────────────────── file discovery ─────────────────────
 def load_conversations(path):
-    """Renvoie une liste de (label_compte, [conversations]) depuis un zip / dossier / json."""
+    """Returns a list of (account_label, [conversations]) from a zip / folder / json."""
     out = []
     if path.endswith(".zip") and zipfile.is_zipfile(path):
         with zipfile.ZipFile(path) as z:

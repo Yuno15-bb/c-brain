@@ -84,7 +84,7 @@ def rebuild_timeline():
             continue
         ts, topic, n = parse_transcript(path)
         if not topic:
-            topic = "(reprise via fichier brief — pas de message texte initial)"
+            topic = "(resumed through a brief file — no initial text message)"
         cache[pid] = {"mtime": mt, "ts": ts or "z", "date": (ts[:10] if ts else "?"),
                       "proj": classify(topic), "n": n, "topic": topic}
         changed = True
@@ -95,7 +95,7 @@ def rebuild_timeline():
 
 def write_timeline(cache):
     rows = sorted(cache.values(), key=lambda e: e["ts"])
-    out = ["# 🕰️ Timeline — toutes les sessions Claude Code\n",
+    out = ["# 🕰️ Timeline — every Claude Code session\n",
            "A **lossless** index of every session. Raw transcripts: "
            f"`{PROJECTS_DIR}/<id>.jsonl`. Kept up to date automatically by the SessionEnd hook. "
            "Secrets are masked automatically.\n"]

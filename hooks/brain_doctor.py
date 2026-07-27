@@ -48,7 +48,7 @@ def md_files():
 
 
 def strip_code(text):
-    """Retire les blocs ``` et les spans `inline` pour ne pas lire les exemples."""
+    """Strips ``` blocks and `inline` spans so documentation examples are not read as links."""
     text = re.sub(r"```.*?```", "", text, flags=re.S)
     text = re.sub(r"`[^`]*`", "", text)
     return text
@@ -106,7 +106,7 @@ def main():
         if zone in LINKED_DIRS:
             fm = frontmatter(txt)
             if fm is None:
-                problems["frontmatter"].append(f"{rel} : pas de frontmatter")
+                problems["frontmatter"].append(f"{rel}: no front matter")
             else:
                 if not fm.get("name"):
                     problems["frontmatter"].append(f"{rel} : 'name' manquant")
@@ -115,7 +115,7 @@ def main():
                 if not fm.get("description"):
                     problems["frontmatter"].append(f"{rel} : 'description' manquante")
             if not re.fullmatch(r"[a-z0-9-]+", base):
-                problems["naming"].append(f"{rel} : '{base}' n'est pas en kebab-case")
+                problems["naming"].append(f"{rel}: '{base}' is not kebab-case")
 
             # 2. orphan (never targeted by a link)
             if base not in INDEX_EXEMPT and base not in all_links:

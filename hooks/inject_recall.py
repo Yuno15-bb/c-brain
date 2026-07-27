@@ -43,8 +43,8 @@ def main():
     if not results:
         return
 
-    lines = ["<brain-recall> Fiches du Claude Brain potentiellement pertinentes "
-             "pour cette demande (lis-les si utile, ignore sinon) :"]
+    lines = ["<brain-recall> Notes from your trunk that may be relevant "
+             "for this request (read them if useful, ignore otherwise):"]
     for s, d in results:
         desc = (" — " + d["desc"][:120]) if d["desc"] else ""
         lines.append(f"- {d['name']} ({d['path']}){desc}")

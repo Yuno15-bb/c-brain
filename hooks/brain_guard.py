@@ -2,23 +2,23 @@
 """brain_guard — rend la maintenance autonome increvable face aux tokens / au compte.
 
 Garanties :
-  - jamais de crash (tout échoue en douceur),
-  - jamais d'état à moitié (lock + reprise),
-  - jamais de perte de session (file d'attente retentée),
-  - jamais de "distillé à tort" sur un 429 (lecture du RÉSULTAT, pas du code retour).
+  - never a crash (everything fails gently),
+  - never a half state (lock + resume),
+  - never a lost session (a retried queue),
+  - never a false "distilled" on a 429 (we read the RESULT, not the exit code).
 
-Principe : la cohérence structurelle du cerveau ne dépend JAMAIS d'un appel LLM.
-Un problème de quota/compte ne fait que DIFFÉRER la distillation, jamais casser le système.
+Principle: the structural consistency of the brain NEVER depends on an LLM call.
+A quota or account problem only DEFERS distillation; it never breaks the system.
 """
 import os, sys, json, time, subprocess, hashlib, re, fcntl
 
 BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
 STATE = os.path.join(BRAIN, "state")
 LOCK  = os.path.join(STATE, "maintenance.lock")
-QUEUE = os.path.join(STATE, "pending-distill.json")   # sessions à distiller plus tard
+QUEUE = os.path.join(STATE, "pending-distill.json")   # sessions to distil later
 QUOTA = os.path.join(STATE, "quota.json")             # {"blocked_until": epoch, "msg": ...}
 LOGIN = os.path.join(STATE, "login.json")             # {"logged_out": bool, "ts": ..., "msg": ...}
-LOCK_TTL = 20 * 60   # au-delà : lock réputé mort (process zombie / Mac en veille)
+LOCK_TTL = 20 * 60   # past this: the lock is presumed dead (zombie process / machine asleep)
 
 
 def _rj(p, d):
@@ -52,15 +52,15 @@ def _status_idle():
         pass
 
 
-# --- A. Verrou avec récupération des zombies (corrige le 'busy' bloqué) -----
+# --- A. Lock with zombie reclaim (fixes the stuck 'busy' state) -----
 def acquire_lock(sid=None) -> bool:
-    """True si on prend le verrou. Récupère un verrou périmé / process mort,
-    ré-enfile la session interrompue et débloque le statut resté 'busy'."""
+    """True if we take the lock. Reclaims a stale lock or a dead process,
+    re-queues the interrupted session and unblocks a status stuck on 'busy'."""
     payload = {"pid": os.getpid(), "ts": time.time(),
                "sid": sid, "account": account_fingerprint()}
-    # Création ATOMIQUE (O_EXCL) : ferme la course « deux SessionEnd lisent en même temps
-    # 'pas de lock' et le prennent tous les deux ». Si le fichier n'existe pas, on le crée
-    # d'un seul syscall ; sinon on bascule sur la logique de récupération du zombie ci-dessous.
+    # ATOMIC creation (O_EXCL): closes the race where "two SessionEnd hooks read
+    # 'no lock' at the same time and both take it". If the file does not exist we create it
+    # in a single syscall; otherwise we fall through to the zombie-reclaim logic below.
     try:
         fd = os.open(LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
         try:
@@ -71,24 +71,24 @@ def acquire_lock(sid=None) -> bool:
     except FileExistsError:
         pass
     except Exception:
-        pass                                 # FS sans O_EXCL → repli sur la récupération
+        pass                                 # filesystem without O_EXCL → fall back to reclaim
     cur = _rj(LOCK, None)
     if cur and _alive(cur.get("pid")) and (time.time() - cur.get("ts", 0)) < LOCK_TTL:
         return False                         # une VRAIE maintenance tourne → on n'en lance pas 2
-    if cur:                                  # lock périmé ou process mort → on le reprend
+    if cur:                                  # stale lock or dead process → we take it over
         if cur.get("sid"):
             enqueue(cur["sid"])              # la session interrompue repart en file
-        _status_idle()                       # on débloque le statut resté 'busy'
+        _status_idle()                       # unblock a status stuck on 'busy'
     _wj(LOCK, payload)
     return True
 
 
 def update_lock_pid(pid):
-    """Réinscrit le lock avec le PID du WORKER DÉTACHÉ. Indispensable : le hook qui prend le
-    lock (auto_maintain / resume_pending) MEURT juste après avoir spawné le worker ; sans ça,
-    `_alive(pid)` voit un PID mort → la session suivante répute le lock périmé et lance une
-    maintenance EN PARALLÈLE (race git/Inbox, cf. [[headless-concurrent-git-race]]). On y inscrit
-    le PID du `sh -c` détaché, vivant toute la passe ; le worker fait `release` en fin de course."""
+    """Rewrites the lock with the PID of the DETACHED WORKER. Essential: the hook that takes
+    the lock (auto_maintain / resume_pending) DIES right after spawning the worker; without this,
+    `_alive(pid)` sees a dead PID → the next session declares the lock stale and starts a
+    maintenance run IN PARALLEL (a git/Inbox race). We therefore write
+    the PID of the detached `sh -c`, alive for the whole pass; the worker calls `release` at the end."""
     cur = _rj(LOCK, None) or {}
     cur["pid"] = int(pid)
     cur["ts"] = time.time()
@@ -106,9 +106,9 @@ def release_lock():
 
 # --- B. Compte actif (creds en Keychain → empreinte indirecte) -------------
 def account_fingerprint() -> str:
-    """Identité approx. du compte actif, sans lire de secret. Les creds Claude Code
-    sont dans le Keychain macOS : on se base sur l'account_uuid présent dans les
-    transcripts récents (signal fiable du compte qui a tourné)."""
+    """Approximate identity of the active account, without reading any secret. Claude Code
+    credentials live in the macOS Keychain: we rely on the account_uuid present in
+    recent transcripts (a reliable signal of which account ran)."""
     try:
         tdir = os.path.join(os.path.expanduser("~/.claude/projects"), os.path.expanduser("~").replace(os.sep, "-"))
         jsonls = sorted(
@@ -124,17 +124,17 @@ def account_fingerprint() -> str:
     return "unknown"
 
 
-# --- C. Preflight : a-t-on le droit de dépenser des tokens maintenant ? -----
+# --- C. Preflight: are we allowed to spend tokens right now? -----
 def preflight_ok() -> bool:
-    """Ne consomme AUCUN token : lit un marqueur de quota posé par un run précédent."""
+    """Consumes NO token: reads a quota marker left by a previous run."""
     q = _rj(QUOTA, None)
     if q and time.time() < q.get("blocked_until", 0):
-        return False                         # quota épuisé, reset pas encore atteint
+        return False                         # quota spent, reset not reached yet
     return True
 
 
 def _parse_reset_epoch(msg: str):
-    """'... resets 2:50pm (Europe/Paris)' → epoch best-effort ; défaut +1h."""
+    """'... resets 2:50pm (Europe/Paris)' → best-effort epoch; defaults to +1h."""
     try:
         m = re.search(r'resets\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)', msg, re.I)
         if not m:
@@ -153,14 +153,14 @@ def _parse_reset_epoch(msg: str):
         return time.time() + 3600
 
 
-# --- D. Lecture du résultat : LA correction du piège 429 -------------------
+# --- D. Reading the result: THE fix for the 429 trap -------------------
 def interpret_result(last_cost_line: str, sid: str, is_distill: bool = True) -> bool:
-    """True si le run a VRAIMENT réussi. Sinon : ré-enfile (si distill) + marqueur adéquat.
-    Corrige deux pièges où le CLI sort en code 0 avec is_error=true :
-      - 429 (quota)        → on lit le RÉSULTAT, on pose le marqueur quota.
-      - "Not logged in"    → le headless détaché part sans session authentifiée et
-        échoue en <1 s. On pose un marqueur login ET on ré-enfile la session pour la
-        rejouer au prochain SessionEnd authentifié → aucune session jamais perdue."""
+    """True if the run REALLY succeeded. Otherwise: re-queue (if distilling) + the right marker.
+    Fixes two traps where the CLI exits 0 with is_error=true:
+      - 429 (quota)        → we read the RESULT and set the quota marker.
+      - "Not logged in"    → the detached headless run starts unauthenticated and
+        fails in under a second. We set a login marker AND re-queue the session so it
+        replays at the next authenticated SessionEnd → no session is ever lost."""
     try:
         r = json.loads(last_cost_line)
     except Exception:
@@ -171,28 +171,28 @@ def interpret_result(last_cost_line: str, sid: str, is_distill: bool = True) -> 
     if "not logged in" in rl or "please run /login" in rl:
         _wj(LOGIN, {"logged_out": True, "ts": time.time(), "msg": res[:200]})
         if is_distill:
-            enqueue(sid)                      # rien distillé → on rejouera une fois connecté
+            enqueue(sid)                      # nothing distilled → we replay once logged in
         return False
     if r.get("is_error") or r.get("api_error_status"):
         if is_distill:
-            enqueue(sid)                      # NON distillé → retenté plus tard
+            enqueue(sid)                      # NOT distilled → retried later
         if r.get("api_error_status") == 429 or "limit" in rl:
             _wj(QUOTA, {"blocked_until": _parse_reset_epoch(res), "msg": res[:200]})
         return False
-    _wj(LOGIN, {"logged_out": False, "ts": time.time()})   # run OK → session bien authentifiée
-    _wj(QUOTA, {"blocked_until": 0, "msg": "ok"})          # tokens revenus → on lève le blocage
+    _wj(LOGIN, {"logged_out": False, "ts": time.time()})   # run OK → the session was authenticated
+    _wj(QUOTA, {"blocked_until": 0, "msg": "ok"})          # tokens are back → lift the block
     return True
 
 
 # --- E. File d'attente : aucune session perdue -----------------------------
 # Toutes les mutations de la file passent par _with_queue, qui prend un verrou
 # EXCLUSIF (flock) sur le fichier le temps du read-modify-write. Indispensable :
-# quand on ferme PLUSIEURS sessions à la fois, autant de SessionEnd s'exécutent en
-# parallèle et appellent enqueue() simultanément ; sans verrou, le dernier write
-# écrase les précédents → des sessions disparaissent de la file. Le flock sérialise.
+# when SEVERAL sessions are closed at once, that many SessionEnd hooks run in
+# parallel and call enqueue() simultaneously; without a lock, the last write
+# overwrites the previous ones → sessions vanish from the queue. The flock serializes.
 def _with_queue(mutate):
     """Ouvre la file sous verrou exclusif, applique mutate(list)->(new_list, ret),
-    réécrit atomiquement, renvoie ret. Tolère l'absence de fcntl (fallback best-effort)."""
+    rewrites atomically, returns ret. Tolerates a missing fcntl (best-effort fallback)."""
     try:
         os.makedirs(STATE, exist_ok=True)
         f = open(QUEUE, "a+", encoding="utf-8")
@@ -240,13 +240,13 @@ def enqueue(sid):
 
 
 def drain_queue():
-    """Vide la file et renvoie tout son contenu, atomiquement."""
+    """Empties the queue and returns all of its content, atomically."""
     return _with_queue(lambda q: ([], q))
 
 
 def dequeue_one():
     """Retire et renvoie la session la plus ancienne (None si vide), atomiquement.
-    À préférer à drain+réenfile quand on ne traite qu'UNE session par passage."""
+    Preferable to drain+re-queue when only ONE session is handled per pass."""
     def m(q):
         if not q:
             return q, None
@@ -255,11 +255,11 @@ def dequeue_one():
     return _with_queue(m)
 
 
-# --- CLI : utilisé par le wrapper shell de auto_maintain -------------------
+# --- CLI: used by auto_maintain's shell wrapper -------------------
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     if cmd == "interpret":
-        # interpret <cost.jsonl> <sid> [distill 0|1] → exit 0 si succès, 7 sinon
+        # interpret <cost.jsonl> <sid> [distill 0|1] → exit 0 on success, 7 otherwise
         try:
             last = open(sys.argv[2], encoding="utf-8").read().splitlines()[-1]
         except Exception:
@@ -268,8 +268,8 @@ if __name__ == "__main__":
         is_distill = (sys.argv[4] != "0") if len(sys.argv) > 4 else True
         ok = interpret_result(last, sid, is_distill)
         if not ok and _rj(LOGIN, {}).get("logged_out"):
-            print("[brain_guard] not logged in — session ré-enfilée, rejouée au "
-                  "prochain SessionEnd. Lance `claude /login` pour réactiver les agents.",
+            print("[brain_guard] not logged in — session re-queued, it will replay at the "
+                  "next SessionEnd. Run `claude /login` to reactivate the agents.",
                   file=sys.stderr)
         sys.exit(0 if ok else 7)
     elif cmd == "release":

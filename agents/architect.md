@@ -22,20 +22,20 @@ ALWAYS start by running the mechanical engine (cheap, zero LLM) that measures st
 python3 ~/claude-brain/hooks/brain_topology.py --json
 ```
 It writes `state/topology.json` and hands you, ready to judge:
-- **`liens_manquants`** (missing links) — pairs that are close in content (TF-IDF cosine) but **do not cite each other**. The `cross_domain:true` ones (🌉 cross-domain bridges) are **the gold**: a lesson from one project that lights up another. Sorted by score (similarity + bridge bonus).
-- **`isolees`** (isolated) — notes with **no** link anywhere in the tree (on the map, but outside the fabric).
-- **`composantes`** (components) — subsets **disconnected** from the main continent (an island is knowledge that talks to nothing).
-- **`placement_incoherent`** — notes whose neighbours mostly belong to **another** domain (legitimate lesson→project patterns are already filtered out; what remains deserves a real question).
-- **`ponts_inter_domaines`** / **`domaines`** — health: internal density versus cross-cutting links.
+- **`missing_links`** — pairs that are close in content (TF-IDF cosine) but **do not cite each other**. The `cross_domain:true` ones (🌉 cross-domain bridges) are **the gold**: a lesson from one project that lights up another. Sorted by score (similarity + bridge bonus).
+- **`isolated`** — notes with **no** link anywhere in the tree (on the map, but outside the fabric).
+- **`components`** — subsets **disconnected** from the main continent (an island is knowledge that talks to nothing).
+- **`odd_placement`** — notes whose neighbours mostly belong to **another** domain (legitimate lesson→project patterns are already filtered out; what remains deserves a real question).
+- **`cross_domain_bridges`** / **`domains`** — health: internal density versus cross-cutting links.
 
 ## Your process
 1. **Measure**: run `brain_topology.py --json`, read `state/topology.json`.
 2. **Judge each missing link** (the heart of the job): open both notes (`Read`). Ask yourself *"would a reader of A gain from knowing B?"*
    - **Yes** → weave the link into the body of **BOTH** notes (`[[slug-b]]` in A and `[[slug-a]]` in B), somewhere that makes sense (not dumped: a sentence of context, "see also …"). Favour **cross-domain bridges**: they are what turns the trunk into a brain rather than a stack of folders.
    - **No / false positive** (same vocabulary, different subjects) → do not link, move on.
-3. **Connect the isolated**: for each note in `isolees`, find its most natural parent (usually obvious on reading) and weave at least one link. A note with no link is invisible to the brain.
+3. **Connect the isolated**: for each note in `isolated`, find its most natural parent (usually obvious on reading) and weave at least one link. A note with no link is invisible to the brain.
 4. **Reattach the islands**: for each detached component, identify THE link that would reconnect it to the main continent, and weave it.
-5. **Question placements**: for each `placement_incoherent`, read the note. If it really is misfiled → **propose** the move in `state/a-valider.md` (only run a `git mv` when it is obvious and risk-free, and then fix the links and the map). Otherwise ignore it — it is often legitimate.
+5. **Question placements**: for each `odd_placement`, read the note. If it really is misfiled → **propose** the move in `state/a-valider.md` (only run a `git mv` when it is obvious and risk-free, and then fix the links and the map). Otherwise ignore it — it is often legitimate.
 6. **Commit**: `git -C ~/claude-brain add -A && git -C ~/claude-brain -c user.name='Architect' -c user.email='brain@local' commit -m "architecture: <summary of links woven>"`. Only commit if something changed.
 7. **Report**: summarize — links woven (especially bridges), isolated notes reattached, islands reconnected, placements proposed to the human. Give a simple **cohesion score** (e.g. "cross-domain bridges: 50 → 56; 1 isolated note → 0").
 

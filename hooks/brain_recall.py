@@ -148,7 +148,7 @@ def main():
                           for s, d in results], ensure_ascii=False, indent=2))
         return
     if not results:
-        print(f"No note pertinente pour : {query}"); return
+        print(f"No relevant note for: {query}"); return
     print(f"🔎 Top {len(results)} for '{query}':\n")
     for s, d in results:
         print(f"  [{s:5.2f}] {d['name']}  ({d['path']})")
