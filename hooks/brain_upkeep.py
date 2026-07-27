@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""brain_upkeep — SECONDE COUCHE autonome du Claude Brain (veille de cohésion).
+"""brain_upkeep — SECONDE COUCHE autonome du C Brain (veille de cohésion).
 
 La boucle SessionEnd (auto_maintain.py) ne réveille que 2 agents sur 7 :
   distillateur (écrit) → jardinier (range) → commit.
@@ -45,7 +45,7 @@ try:
 except Exception:
     guard = None
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 HOOKS = os.path.dirname(os.path.abspath(__file__))
 STATE = os.path.join(BRAIN, "state")
 CADENCE = os.path.join(STATE, "upkeep.json")   # mémoire des derniers réveils

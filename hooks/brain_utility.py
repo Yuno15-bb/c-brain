@@ -19,7 +19,7 @@ Usage : brain_utility.py [--json]   (exit 0)
 import os, sys, json, glob, time
 from collections import defaultdict
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 RECALL = os.path.join(BRAIN, "state", "recall_log.jsonl")
 READ = os.path.join(BRAIN, "state", "read_log.jsonl")
 DEAD_AGE_DAYS = 30      # une fiche n'est "poids mort" que si elle a au moins cet âge

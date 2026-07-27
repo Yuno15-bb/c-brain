@@ -123,7 +123,7 @@ done
 say "réinstallation (idempotente)…"
 bash "$ENGINE/install.sh" >/tmp/c-brain-update.log 2>&1 || warn "install.sh a signalé un problème (/tmp/c-brain-update.log)"
 
-if bash "$HOME/claude-brain/hooks/selftest.sh" >/tmp/c-brain-update-selftest.log 2>&1; then
+if bash "$HOME/.c-brain/trunk/hooks/selftest.sh" >/tmp/c-brain-update-selftest.log 2>&1; then
   echo
   echo "✅ Mis à jour en $NEW — selftest vert. Tes fiches n'ont pas été touchées."
 else

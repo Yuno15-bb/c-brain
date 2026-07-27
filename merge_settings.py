@@ -21,7 +21,7 @@ import time
 
 HOME = os.path.expanduser("~")
 DEFAULT_SETTINGS = os.path.join(HOME, ".claude", "settings.json")
-BRAIN = os.path.join(HOME, "claude-brain")
+BRAIN = os.path.join(HOME, ".c-brain", "trunk")
 CB = os.path.join(HOME, ".c-brain")
 
 # (événement, matcher ou None, chemin du script, timeout, message d'état)
@@ -44,7 +44,13 @@ HOOKS = [
 ]
 
 # Ce qui identifie NOS commandes au moment de désinstaller. Deux racines :
-# le tronc (~/claude-brain/...) et le moteur (~/.c-brain/engine/...).
+# le tronc (~/.c-brain/trunk/...) et le moteur (~/.c-brain/engine/...).
+#
+# `claude-brain` est GARDÉ exprès, alors que plus aucun chemin ne l'utilise :
+# une installation antérieure à la migration 001 a écrit des commandes qui le
+# portent encore. Le retirer laisserait ces lignes-là dans settings.json pour
+# toujours — une désinstallation qui se dit complète en oubliant la moitié de
+# ce qu'elle a posé. Ce marqueur ne se supprimera jamais.
 MARKERS = ("claude-brain", ".c-brain")
 
 # La statusline se COPIE dans ~/.claude, mais elle ne s'affiche que si elle est

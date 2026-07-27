@@ -22,7 +22,7 @@ try:
 except Exception:
     recall = None
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 FLAGS = os.path.join(BRAIN, "state", "coherence.json")
 SIM_MIN = 0.45   # cosinus TF-IDF (0–1) : au-delà = fort recouvrement réel → vérif doublon/contradiction
 

@@ -136,7 +136,7 @@
   const nodeRequire = window.require;
   const fs = nodeRequire('fs'); const os = nodeRequire('os'); const path = nodeRequire('path');
   const { ipcRenderer } = nodeRequire('electron');
-  const STATUS = path.join(os.homedir(), 'claude-brain', 'state', 'status.json');
+  const STATUS = path.join(os.homedir(), '.c-brain', 'trunk', 'state', 'status.json');
   document.getElementById('reduce').onclick = () => ipcRenderer.send('cap-hide');
   document.getElementById('del').onclick    = () => ipcRenderer.send('cap-quit');
 
@@ -686,7 +686,7 @@
     const rel = CODE_SRC[activity];
     if(!rel){ _codeLines=[]; return; }
     if(_codeCache[rel]){ _codeLines=_codeCache[rel]; return; }
-    try { const txt = fs.readFileSync(path.join(os.homedir(),'claude-brain',rel),'utf8');
+    try { const txt = fs.readFileSync(path.join(os.homedir(), '.c-brain', 'trunk',rel),'utf8');
       _codeLines = _codeCache[rel] = txt.split('\n').map(l=>l.replace(/\t/g,'  ')).filter(l=>l.trim().length>1).slice(0,500);
     } catch(e){ _codeLines=[]; }
   }

@@ -10,7 +10,7 @@ Le cerveau qui tend la fiche AVANT qu'on la cherche. Sort toujours 0.
 """
 import os, re, sys, glob
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 SKIP_PARTS = (".git", "node_modules", "capsule", "sessions/archive", "corpus", "audits")
 # marqueurs forts (vrais points de reprise) puis faibles (todo génériques)
 STRONG = re.compile(r"(REPRENDRE ICI|POINT DE REPRISE|À REPRENDRE|REPRENDRE"

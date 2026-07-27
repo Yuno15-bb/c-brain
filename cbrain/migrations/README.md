@@ -22,7 +22,7 @@ fois** (le journal est `~/.c-brain/state/migrations-appliquees.txt`).
 # 001-exemple.sh — <ce que ça adapte, et pourquoi c'était nécessaire>
 set -euo pipefail
 
-TRUNK="$HOME/claude-brain"
+TRUNK="$HOME/.c-brain/trunk"
 
 # Vérifier AVANT d'agir : c'est ce qui rend le rejeu inoffensif.
 if [ -f "$TRUNK/state/vieux-fichier.json" ]; then
@@ -33,4 +33,21 @@ else
 fi
 ```
 
-Aucune migration à ce jour — le dossier attend la première vraie rupture.
+## Migrations écrites
+
+| # | Script | Ce qu'elle adapte |
+|---|---|---|
+| 001 | `001-rename-user-dir.sh` | `~/claude-brain` → `~/.c-brain/trunk`, plus un lien de compatibilité à l'ancien emplacement. |
+
+**001 en deux mots.** Le dossier utilisateur portait une marque Anthropic dans
+un produit public, et faisait un quatrième nom pour une seule chose. Après :
+une racine unique, `~/.c-brain`, moteur et tronc côte à côte.
+
+Elle ne fait que **déplacer**. Le recâblage (liens du moteur, `settings.json`,
+plists launchd, lanceur du Bureau) est refait juste derrière par `install.sh`,
+que `update.sh` appelle de toute façon. Une migration qui recâblerait aussi
+dupliquerait cette logique — et les deux copies divergeraient.
+
+Le lien de compatibilité reste en place **définitivement**. Il ne sert plus à
+C Brain, mais à tout ce que C Brain ne connaît pas : le lien mémoire de l'agent
+CLI, les scripts personnels, un chemin noté quelque part.

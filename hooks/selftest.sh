@@ -2,13 +2,13 @@
 # selftest — vérifie que les hooks ne plantent pas et sortent en code 0.
 # Un hook qui plante en silence est pire qu'absent : ce test l'attrape.
 set -u
-BRAIN="$HOME/claude-brain"
+BRAIN="$HOME/.c-brain/trunk"
 cd "$BRAIN"
 fail=0
 ok()   { echo "  ✅ $1"; }
 ko()   { echo "  ❌ $1"; fail=1; }
 
-echo "== selftest des hooks du Claude Brain =="
+echo "== selftest des hooks du C Brain =="
 
 # 1. compilation Python
 for f in hooks/*.py; do
@@ -37,7 +37,7 @@ python3 hooks/brain_guard.py interpret "$tmp" "selftest-sid"; [ $? -eq 7 ] && ok
 # On retire le sid de test de la file ET on réarme le quota à 0 (débloqué).
 python3 - <<'PY' 2>/dev/null
 import json,os
-B=os.path.expanduser("~/claude-brain/")
+B=os.path.expanduser("~/.c-brain/trunk/")
 p=B+"state/pending-distill.json"
 if os.path.exists(p):
     try:

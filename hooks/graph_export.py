@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-graph_export.py — exporte le Claude Brain en graphe pour la PLANÈTE de connaissance.
+graph_export.py — exporte le C Brain en graphe pour la PLANÈTE de connaissance.
 
 Scanne toutes les fiches .md du tronc (projects/, lessons/, meta/, life/, agents/),
 lit leur frontmatter (`name`, `description`) et leurs liens `[[...]]`, et écrit
@@ -14,7 +14,7 @@ Déterministe et sans dépendance externe. Sort toujours 0 (ne bloque jamais un 
 """
 import os, re, json, sys
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 OUT = os.path.join(BRAIN, "planet", "graph.json")
 EMBED2 = os.path.join(BRAIN, "state", "embed2.json")   # carte SÉMANTIQUE (Étage 1), calculée par brain_embed2.py
 COACT = os.path.join(BRAIN, "state", "coactivation.json")  # mémoire de travail (Étage 2), calculée par coactivation.py

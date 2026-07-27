@@ -4,7 +4,7 @@
 import json, time, os
 
 # Dérivé de $HOME, pas de __file__ : c'est le state du TRONC qu'on pilote.
-STATUS = os.path.join(os.path.expanduser('~'), 'claude-brain', 'state', 'status.json')
+STATUS = os.path.join(os.path.expanduser('~'), '.c-brain', 'trunk', 'state', 'status.json')
 
 # ordre du pipeline → couvre les 11 activités reconnues par index.html (idle exclu)
 STEPS = [

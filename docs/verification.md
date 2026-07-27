@@ -48,7 +48,7 @@ personnel, le modèle et le thème sont toujours là.
 ## 3. Le cycle de vie complet
 
 ```bash
-echo "fiche test" > $T/claude-brain/lessons/test.md
+echo "fiche test" > $T/.c-brain/trunk/lessons/test.md
 HOME=$T bash $T/dev-c-brain/uninstall.sh --yes
 ```
 
@@ -60,7 +60,7 @@ d'origine**, les liens du moteur ont disparu.
 ```bash
 HOME=$T CAPSULE_DEV=1 <dépôt>/capsule/node_modules/.bin/electron <dépôt>/capsule \
   --user-data-dir=$T/electron-data &
-HOME=$T python3 $T/claude-brain/hooks/brain_status.py busy distilling "test"
+HOME=$T python3 $T/.c-brain/trunk/hooks/brain_status.py busy distilling "test"
 sleep 3; touch /tmp/cap_shot_req; sleep 3   # → /tmp/cap.png
 ```
 
@@ -77,7 +77,7 @@ capture suivante montre `IDLE`.
 ## 5. Planète
 
 ```bash
-HOME=$T bash $T/claude-brain/planet/launch.sh 8799 &
+HOME=$T bash $T/.c-brain/trunk/planet/launch.sh 8799 &
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8799/
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8799/graph.json
 ```
@@ -90,9 +90,9 @@ champ d'étoiles et la légende des agents.
 
 ```bash
 J='{"session_id":"t","tool_input":{"file_path":"'$T'/demo.py"}}'
-echo "$J" | HOME=$T python3 $T/claude-brain/companion/hooks/pre_snapshot.py
+echo "$J" | HOME=$T python3 $T/.c-brain/trunk/companion/hooks/pre_snapshot.py
 # … modifier le fichier …
-echo "$J" | HOME=$T python3 $T/claude-brain/companion/hooks/post_diff.py
+echo "$J" | HOME=$T python3 $T/.c-brain/trunk/companion/hooks/post_diff.py
 echo '{"session_id":"t","model":{"display_name":"X"},"workspace":{"current_dir":"/tmp"}}' \
   | HOME=$T python3 $T/.claude/statusline.py
 ```

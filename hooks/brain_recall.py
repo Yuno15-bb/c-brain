@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""brain_recall — récupération par pertinence dans le Claude Brain (Volet 2 · Horizon 1).
+"""brain_recall — récupération par pertinence dans le C Brain (Volet 2 · Horizon 1).
 
 FONDATION du rappel sémantique : au lieu de charger MEMORY.md en entier à chaque
 session, on récupère le top-k des fiches PERTINENTES pour une requête.
@@ -16,7 +16,7 @@ Usage :
 import os, re, sys, json, math, glob, unicodedata
 from collections import Counter
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 # on exclut du recall les couches BRUTES/infra — le recall doit remonter le savoir DISTILLÉ
 # (projects/lessons/meta/life/agents), pas l'archive ni le corpus froid des 4 comptes.
 #   • sessions/ : TIMELINE.md = index de 80+ sessions, si long qu'il matche presque tout → bruit.

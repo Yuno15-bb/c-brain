@@ -18,7 +18,7 @@ Usage :
 """
 import os, sys, json, time, glob, subprocess
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 STATE = os.path.join(BRAIN, "state")
 TDIR = os.path.join(os.path.expanduser("~/.claude/projects"), os.path.expanduser("~").replace(os.sep, "-"))   # couche brute (transcripts)
 DISTILLED = os.path.join(BRAIN, "sessions", ".distilled.json")

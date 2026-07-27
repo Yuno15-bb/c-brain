@@ -8,13 +8,13 @@
 #
 # Disposition installée :
 #   ~/.c-brain/engine  → lien vers CE dépôt (le MOTEUR : du code, rien d'autre)
-#   ~/claude-brain     → TON tronc (tes fiches). Jamais écrasé, jamais mis à jour.
+#   ~/.c-brain/trunk     → TON tronc (tes fiches). Jamais écrasé, jamais mis à jour.
 #
 # Usage : ./install.sh [--no-launchd] [--no-capsule] [--dry-run]
 set -euo pipefail
 
 ENGINE="$(cd "$(dirname "$0")" && pwd -P)"
-TRUNK="$HOME/claude-brain"
+TRUNK="$HOME/.c-brain/trunk"
 CB="$HOME/.c-brain"
 TS="$(date +%Y%m%d-%H%M%S)"
 BACKUPS="$CB/backups/$TS"
@@ -94,7 +94,7 @@ link "$ENGINE" "$CB/engine"
 say "version : $(cat "$CB/VERSION" 2>/dev/null || echo '?')"
 
 # ─── 2. Le tronc ──────────────────────────────────────────────────────────
-step "Tronc (~/claude-brain)"
+step "Tronc (~/.c-brain/trunk)"
 if [ -d "$TRUNK" ]; then
   # Un tronc existe. S'il contient un VRAI dossier hooks/ (pas un lien), c'est
   # une installation antérieure autonome : on refuse de la démolir en silence.

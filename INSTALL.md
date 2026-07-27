@@ -30,7 +30,7 @@ Deux emplacements, et la séparation est le cœur du système :
 
 ```
 ~/.c-brain/engine  → lien vers ce dépôt. Du CODE, rien d'autre. Se met à jour.
-~/claude-brain     → TON tronc. Tes fiches. Jamais écrasé, jamais mis à jour.
+~/.c-brain/trunk     → TON tronc. Tes fiches. Jamais écrasé, jamais mis à jour.
 ```
 
 L'installeur :
@@ -92,7 +92,7 @@ brain doctor          # santé de l'arbre
 brain selftest        # revérifier l'installation
 ```
 
-Puis ouvre `~/claude-brain/MEMORY.md` : c'est l'index chargé au début de chaque
+Puis ouvre `~/.c-brain/trunk/MEMORY.md` : c'est l'index chargé au début de chaque
 session, et le format des fiches y est expliqué. Ton arbre part vide — il grandit
 avec le travail, pas avant.
 

@@ -20,7 +20,7 @@ if (!gotLock) {
 // DÉRIVÉ DE $HOME, jamais de __dirname : le moteur peut vivre ailleurs que le
 // tronc (installation par symlinks), et c'est le state de l'UTILISATEUR qu'on
 // surveille. Même chemin que celui utilisé par index.html.
-const STATUS = path.join(os.homedir(), 'claude-brain', 'state', 'status.json');
+const STATUS = path.join(os.homedir(), '.c-brain', 'trunk', 'state', 'status.json');
 let lastState = 'idle';
 function watchStatus() {
   const poll = () => {

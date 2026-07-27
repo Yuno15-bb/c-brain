@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Machiniste — le 8e agent du Claude Brain, couche MACHINE PHYSIQUE.
+Machiniste — le 8e agent du C Brain, couche MACHINE PHYSIQUE.
 
 Les 7 autres agents entretiennent le savoir ; le mécanicien entretient l'infra du Brain.
 Le machiniste, lui, entretient **la machine qui fait tourner tout ça** : RAM, CPU, chaleur.
@@ -23,7 +23,7 @@ Usage :
 import json, os, re, subprocess, sys, time
 from datetime import datetime, timezone
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 STATE = os.path.join(BRAIN, "state")
 SNAPSHOT = os.path.join(STATE, "machiniste.json")       # dernier état, écrasé
 JOURNAL = os.path.join(STATE, "machiniste.jsonl")       # historique, append-only
@@ -37,7 +37,7 @@ PAGE = 16384  # taille de page mémoire sur Apple Silicon
 #
 #     ⚠️ Leçon du test du 2026-07-25 : une première version matchait le mot « claude »
 #     n'importe où dans la ligne de commande. Résultat, TOUT process dont le chemin
-#     contenait « claude » (donc tout ~/claude-brain/, tout /tmp/claude-501/) devenait
+#     contenait « claude » (donc tout ~/.c-brain/trunk/, tout /tmp/claude-501/) devenait
 #     intouchable — le filet attrapait tout et ne prouvait plus rien. On ancre donc les
 #     motifs sur l'exécutable, pas sur un fragment de chemin.
 NEVER_KILL = re.compile(
@@ -279,7 +279,7 @@ def find_reportable(procs, mem, cpu):
                               "la mémoire compressée s'accumule"})
 
     # Doublons de capsule (cf. lesson electron-zombie-process-cleanup)
-    caps = [p for p in procs if "claude-brain/capsule/node_modules/electron/dist" in p["cmd"]
+    caps = [p for p in procs if "c-brain/trunk/capsule/node_modules/electron/dist" in p["cmd"]
             and "--type=" not in p["cmd"]]
     if len(caps) > 1:
         alerts.append({"niveau": "warn", "sujet": "capsule-doublon",

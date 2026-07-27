@@ -1,4 +1,4 @@
-# 🥚 Capsule — le Tamagotchi du Claude Brain
+# 🥚 Capsule — le Tamagotchi du C Brain
 
 Petite capsule flottante (Electron, toujours au premier plan) qui **anime en temps réel** ce que font les agents du Brain : distillation ⚗️, correction ✏️, rangement 📁, optimisation 🌿, mise à jour de la carte 🗺️.
 
@@ -7,7 +7,7 @@ L'animation reflète de **vraies** opérations : les hooks écrivent `state/stat
 ## Lancer
 
 ```bash
-cd ~/claude-brain/capsule
+cd ~/.c-brain/trunk/capsule
 npm install      # la 1re fois (télécharge Electron)
 npm start
 ```
@@ -19,7 +19,7 @@ npm start
 ## Comment ça marche
 
 ```
-hooks (on_fiche_write / auto_maintain) ──écrivent──▶ ~/claude-brain/state/status.json
+hooks (on_fiche_write / auto_maintain) ──écrivent──▶ ~/.c-brain/trunk/state/status.json
                                                               │
                                           capsule (poll 400ms) ┘  ──▶ animation
 ```
@@ -29,7 +29,7 @@ hooks (on_fiche_write / auto_maintain) ──écrivent──▶ ~/claude-brain/s
 ## Tester l'animation à la main
 
 ```bash
-python3 ~/claude-brain/hooks/brain_status.py busy distilling "extraction <projet>"
-python3 ~/claude-brain/hooks/brain_status.py busy filing "rangement lessons/cache-pwa"
-python3 ~/claude-brain/hooks/brain_status.py idle
+python3 ~/.c-brain/trunk/hooks/brain_status.py busy distilling "extraction <projet>"
+python3 ~/.c-brain/trunk/hooks/brain_status.py busy filing "rangement lessons/cache-pwa"
+python3 ~/.c-brain/trunk/hooks/brain_status.py idle
 ```

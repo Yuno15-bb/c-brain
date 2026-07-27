@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""brain_doctor — healthcheck d'intégrité du Claude Brain.
+"""brain_doctor — healthcheck d'intégrité du C Brain.
 
 Vérifie, sans rien modifier :
   1. liens [[x]] morts (en EXCLUANT les exemples de doc et les blocs de code),
@@ -16,7 +16,7 @@ Usage :
 """
 import os, re, sys, json, subprocess, glob
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 MEMORY = os.path.join(BRAIN, "MEMORY.md")
 LINKED_DIRS = ("projects", "lessons", "life", "meta")           # zones tissées
 # skip cohérent avec brain_recall/brain_embed : segments de DOSSIER (set) + préfixes (startswith).

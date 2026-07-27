@@ -12,7 +12,7 @@ Un problème de quota/compte ne fait que DIFFÉRER la distillation, jamais casse
 """
 import os, sys, json, time, subprocess, hashlib, re, fcntl
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 STATE = os.path.join(BRAIN, "state")
 LOCK  = os.path.join(STATE, "maintenance.lock")
 QUEUE = os.path.join(STATE, "pending-distill.json")   # sessions à distiller plus tard

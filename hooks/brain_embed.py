@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """brain_embed — backend embeddings local (Volet 2 · Horizon 1, upgrade « vrai sémantique »).
 
-Tourne dans le venv ~/claude-brain/.venv (model2vec + numpy, SANS PyTorch).
+Tourne dans le venv ~/.c-brain/trunk/.venv (model2vec + numpy, SANS PyTorch).
 Embeddings STATIQUES : modèle ~30 Mo, encodage instantané (0.001s), zéro API, hors-ligne.
 
 Index sur disque INCRÉMENTAL (state/embeddings.npz + .json) : on ne ré-encode que les
@@ -16,7 +16,7 @@ import os, sys, re, json, glob, hashlib
 import numpy as np
 from model2vec import StaticModel
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 NPZ = os.path.join(BRAIN, "state", "embeddings.npz")
 META = os.path.join(BRAIN, "state", "embeddings.json")
 MODEL = "minishlab/potion-base-8M"

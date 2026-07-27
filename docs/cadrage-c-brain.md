@@ -99,14 +99,14 @@ inévitablement en conflit — ou en perte.
 
 ```
 ~/.c-brain/engine/     ← clone de C Brain. Code SEUL. git pull sans conflit possible.
-~/claude-brain/        ← tronc de l'utilisateur. Ses fiches, son git à lui. JAMAIS touché.
+~/.c-brain/trunk/     ← tronc de l'utilisateur. Ses fiches, son git à lui. JAMAIS touché.
     hooks/  → symlink vers ~/.c-brain/engine/hooks
     agents/ → symlink vers ~/.c-brain/engine/agents
     capsule/ planet/ companion/ → symlinks
     lessons/ projects/ meta/ life/ sessions/ state/ → RÉELS, à l'utilisateur
 ```
 
-Les chemins restent `~/claude-brain/hooks/...` : **aucun hook, aucun agent, aucun chemin n'est
+Les chemins deviennent `~/.c-brain/trunk/hooks/...` : **aucun hook, aucun agent, aucun chemin n'est
 modifié**. Le fonctionnement est identique, seule la provenance des fichiers change.
 
 ### 2. La mise à jour automatique

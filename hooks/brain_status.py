@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Statut partagé du Claude Brain — écrit state/status.json que la capsule lit.
+Statut partagé du C Brain — écrit state/status.json que la capsule lit.
 Best-effort : n'échoue jamais, ne bloque jamais un hook.
 
 Activités possibles (mappées à une animation dans la capsule) :
@@ -21,7 +21,7 @@ Usage CLI :  python3 brain_status.py <state> [activity] [detail]
 """
 import json, os, time, sys
 
-STATE_DIR = os.path.expanduser("~/claude-brain/state")
+STATE_DIR = os.path.expanduser("~/.c-brain/trunk/state")
 STATUS = os.path.join(STATE_DIR, "status.json")
 
 def write_status(state, activity=None, detail=None, source=None):

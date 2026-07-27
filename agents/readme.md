@@ -5,7 +5,7 @@ metadata:
   type: reference
 ---
 
-# 🤖 Agents du Claude Brain
+# 🤖 Agents du C Brain
 
 Sous-agents Claude Code natifs qui entretiennent et nourrissent le tronc. Fichiers canoniques **versionnés ici** ; symlinkés dans `~/.claude/agents/` pour la découverte par Claude Code.
 
@@ -36,7 +36,7 @@ Ou en les nommant explicitement comme sous-agents. Flux type après une grosse s
 ```bash
 mkdir -p ~/.claude/agents
 # symlinke TOUS les agents (sinon les non-listés restent muets après un git clone)
-for a in ~/claude-brain/agents/*.md; do
+for a in ~/.c-brain/trunk/agents/*.md; do
   [ "$(basename "$a")" = "readme.md" ] && continue
   ln -sf "$a" ~/.claude/agents/"$(basename "$a")"
 done

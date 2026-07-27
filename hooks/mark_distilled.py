@@ -4,7 +4,7 @@ UNIQUEMENT si l'agent de distillation a réussi (claude exit 0). Évite de marqu
 'distillée' une session qui a échoué (ex. limite de quota atteinte)."""
 import json, os, sys
 
-DISTILLED = os.path.expanduser("~/claude-brain/sessions/.distilled.json")
+DISTILLED = os.path.expanduser("~/.c-brain/trunk/sessions/.distilled.json")
 
 def main():
     if len(sys.argv) < 2:

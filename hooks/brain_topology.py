@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""brain_topology — vue GLOBALE de la cohésion du Claude Brain (Horizon 2, niveau graphe).
+"""brain_topology — vue GLOBALE de la cohésion du C Brain (Horizon 2, niveau graphe).
 
 Là où check_coherence regarde les fiches DEUX PAR DEUX (recouvrement local) et où
 brain_doctor traque les défauts ponctuels (liens morts, orphelins), CE module prend
@@ -34,7 +34,7 @@ try:
 except Exception:
     recall = None
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 OUT = os.path.join(BRAIN, "state", "topology.json")
 DOMAINS = ("projects", "lessons", "meta", "life", "agents")
 

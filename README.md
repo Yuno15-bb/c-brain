@@ -41,7 +41,7 @@ Détails, prérequis et désinstallation : **[INSTALL.md](INSTALL.md)**.
 
 ```
 ~/.c-brain/engine  ← le MOTEUR. Du code. Se met à jour, se remplace, se jette.
-~/claude-brain     ← le TRONC. Tes fiches. Ne bouge que quand TU écris.
+~/.c-brain/trunk     ← le TRONC. Tes fiches. Ne bouge que quand TU écris.
 ```
 
 Les deux ne se mélangent jamais. C'est ce qui permet à une mise à jour d'arriver

@@ -2,7 +2,7 @@
 """inject_recall — hook UserPromptSubmit : rappel automatique de mémoire pertinente.
 
 À CHAQUE message de l'utilisateur, lance brain_recall sur la demande et injecte en
-contexte les 2-3 fiches du Claude Brain les plus pertinentes (nom + description + chemin).
+contexte les 2-3 fiches du C Brain les plus pertinentes (nom + description + chemin).
 → Le bon souvenir remonte tout seul, au bon moment, sans charger tout MEMORY.md.
 
 C'est le payoff du Volet 2 · Horizon 1 : un retriever branché, pas juste une CLI.
@@ -43,7 +43,7 @@ def main():
     if not results:
         return
 
-    lines = ["<brain-recall> Fiches du Claude Brain potentiellement pertinentes "
+    lines = ["<brain-recall> Fiches du C Brain potentiellement pertinentes "
              "pour cette demande (lis-les si utile, ignore sinon) :"]
     for s, d in results:
         desc = (" — " + d["desc"][:120]) if d["desc"] else ""

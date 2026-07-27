@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Hook PostToolUse (Write|Edit) du Claude Brain — garde mécanique instantanée.
+Hook PostToolUse (Write|Edit) du C Brain — garde mécanique instantanée.
 À CHAQUE fiche déposée dans le tronc, sans LLM, sans boucle, sans bloquer :
   1. masque tout secret en clair
   2. garantit que la fiche est dans la carte MEMORY.md (sinon -> Inbox "à classer")
@@ -19,7 +19,7 @@ try:
 except Exception:
     def write_status(*a, **k): pass
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 MEMORY = os.path.join(BRAIN, "MEMORY.md")
 INBOX_HEADER = "## 🆕 Inbox — fiches à classer (auto)"
 

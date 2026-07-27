@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Hook SessionEnd du Claude Brain.
+Hook SessionEnd du C Brain.
 À chaque fin de session :
   1. rafraîchit l'index lossless sessions/TIMELINE.md (cache incrémental, rapide)
   2. capture le diff git du projet travaillé (cwd) dans sessions/archive/
-  3. commit le tronc ~/claude-brain pour versionner la croissance
+  3. commit le tronc ~/.c-brain/trunk pour versionner la croissance
   4. push vers le remote privé si configuré (silencieux, non bloquant, hors-ligne OK)
 
 Règle d'or : ne JAMAIS bloquer ni faire échouer la session. Sort toujours 0.
@@ -12,7 +12,7 @@ Règle d'or : ne JAMAIS bloquer ni faire échouer la session. Sort toujours 0.
 import sys, os, json, re, glob, subprocess
 from datetime import datetime
 
-BRAIN = os.path.expanduser("~/claude-brain")
+BRAIN = os.path.expanduser("~/.c-brain/trunk")
 # Nom du dossier transcripts = $HOME avec "/" -> "-" (convention Claude Code).
 # NE JAMAIS coder le nom d'utilisateur en dur ici (a cassé silencieusement la
 # distillation lors de la migration d'un compte utilisateur vers un autre, cf. [[restauration-machine-2026-07-22]]).
@@ -176,7 +176,7 @@ def commit_brain():
         if diff.returncode == 0:
             return  # rien à commit
         subprocess.run(["git", "-C", BRAIN,
-                        "-c", "user.name=Claude Brain", "-c", "user.email=brain@local",
+                        "-c", "user.name=C Brain", "-c", "user.email=brain@local",
                         "commit", "-q", "-m",
                         f"auto: archivage session ({datetime.now():%Y-%m-%d %H:%M})"],
                        capture_output=True, timeout=20)
