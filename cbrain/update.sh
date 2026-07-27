@@ -125,7 +125,7 @@ done
 say "reinstalling (idempotent)…"
 bash "$ENGINE/install.sh" >/tmp/c-brain-update.log 2>&1 || warn "install.sh reported a problem (/tmp/c-brain-update.log)"
 
-if bash "$HOME/claude-brain/hooks/selftest.sh" >/tmp/c-brain-update-selftest.log 2>&1; then
+if bash "$HOME/.c-brain/trunk/hooks/selftest.sh" >/tmp/c-brain-update-selftest.log 2>&1; then
   echo
   echo "✅ Updated to $NEW — selftest green. Your notes were not touched."
 else

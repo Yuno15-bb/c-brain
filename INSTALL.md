@@ -30,7 +30,7 @@ Two locations, and keeping them apart is the heart of the system:
 
 ```
 ~/.c-brain/engine  → link to this repo. CODE only. Updates.
-~/claude-brain     → YOUR trunk. Your notes. Never overwritten, never updated.
+~/.c-brain/trunk     → YOUR trunk. Your notes. Never overwritten, never updated.
 ```
 
 The installer:
@@ -77,7 +77,7 @@ brain doctor          tree health
 brain selftest        verify the installation
 ```
 
-Then open `~/claude-brain/MEMORY.md`: it is the index loaded at the start of every
+Then open `~/.c-brain/trunk/MEMORY.md`: it is the index loaded at the start of every
 session, and it explains the note format. Your tree starts empty — it grows with
 the work, not before.
 

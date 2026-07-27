@@ -4,7 +4,7 @@
 import json, time, os
 
 # Derived from $HOME, not __file__: it is the TRUNK's state we drive.
-STATUS = os.path.join(os.path.expanduser('~'), 'claude-brain', 'state', 'status.json')
+STATUS = os.path.join(os.path.expanduser('~'), '.c-brain', 'trunk', 'state', 'status.json')
 
 # pipeline order → covers the 11 activities index.html recognizes (idle excluded)
 STEPS = [

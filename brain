@@ -2,7 +2,7 @@
 # brain — the single entry point of C Brain.
 # Usage : brain <status|doctor|audit|push|metrics|selftest|backup>
 set -euo pipefail
-BRAIN="$HOME/claude-brain"
+BRAIN="$HOME/.c-brain/trunk"
 cd "$BRAIN"
 
 cmd="${1:-status}"

@@ -15,7 +15,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>__HOME__/claude-brain/hooks/resume_pending.py</string>
+        <string>__HOME__/.c-brain/trunk/hooks/resume_pending.py</string>
     </array>
     <!-- launchd starts with a minimal PATH (/usr/bin:/bin:/usr/sbin:/sbin) that does NOT contain
          ~/.local/bin where `claude` lives → resume_pending never found the binary and the
@@ -30,8 +30,8 @@
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>__HOME__/claude-brain/sessions/resume.log</string>
+    <string>__HOME__/.c-brain/trunk/sessions/resume.log</string>
     <key>StandardErrorPath</key>
-    <string>__HOME__/claude-brain/sessions/resume.log</string>
+    <string>__HOME__/.c-brain/trunk/sessions/resume.log</string>
 </dict>
 </plist>

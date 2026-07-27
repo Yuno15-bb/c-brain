@@ -19,7 +19,7 @@ Usage (inside the venv):  brain_embed2.py            → computes and writes the
 import os, sys, json, time
 import numpy as np
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 NPZ = os.path.join(BRAIN, "state", "embeddings.npz")
 META = os.path.join(BRAIN, "state", "embeddings.json")
 OUT = os.path.join(BRAIN, "state", "embed2.json")

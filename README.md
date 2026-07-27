@@ -41,7 +41,7 @@ Details, prerequisites and uninstall: **[INSTALL.md](INSTALL.md)**.
 
 ```
 ~/.c-brain/engine  ← the ENGINE. Code. Updates, gets replaced, is disposable.
-~/claude-brain     ← the TRUNK. Your notes. Changes only when YOU write.
+~/.c-brain/trunk     ← the TRUNK. Your notes. Changes only when YOU write.
 ```
 
 The two never mix. That is what lets an update land with zero risk to your work —

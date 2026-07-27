@@ -16,7 +16,7 @@ Usage :
 """
 import os, re, sys, json, subprocess, glob
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 MEMORY = os.path.join(BRAIN, "MEMORY.md")
 LINKED_DIRS = ("projects", "lessons", "life", "meta")           # the woven areas
 # skip logic consistent with brain_recall/brain_embed: FOLDER segments (set) + prefixes (startswith).

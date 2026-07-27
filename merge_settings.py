@@ -23,7 +23,7 @@ import time
 
 HOME = os.path.expanduser("~")
 DEFAULT_SETTINGS = os.path.join(HOME, ".claude", "settings.json")
-BRAIN = os.path.join(HOME, "claude-brain")
+BRAIN = os.path.join(HOME, ".c-brain", "trunk")
 CB = os.path.join(HOME, ".c-brain")
 
 # (event, matcher or None, script path, timeout, status message)
@@ -46,7 +46,13 @@ HOOKS = [
 ]
 
 # What identifies OUR commands at uninstall time. Two roots:
-# the trunk (~/claude-brain/...) and the engine (~/.c-brain/engine/...).
+# the trunk (~/.c-brain/trunk/...) and the engine (~/.c-brain/engine/...).
+#
+# `claude-brain` is kept ON PURPOSE, even though no path uses it any more: an
+# installation predating migration 001 wrote commands that still carry it.
+# Dropping the marker would leave those lines in settings.json forever — an
+# uninstall that calls itself complete while forgetting half of what it put
+# there. This marker is never coming out.
 MARKERS = ("claude-brain", ".c-brain")
 
 # The status line is COPIED into ~/.claude, but it only shows if it is DECLARED

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Machiniste — ronde machine du Claude Brain (RAM / CPU / chaleur).
+<!-- Machiniste — ronde machine du C Brain (RAM / CPU / chaleur).
      Toutes les 10 minutes, sans LLM : mesure, tue les serveurs de dev orphelins,
      reports the rest. Quota cost: zero.
 
@@ -14,7 +14,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>__HOME__/claude-brain/hooks/machiniste.py</string>
+        <string>__HOME__/.c-brain/trunk/hooks/machiniste.py</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>
@@ -31,8 +31,8 @@
     <key>ProcessType</key>
     <string>Background</string>
     <key>StandardOutPath</key>
-    <string>__HOME__/claude-brain/sessions/machiniste.log</string>
+    <string>__HOME__/.c-brain/trunk/sessions/machiniste.log</string>
     <key>StandardErrorPath</key>
-    <string>__HOME__/claude-brain/sessions/machiniste.log</string>
+    <string>__HOME__/.c-brain/trunk/sessions/machiniste.log</string>
 </dict>
 </plist>

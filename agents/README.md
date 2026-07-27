@@ -41,7 +41,7 @@ Or by naming them explicitly as sub-agents. A typical flow after a heavy session
 ```bash
 mkdir -p ~/.claude/agents
 # symlink EVERY agent — anything left out stays silent after a clone
-for a in ~/claude-brain/agents/*.md; do
+for a in ~/.c-brain/trunk/agents/*.md; do
   [ "$(basename "$a")" = "README.md" ] && continue
   ln -sf "$a" ~/.claude/agents/"$(basename "$a")"
 done

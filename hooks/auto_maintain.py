@@ -40,7 +40,7 @@ try:
 except Exception:
     guard = None
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 MEMORY = os.path.join(BRAIN, "MEMORY.md")
 SESS = os.path.join(BRAIN, "sessions")
 INDEX = os.path.join(SESS, ".index.json")          # written by archive_session.py
@@ -107,7 +107,7 @@ def ensure_capsule():
             return
         # le vrai process tourne sous .../node_modules/electron/dist/... (le .bin/electron
         # n'est qu'un symlink), donc on matche le chemin du projet, pas le symlink.
-        r = subprocess.run(["pgrep", "-f", "claude-brain/capsule/node_modules/electron"],
+        r = subprocess.run(["pgrep", "-f", "c-brain/trunk/capsule/node_modules/electron"],
                            capture_output=True, text=True)
         if r.stdout.strip():
             return  # already open
@@ -238,7 +238,7 @@ def launch_agent(sid, n, to_distill):
     pulse = lambda act, det: f'"{py}" "{status_cli}" busy {act} "{det}"'
     # MECHANICAL commit (no LLM): author "C Brain", never breaks when there is nothing to commit.
     commit = (f'git -C "{BRAIN}" add -A && '
-              f'git -C "{BRAIN}" -c user.name="Claude Brain" -c user.email=brain@local '
+              f'git -C "{BRAIN}" -c user.name="C Brain" -c user.email=brain@local '
               f'commit -q -m "auto: maintenance ($(date \'+%Y-%m-%d %H:%M\'))" || true')
 
     # False-positive guard (OS crash / SIGKILL of the `claude` binary BEFORE it writes):

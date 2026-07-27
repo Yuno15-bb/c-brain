@@ -34,7 +34,7 @@ try:
 except Exception:
     recall = None
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 OUT = os.path.join(BRAIN, "state", "topology.json")
 DOMAINS = ("projects", "lessons", "meta", "life", "agents")
 

@@ -10,7 +10,7 @@
 # Usage: ./uninstall.sh [--yes] [--purge-engine]
 set -euo pipefail
 
-TRUNK="$HOME/claude-brain"
+TRUNK="$HOME/.c-brain/trunk"
 CB="$HOME/.c-brain"
 MANIFEST="$CB/manifest.txt"
 

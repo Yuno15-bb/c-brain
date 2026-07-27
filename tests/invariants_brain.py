@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Invariants du Claude Brain — relations qui doivent rester vraies, pas cas particuliers.
+"""Invariants du C Brain — relations qui doivent rester vraies, pas cas particuliers.
 
 Each test states a RELATION between two halves of the system that, read separately,
 semblent justes. Lancer : python3 tests/invariants_brain.py   (rc != 0 si un invariant casse)
@@ -18,7 +18,7 @@ import json, os, sys, unittest
 #    Always derived from $HOME: writing into the engine would break the installation
 #    and be wiped on the first update.
 CODE = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-BRAIN = os.path.expanduser("~/claude-brain")
+BRAIN = os.path.expanduser("~/.c-brain/trunk")
 sys.path.insert(0, os.path.join(CODE, "hooks"))
 
 MALFORMED = [{"note": "✓ arbitrated, false positive", "note2": "✓ same"}]

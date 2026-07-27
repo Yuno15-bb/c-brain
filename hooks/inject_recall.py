@@ -2,7 +2,7 @@
 """inject_recall — UserPromptSubmit hook: automatic recall of relevant memory.
 
 On EVERY user message, runs brain_recall on the request and injects the
-contexte les 2-3 fiches du Claude Brain les plus pertinentes (nom + description + chemin).
+contexte les 2-3 fiches du C Brain les plus pertinentes (nom + description + chemin).
 → Le bon souvenir remonte tout seul, au bon moment, sans charger tout MEMORY.md.
 
 This is what makes it a wired-in retriever rather than just a CLI.

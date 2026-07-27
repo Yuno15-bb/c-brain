@@ -93,15 +93,15 @@ in conflict — or in loss.
 
 ```
 ~/.c-brain/engine/     ← a clone of C Brain. Code ONLY. git pull cannot conflict.
-~/claude-brain/        ← the user's trunk. Their notes, their own git. NEVER touched.
+~/.c-brain/trunk/        ← the user's trunk. Their notes, their own git. NEVER touched.
     hooks/  → symlink to ~/.c-brain/engine/hooks
     agents/ → symlink to ~/.c-brain/engine/agents
     capsule/ planet/ companion/ → symlinks
     lessons/ projects/ meta/ life/ sessions/ state/ → REAL, the user's own
 ```
 
-The paths stay `~/claude-brain/hooks/...`: **no hook, no agent and no path is
-modified**. Behaviour is identical; only where the files come from changes.
+The paths become `~/.c-brain/trunk/hooks/...`: **no hook, no agent and no path
+changes shape**. Behaviour is identical; only where the files come from changes.
 
 ### 2. Automatic updates
 

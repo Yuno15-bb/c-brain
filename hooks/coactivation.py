@@ -18,7 +18,7 @@ le corpus froid et les sessions/ sont exclus (ils ne sont pas sur la carte). Sor
 import os, sys, json, time, math
 from collections import defaultdict
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 RECALL = os.path.join(BRAIN, "state", "recall_log.jsonl")
 READ = os.path.join(BRAIN, "state", "read_log.jsonl")
 GRAPH = os.path.join(BRAIN, "planet", "graph.json")

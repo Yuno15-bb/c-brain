@@ -22,7 +22,7 @@ lives at `~/.c-brain/state/applied-migrations.txt`).
 # 001-example.sh — <what it adapts, and why it was needed>
 set -euo pipefail
 
-TRUNK="$HOME/claude-brain"
+TRUNK="$HOME/.c-brain/trunk"
 
 # Check BEFORE acting: that is what makes a replay harmless.
 if [ -f "$TRUNK/state/old-file.json" ]; then
@@ -33,4 +33,21 @@ else
 fi
 ```
 
-No migration to date — this folder is waiting for the first real break.
+## Migrations written so far
+
+| # | Script | What it adapts |
+|---|---|---|
+| 001 | `001-rename-user-dir.sh` | `~/claude-brain` → `~/.c-brain/trunk`, plus a compatibility link at the old location. |
+
+**001 in two lines.** The user directory carried an Anthropic trademark inside a
+public product, and made a fourth name for a single thing. After it: one root,
+`~/.c-brain`, engine and trunk side by side.
+
+It only **moves**. The rewiring (engine symlinks, `settings.json`, launchd
+plists, Desktop launcher) is redone right after by `install.sh`, which
+`update.sh` calls anyway. A migration that rewired too would duplicate that
+logic — and the two copies would drift.
+
+The compatibility link stays **permanently**. C Brain no longer needs it, but
+everything C Brain does not know about does: the CLI agent's memory link,
+personal scripts, a path written down somewhere.

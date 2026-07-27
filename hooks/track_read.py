@@ -10,7 +10,7 @@ A signal grounded in REAL usage, not introspection. Always exits 0.
 """
 import sys, os, json, time
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 LOG = os.path.join(BRAIN, "state", "read_log.jsonl")
 
 

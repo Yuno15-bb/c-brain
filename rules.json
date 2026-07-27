@@ -78,6 +78,117 @@
   ],
   "replacements": [
     {
+      "id": "tronc-nom-produit",
+      "files": [
+        "agents/*.md",
+        "capsule/*.md",
+        "capsule/*.html",
+        "capsule/package.json",
+        "planet/*.html",
+        "hooks/*.py",
+        "hooks/*.sh",
+        "tests/*.py",
+        "brain"
+      ],
+      "pattern": "Claude Brain",
+      "replace": "C Brain",
+      "expect": 36,
+      "why": "The product is called C Brain. « Claude Brain » is the name of the author's PRIVATE trunk, and it carries an Anthropic trademark on top of that: it has no business in a public package. Every agent introduced itself as « the architect of the Claude Brain » — the very first screen a new user reads."
+    },
+    {
+      "id": "tronc-chemin-plist",
+      "files": [
+        "hooks/*.template"
+      ],
+      "pattern": "__HOME__/claude-brain",
+      "replace": "__HOME__/.c-brain/trunk",
+      "expect": 6,
+      "why": "The trunk path inside the launchd templates. With no `~`, it slips past the prose rule and needs its own, otherwise both scheduled agents point at a directory that stopped existing at migration 001."
+    },
+    {
+      "id": "tronc-chemin-python",
+      "files": [
+        "**/*.py"
+      ],
+      "pattern": "expanduser\\(\"~/claude-brain",
+      "replace": "expanduser(\"~/.c-brain/trunk",
+      "expect": 25,
+      "why": "Root of the trunk, in its most common form (one per hook). Handled before the prose rule because it carries an opening parenthesis that must survive."
+    },
+    {
+      "id": "tronc-chemin-python-tuple",
+      "files": [
+        "**/*.py"
+      ],
+      "pattern": "expanduser\\('~'\\), 'claude-brain'",
+      "replace": "expanduser('~'), '.c-brain', 'trunk'",
+      "expect": 1,
+      "why": "Same root, written as joined segments rather than as a path. Two segments replace one: a naive `replace` would have produced « .c-brain/trunk » as a single component — which works on Unix but lies about the structure."
+    },
+    {
+      "id": "tronc-chemin-js",
+      "files": [
+        "capsule/*.js",
+        "capsule/*.html"
+      ],
+      "pattern": "os\\.homedir\\(\\),\\s*'claude-brain'",
+      "replace": "os.homedir(), '.c-brain', 'trunk'",
+      "expect": 3,
+      "why": "On the capsule side the trunk is derived from homedir() in segments. This is the path that decides whether the capsule watches the USER's state or the engine's."
+    },
+    {
+      "id": "tronc-chemin-shell",
+      "files": [
+        "hooks/*.sh",
+        "brain"
+      ],
+      "pattern": "\\$HOME/claude-brain",
+      "replace": "$HOME/.c-brain/trunk",
+      "expect": 2,
+      "_note": "Deliberately NOT `**/*.sh`: sync.sh and publish.sh belong to the repo and target the author's LIVING Brain — the source, not a user's trunk. Rewriting them would break the build chain.",
+      "why": "Root of the trunk on the shell side (the `brain` CLI, selftest)."
+    },
+    {
+      "id": "tronc-chemin-prose",
+      "files": [
+        "agents/*.md",
+        "capsule/*.md",
+        "capsule/*.html",
+        "planet/*.html",
+        "hooks/*.py",
+        "hooks/*.sh",
+        "companion/**/*.py",
+        "tests/*.py",
+        "brain"
+      ],
+      "pattern": "~/claude-brain",
+      "replace": "~/.c-brain/trunk",
+      "expect": 36,
+      "why": "The remainder: comments, docstrings, command lines handed to the agents as examples. Runs LAST, once the code forms are done — what is left is prose."
+    },
+    {
+      "id": "capsule-pgrep-chemin",
+      "files": [
+        "hooks/*.py"
+      ],
+      "pattern": "claude-brain/capsule/node_modules/electron",
+      "replace": "c-brain/trunk/capsule/node_modules/electron",
+      "expect": 2,
+      "why": "The `pgrep` pattern that identifies the capsule process. It starts with no `~`, so the prose rule misses it — and left alone it would have made the capsule INVISIBLE to auto_maintain and to the machinist. No error, just a capsule that is never restarted and never counted."
+    },
+    {
+      "id": "capsule-nom-paquet",
+      "files": [
+        "capsule/package.json",
+        "capsule/package-lock.json"
+      ],
+      "pattern": "claude-brain-capsule",
+      "replace": "c-brain-capsule",
+      "expect": 3,
+      "_note": "package-lock.json carries the name TWICE (root + root package). Both must move together, or npm rewrites the lock on the first install.",
+      "why": "npm package name of the capsule."
+    },
+    {
       "id": "transcripts-key-point-dans-le-home",
       "files": [
         "hooks/*.py"

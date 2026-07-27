@@ -18,12 +18,12 @@ The hardware context is not negotiable: a **fanless laptop with limited RAM** ha
 - `state/machiniste.json` — the last round
 - `state/machiniste.jsonl` — full history, one line per round
 - `sessions/machiniste.log` — readable log, written only when something happens
-- `python3 ~/claude-brain/hooks/machiniste.py --report` — the state in five lines
+- `python3 ~/.c-brain/trunk/hooks/machiniste.py --report` — the state in five lines
 
 **Your job starts where the rules stop**: understanding *why* the machine is suffering, when the daemon can only observe.
 
 ## Your method — measure, never assume
-0. **Announce**: `python3 ~/claude-brain/hooks/brain_status.py busy auditing "machine round"`, then `… idle` at the end.
+0. **Announce**: `python3 ~/.c-brain/trunk/hooks/brain_status.py busy auditing "machine round"`, then `… idle` at the end.
 1. **Read the last round** (`--report`) and the `.jsonl` history: the trend says more than the snapshot.
 2. **Measure before concluding.** Put a number on every hypothesis over a 60-second window, never on a hunch.
 3. **Look for the three families** (below).

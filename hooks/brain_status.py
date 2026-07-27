@@ -21,7 +21,7 @@ Usage CLI :  python3 brain_status.py <state> [activity] [detail]
 """
 import json, os, time, sys
 
-STATE_DIR = os.path.expanduser("~/claude-brain/state")
+STATE_DIR = os.path.expanduser("~/.c-brain/trunk/state")
 STATUS = os.path.join(STATE_DIR, "status.json")
 
 def write_status(state, activity=None, detail=None, source=None):

@@ -19,7 +19,7 @@ try:
 except Exception:
     def write_status(*a, **k): pass
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 MEMORY = os.path.join(BRAIN, "MEMORY.md")
 INBOX_HEADER = "## 🆕 Inbox — notes to file (auto)"
 

@@ -16,7 +16,7 @@ Usage :
 import os, re, sys, json, math, glob, unicodedata
 from collections import Counter
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 # the RAW/infra layers are excluded from recall — recall must surface DISTILLED knowledge
 # (projects/lessons/meta/life/agents), pas l'archive ni le corpus froid des 4 comptes.
 #   • sessions/ : TIMELINE.md = index de 80+ sessions, si long qu'il matche presque tout → bruit.

@@ -10,13 +10,13 @@
 #
 # Installed layout:
 #   ~/.c-brain/engine  → link to THIS repo (the ENGINE: code, nothing else)
-#   ~/claude-brain     → YOUR trunk (your notes). Never overwritten, never updated.
+#   ~/.c-brain/trunk     → YOUR trunk (your notes). Never overwritten, never updated.
 #
 # Usage: ./install.sh [--no-launchd] [--no-capsule] [--dry-run]
 set -euo pipefail
 
 ENGINE="$(cd "$(dirname "$0")" && pwd -P)"
-TRUNK="$HOME/claude-brain"
+TRUNK="$HOME/.c-brain/trunk"
 CB="$HOME/.c-brain"
 TS="$(date +%Y%m%d-%H%M%S)"
 BACKUPS="$CB/backups/$TS"
@@ -96,7 +96,7 @@ link "$ENGINE" "$CB/engine"
 say "version: $(cat "$CB/VERSION" 2>/dev/null || echo '?')"
 
 # ─── 2. The trunk ──────────────────────────────────────────────────────────
-step "Trunk (~/claude-brain)"
+step "Trunk (~/.c-brain/trunk)"
 if [ -d "$TRUNK" ]; then
   # A trunk exists. If it holds a REAL hooks/ folder (not a link), it is
   # a previous standalone install: we refuse to demolish it silently.

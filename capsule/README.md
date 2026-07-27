@@ -10,7 +10,7 @@ every action, and the capsule reads it twice a second.
 ## Running it
 
 ```bash
-cd ~/claude-brain/capsule
+cd ~/.c-brain/trunk/capsule
 npm install      # the first time (downloads Electron)
 npm start
 ```
@@ -26,7 +26,7 @@ npm start
 ## How it works
 
 ```
-hooks (on_fiche_write / auto_maintain) ──write──▶ ~/claude-brain/state/status.json
+hooks (on_fiche_write / auto_maintain) ──write──▶ ~/.c-brain/trunk/state/status.json
                                                               │
                                           capsule (poll 400ms) ┘  ──▶ animation
 ```
@@ -36,13 +36,13 @@ hooks (on_fiche_write / auto_maintain) ──write──▶ ~/claude-brain/state
 ## Testing the animation by hand
 
 ```bash
-python3 ~/claude-brain/hooks/brain_status.py busy distilling "extracting <project>"
-python3 ~/claude-brain/hooks/brain_status.py busy filing "filing lessons/pwa-cache"
-python3 ~/claude-brain/hooks/brain_status.py idle
+python3 ~/.c-brain/trunk/hooks/brain_status.py busy distilling "extracting <project>"
+python3 ~/.c-brain/trunk/hooks/brain_status.py busy filing "filing lessons/pwa-cache"
+python3 ~/.c-brain/trunk/hooks/brain_status.py idle
 ```
 
 Or walk through every activity in one pass:
 
 ```bash
-python3 ~/claude-brain/capsule/test_anim.py
+python3 ~/.c-brain/trunk/capsule/test_anim.py
 ```

@@ -207,7 +207,7 @@ def main():
     # --- Ligne 2 : modifications de code de CETTE session (Companion) ---------
     # Integrated into the session, at the very bottom, permanently — no floating window.
     try:
-        sys.path.insert(0, os.path.expanduser("~/claude-brain/companion"))
+        sys.path.insert(0, os.path.expanduser("~/.c-brain/trunk/companion"))
         import status_part
         second = status_part.line(data.get("session_id"))
         if second:

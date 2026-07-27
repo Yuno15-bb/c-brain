@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """brain_embed — local embeddings backend (the "true semantic" upgrade).
 
-Tourne dans le venv ~/claude-brain/.venv (model2vec + numpy, SANS PyTorch).
+Tourne dans le venv ~/.c-brain/trunk/.venv (model2vec + numpy, SANS PyTorch).
 STATIC embeddings: ~30 MB model, instant encoding (0.001 s), no API, fully offline.
 
 INCREMENTAL on-disk index (state/embeddings.npz + .json): only the modified notes
@@ -16,7 +16,7 @@ import os, sys, re, json, glob, hashlib
 import numpy as np
 from model2vec import StaticModel
 
-BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
+BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 NPZ = os.path.join(BRAIN, "state", "embeddings.npz")
 META = os.path.join(BRAIN, "state", "embeddings.json")
 MODEL = "minishlab/potion-base-8M"
