@@ -88,3 +88,15 @@ dit plutôt que de faire semblant.
   été refermés.
 - `sync.sh` + `rules.json` + `leakcheck.py` — la chaîne qui extrait ce moteur
   d'un Brain réel sans en laisser fuir une ligne de vécu.
+
+## Licence
+
+**Apache 2.0** — voir [LICENSE](LICENSE).
+
+Tu peux l'utiliser, l'étudier, le modifier, le redistribuer et construire dessus,
+y compris commercialement. La licence inclut une clause de brevets, et demande
+seulement de conserver l'attribution et d'indiquer tes modifications.
+
+Tout ce que tu écris avec — tes notes, ton tronc, tes skills — t'appartient, et
+cette licence n'en revendique rien.
+
