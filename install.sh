@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# C Brain — Copyright (c) 2026 Dylan Peellaert. Source-available, see LICENSE.
-#   Running it is allowed. Redistributing or rebuilding from it is not.
+# C Brain — Copyright (c) 2026 Dylan Peellaert.
+# Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
 # install.sh — installs C Brain. The SINGLE entry point.
 #
 # Three promises, kept by construction:

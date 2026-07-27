@@ -8,17 +8,17 @@ STATUS = os.path.join(os.path.expanduser('~'), '.c-brain', 'trunk', 'state', 'st
 
 # pipeline order → covers the 11 activities index.html recognizes (idle excluded)
 STEPS = [
-    ("distilling",   "DISTILLATEUR — extraction des fiches"),
-    ("gardening",    "JARDINIER — rangement & liens [[ ]]"),
-    ("filing",       "JARDINIER — classement dans MEMORY.md"),
-    ("correcting",   "JARDINIER — correction d'une fiche"),
-    ("mapping",      "JARDINIER — cartographie de l'index"),
-    ("architecting", "ARCHITECTE — ponts inter-domaines"),
+    ("distilling",   "DISTILLER — extracting notes"),
+    ("gardening",    "GARDENER — tidying & [[ ]] links"),
+    ("filing",       "GARDENER — filing into MEMORY.md"),
+    ("correcting",   "GARDENER — fixing a note"),
+    ("mapping",      "GARDENER — mapping the index"),
+    ("architecting", "ARCHITECT — cross-domain bridges"),
     ("challenging",  "CHALLENGER — putting the knowledge to the test"),
     ("archiving",    "ARCHIVIST — pruning dead weight"),
     ("synthesizing", "SYNTHESIZER — cross-cutting essay"),
     ("auditing",     "MECHANIC — auditing the machine"),
-    ("committing",   "SAUVEGARDE git — versionnage"),
+    ("committing",   "BACKUP git — versioning"),
 ]
 
 HOLD = 8.0       # seconds per step
@@ -37,4 +37,4 @@ for i, (act, detail) in enumerate(STEPS, 1):
         write("busy", act, detail)
         time.sleep(min(REFRESH, max(0.1, t_end - time.time())))
 write("idle")
-print("■ Fin de la phase de test — retour en IDLE")
+print("■ End of test pass — back to IDLE")

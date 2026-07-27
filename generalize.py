@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# C Brain — Copyright (c) 2026 Dylan Peellaert. Source-available, see LICENSE.
-#   Running it is allowed. Redistributing or rebuilding from it is not.
+# C Brain — Copyright (c) 2026 Dylan Peellaert.
+# Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
 """C Brain — declarative generalization, run AFTER sync.sh has copied.
 
 Why a script rather than hand edits: sync.sh re-copies the engine from the
