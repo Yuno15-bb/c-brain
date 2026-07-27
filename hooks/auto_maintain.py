@@ -35,7 +35,7 @@ SESS = os.path.join(BRAIN, "sessions")
 INDEX = os.path.join(SESS, ".index.json")          # écrit par archive_session.py
 DISTILLED = os.path.join(SESS, ".distilled.json")  # sessions déjà distillées
 LOG = os.path.join(SESS, "gardening.log")
-INBOX_HEADER = "## 🆕 Inbox — fiches à classer (auto)"
+INBOX_HEADER = "## 🆕 Inbox — notes to file (auto)"
 # Nom du dossier transcripts = $HOME avec "/" -> "-" (convention Claude Code) ; ne
 # JAMAIS coder le nom d'utilisateur en dur (cf. [[restauration-machine-2026-07-22]]).
 TRANSCRIPTS = os.path.join(os.path.expanduser("~/.claude/projects"), os.path.expanduser("~").replace(os.sep, "-"))

@@ -103,7 +103,7 @@ def main():
     json.dump(data, open(OUT, "w", encoding="utf-8"), ensure_ascii=False)
     if sys.stdout.isatty() or "--show" in sys.argv:
         c = data["counts"]
-        print(f"⚡ co-activation : {c['events']} activations · {c['fiches_chaudes']} fiches chaudes · {c['liens_usage']} liens d'usage")
+        print(f"⚡ co-activation: {c['events']} activations · {c['fiches_chaudes']} hot notes · {c['liens_usage']} usage links d'usage")
         top = sorted(data["heat"].items(), key=lambda kv: -kv[1])[:8]
         print("  🔥 plus chaudes :")
         for p, v in top:

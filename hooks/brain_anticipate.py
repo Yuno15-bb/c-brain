@@ -71,18 +71,18 @@ def main():
         return
     mode_hook = "--hook" in sys.argv
     if mode_hook:
-        print("<brain-reprises> Points de reprise en attente (tes fiches projet, "
+        print("<brain-resume> Pending resume points (from your project notes, "
               "newest first) — offer to continue if relevant:")
     else:
-        print("🧭 Reprises en attente :\n")
+        print("🧭 Pending resume points:\n")
     for it in items:
         if mode_hook:
-            print(f"- {it['name']} ({it['path']}) : {it['reprise']}")
+            print(f"- {it['name']} ({it['path']}): {it['reprise']}")
         else:
             print(f"  • {it['name']}  ({it['path']})")
             print(f"      ↳ {it['reprise']}")
     if mode_hook:
-        print("</brain-reprises>")
+        print("</brain-resume>")
 
 
 if __name__ == "__main__":

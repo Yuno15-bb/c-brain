@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
 Hook SessionEnd du Claude Brain.
-À chaque fin de session :
-  1. rafraîchit l'index lossless sessions/TIMELINE.md (cache incrémental, rapide)
-  2. capture le diff git du projet travaillé (cwd) dans sessions/archive/
+At the end of every session:
+  1. refreshes the lossless index sessions/TIMELINE.md (incremental cache, fast)
+  2. captures the git diff of the project worked on (cwd) into sessions/archive/
   3. commit le tronc ~/claude-brain pour versionner la croissance
-  4. push vers le remote privé si configuré (silencieux, non bloquant, hors-ligne OK)
+  4. pushes to the private remote if configured (silent, non-blocking, offline is fine)
 
-Règle d'or : ne JAMAIS bloquer ni faire échouer la session. Sort toujours 0.
+Golden rule: NEVER block or fail the session. Always exits 0.
 """
 import sys, os, json, re, glob, subprocess
 from datetime import datetime
 
 BRAIN = os.path.expanduser("~/claude-brain")
 # Nom du dossier transcripts = $HOME avec "/" -> "-" (convention Claude Code).
-# NE JAMAIS coder le nom d'utilisateur en dur ici (a cassé silencieusement la
+# NEVER hardcode the user name here (it silently broke distillation during a
 # distillation lors de la migration d'un compte utilisateur vers un autre, cf. [[restauration-machine-2026-07-22]]).
 PROJECTS_DIR = os.path.join(os.path.expanduser("~/.claude/projects"), os.path.expanduser("~").replace(os.sep, "-"))
 SESSIONS = os.path.join(BRAIN, "sessions")
@@ -25,11 +25,11 @@ SECRET = re.compile(
     r'(ntn_[A-Za-z0-9]+|sk-ant-[A-Za-z0-9_-]+|AIza[A-Za-z0-9_-]+|secret_[A-Za-z0-9]+'
     r'|eyJ[A-Za-z0-9_.-]{20,}|[A-Za-z0-9_-]{32,}\.apps\.googleusercontent|gh[pousr]_[A-Za-z0-9]{20,})'
 )
-def redact(s): return SECRET.sub("«SECRET-MASQUÉ»", s or "")
+def redact(s): return SECRET.sub("«SECRET-MASKED»", s or "")
 
-# Table de classement des sessions : mot-clé (minuscules) → nom de projet.
-# À REMPLIR avec TES projets — c'est elle qui range tes sessions archivées.
-# Vide, tout tombe dans « À TRIER », ce qui reste correct mais peu utile.
+# Session filing table: keyword (lowercase) → project name.
+# FILL IT IN with YOUR projects — this is what files your archived sessions.
+# Left empty, everything lands in "UNSORTED" — still correct, but not very useful.
 # Exemple :
 #   PROJ = {
 #       'facture': 'Compta', 'devis': 'Compta',
@@ -39,10 +39,10 @@ PROJ = {
 }
 def classify(topic):
     low = (topic or "").lower()
-    return next((v for k, v in PROJ.items() if k in low), "À TRIER")
+    return next((v for k, v in PROJ.items() if k in low), "UNSORTED")
 
 def parse_transcript(path):
-    """date de début, sujet (1er message texte), nb de messages."""
+    """start date, subject (first text message), message count."""
     ts = topic = None; nmsg = 0
     try:
         with open(path, encoding='utf-8', errors='ignore') as f:
@@ -73,7 +73,7 @@ def load_cache():
         return {}
 
 def rebuild_timeline():
-    """Incrémental : ne re-parse que les .jsonl dont le mtime a changé."""
+    """Incremental: only re-parses the .jsonl files whose mtime changed."""
     cache = load_cache()
     changed = False
     for path in glob.glob(os.path.join(PROJECTS_DIR, "*.jsonl")):
@@ -96,9 +96,9 @@ def rebuild_timeline():
 def write_timeline(cache):
     rows = sorted(cache.values(), key=lambda e: e["ts"])
     out = ["# 🕰️ Timeline — toutes les sessions Claude Code\n",
-           "Index **sans perte** de l'intégralité de nos sessions. Transcripts bruts : "
-           f"`{PROJECTS_DIR}/<id>.jsonl`. Tenu à jour automatiquement par le hook SessionEnd. "
-           "Secrets masqués automatiquement.\n"]
+           "A **lossless** index of every session. Raw transcripts: "
+           f"`{PROJECTS_DIR}/<id>.jsonl`. Kept up to date automatically by the SessionEnd hook. "
+           "Secrets are masked automatically.\n"]
     cur = None
     for e in rows:
         mois = e["date"][:7]
@@ -107,13 +107,13 @@ def write_timeline(cache):
         out.append(f"- **{e['date']}** · `{e['proj']}` · {e['n']} msg — {e['topic']}")
     from collections import Counter
     c = Counter(e["proj"] for e in rows)
-    out.append("\n\n---\n\n## Récap par domaine\n")
+    out.append("\n\n---\n\n## Summary by area\n")
     for k, v in c.most_common(): out.append(f"- **{k}** — {v} sessions")
-    out.append(f"\n\n*Total : {len(rows)} sessions. Dernière mise à jour : {datetime.now():%Y-%m-%d %H:%M}.*\n")
+    out.append(f"\n\n*Total: {len(rows)} sessions. Last updated: {datetime.now():%Y-%m-%d %H:%M}.*\n")
     open(os.path.join(SESSIONS, "TIMELINE.md"), "w", encoding='utf-8').write("\n".join(out))
 
 def capture_git_diff(cwd):
-    """Si cwd est un repo git (et pas le tronc lui-même), capture un résumé du diff."""
+    """If cwd is a git repo (and not the trunk itself), capture a summary of the diff."""
     if not cwd or os.path.realpath(cwd) == os.path.realpath(BRAIN):
         return None
     try:
@@ -152,7 +152,7 @@ def write_archive_note(data, cache):
         "metadata:\n  type: reference",
         "---\n",
         f"# Session {date} — {proj}\n",
-        f"- **Sujet** : {ent.get('topic','(non capté)')}",
+        f"- **Subject**: {ent.get('topic','(not captured)')}",
         f"- **Messages** : {ent.get('n','?')}",
         f"- **Fin** : `{reason}`",
         f"- **Dossier** : `{cwd}`",
@@ -163,9 +163,9 @@ def write_archive_note(data, cache):
         if git["stat"]:
             lines.append("```\n" + redact(git["stat"])[:3000] + "\n```")
         if git["status"]:
-            lines.append("\n**Fichiers touchés (status) :**\n```\n" + redact(git["status"])[:2000] + "\n```")
+            lines.append("\n**Files touched (status):**\n```\n" + redact(git["status"])[:2000] + "\n```")
     else:
-        lines.append("\n*(Pas de diff git capté — cwd hors repo ou aucun changement.)*")
+        lines.append("\n*(No git diff captured — cwd outside a repo, or nothing changed.)*")
     open(fn, "w", encoding='utf-8').write("\n".join(lines))
     return fn
 
@@ -174,7 +174,7 @@ def commit_brain():
         subprocess.run(["git", "-C", BRAIN, "add", "-A"], capture_output=True, timeout=20)
         diff = subprocess.run(["git", "-C", BRAIN, "diff", "--cached", "--quiet"], timeout=20)
         if diff.returncode == 0:
-            return  # rien à commit
+            return  # nothing to commit
         subprocess.run(["git", "-C", BRAIN,
                         "-c", "user.name=Claude Brain", "-c", "user.email=brain@local",
                         "commit", "-q", "-m",
@@ -185,16 +185,16 @@ def commit_brain():
         pass
 
 def push_brain():
-    """Pousse vers le remote si configuré. Silencieux et non bloquant (hors-ligne OK)."""
+    """Pushes to the remote if configured. Silent and non-blocking (offline is fine)."""
     try:
         has_remote = subprocess.run(["git", "-C", BRAIN, "remote"],
                                     capture_output=True, text=True, timeout=10)
         if not has_remote.stdout.strip():
-            return  # pas de remote → rien à pousser
+            return  # no remote → nothing to push
         subprocess.run(["git", "-C", BRAIN, "push", "--quiet"],
                        capture_output=True, timeout=30)
     except Exception:
-        pass  # hors-ligne ou push refusé → on ne bloque jamais la fin de session
+        pass  # offline or push refused → we never block the end of a session
 
 def main():
     try:

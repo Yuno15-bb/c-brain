@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Hook PostToolUse (Write|Edit) du Claude Brain — garde mécanique instantanée.
-À CHAQUE fiche déposée dans le tronc, sans LLM, sans boucle, sans bloquer :
+PostToolUse (Write|Edit) hook — the instant mechanical guard.
+On EVERY note landing in the trunk, with no LLM, no loop and no blocking:
   1. masque tout secret en clair
-  2. garantit que la fiche est dans la carte MEMORY.md (sinon -> Inbox "à classer")
+  2. guarantees the note is on the MEMORY.md map (otherwise -> the "to file" Inbox)
   3. signale si le frontmatter manque
 
-Anti-boucle : ce script édite les fichiers en I/O direct Python (pas via l'outil
-Write/Edit), donc il ne re-déclenche jamais le hook. Le travail sémantique
-(dédup, reclassement, distillation) reste aux agents LLM jardinier/distillateur.
+Loop guard: this script edits files through direct Python I/O (not through the
+Write/Edit tool), so it never re-triggers the hook. The semantic work
+(dedup, refiling, distillation) stays with the gardener and distiller agents.
 
-Règle d'or : ne JAMAIS bloquer. Sort toujours 0.
+Golden rule: NEVER block. Always exits 0.
 """
 import sys, os, json, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -21,7 +21,7 @@ except Exception:
 
 BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
 MEMORY = os.path.join(BRAIN, "MEMORY.md")
-INBOX_HEADER = "## 🆕 Inbox — fiches à classer (auto)"
+INBOX_HEADER = "## 🆕 Inbox — notes to file (auto)"
 
 SECRET = re.compile(
     r'(ntn_[A-Za-z0-9]+|sk-ant-[A-Za-z0-9_-]+|AIza[A-Za-z0-9_-]+|secret_[A-Za-z0-9]+'
@@ -42,14 +42,14 @@ def main(data):
         return
     rel = os.path.relpath(real, BRAIN)
 
-    # --- pulse de statut pour la capsule (toute activité sur l'arbre) ---
+    # --- status pulse for the capsule (any activity on the tree) ---
     name = os.path.basename(rel)[:-3] if rel.endswith(".md") else os.path.basename(rel)
     if rel == "MEMORY.md":
-        write_status("busy", "mapping", "mise à jour de la carte")
+        write_status("busy", "mapping", "updating the map")
     elif rel.endswith(".md") and not rel.startswith("sessions" + os.sep):
         write_status("busy", "filing", name)
 
-    # exclure la carte elle-même, l'archive auto, et les non-.md du travail mécanique
+    # exclude the map itself, the automatic archive, and non-.md files from the mechanical work
     if rel == "MEMORY.md" or rel.startswith("sessions" + os.sep) or not rel.endswith(".md"):
         return
     if not os.path.exists(real):
@@ -60,10 +60,10 @@ def main(data):
         return
 
     # --- LEDGER « sauvegardes manuelles » (anti-redondance distillateur) ---
-    # Si TU (la session en cours, pas le jardinier headless) écris/affines une fiche de savoir,
-    # on le note par session_id. Au SessionEnd, le distillateur recevra « ne recrée pas ces fiches »
-    # → il ne refait pas le travail déjà fait à la main (tokens économisés, zéro doublon), tout en
-    # gardant le filet auto pour le savoir NON sauvé. Foreground seulement, zones de savoir seulement.
+    # If YOU (the live session, not the headless gardener) write or refine a knowledge note,
+    # we record it by session_id. At SessionEnd the distiller is told "do not recreate these notes"
+    # → it does not redo work already done by hand (tokens saved, zero duplicates), while still
+    # keeping the automatic net for knowledge NOT saved. Foreground only, knowledge areas only.
     if os.environ.get("CLAUDE_BRAIN_GARDENING") != "1":
         sid = (data or {}).get("session_id")
         if sid and rel.split(os.sep)[0] in ("projects", "lessons", "meta", "life"):
@@ -77,7 +77,7 @@ def main(data):
             except Exception:
                 pass
 
-    # détection de cohérence (Horizon 2) : flag des fiches qui se recouvrent, détaché
+    # coherence detection: flags overlapping notes, detached
     try:
         import subprocess
         cc = os.path.join(BRAIN, "hooks", "check_coherence.py")
@@ -90,21 +90,21 @@ def main(data):
         pass
 
     # --- 1. masquage des secrets (in place, I/O direct) ---
-    masked = SECRET.sub("«SECRET-MASQUÉ»", txt)
+    masked = SECRET.sub("«SECRET-MASKED»", txt)
     if masked != txt:
         try:
             open(real, "w", encoding="utf-8").write(masked)
             txt = masked
-            write_status("busy", "correcting", f"secret masqué dans {name}")
+            write_status("busy", "correcting", f"secret masked in {name}")
         except Exception:
             pass
 
-    # slug / nom pour la détection de présence dans la carte
+    # slug / name used to detect presence on the map
     m = re.search(r'^name:\s*(.+)$', txt, re.M)
     slug = m.group(1).strip() if m else None
     fname = os.path.basename(rel)[:-3]
 
-    # --- 2. garantir la présence dans la carte ---
+    # --- 2. guarantee presence on the map ---
     try:
         mem = open(MEMORY, encoding="utf-8").read()
     except Exception:
@@ -112,24 +112,24 @@ def main(data):
     linked = (rel in mem) or (fname in mem) or (slug and f"[[{slug}]]" in mem) \
              or (slug and f"({rel})" in mem)
     # F2 — pendant une passe de maintenance (CLAUDE_BRAIN_GARDENING=1), c'est le
-    # jardinier qui possède la carte : il range les fiches DANS MEMORY.md et vide
-    # l'Inbox. Déposer en parallèle dans l'Inbox créerait une course (re-déposer une
+    # gardener owns the map: it files notes INTO MEMORY.md and empties
+    # the Inbox. Dropping into the Inbox in parallel would race (re-adding a note
     # fiche qu'il vient de classer). On garde le masquage des secrets et le capteur de
-    # cohérence (au-dessus, toujours actifs) mais on saute le dépôt Inbox ici.
+    # coherence (above, always active) but we skip the Inbox drop here.
     if not linked and os.environ.get("CLAUDE_BRAIN_GARDENING") != "1":
         title = slug or fname
-        line = f"- [{title}]({rel}) — déposée auto, à classer par le [[jardinier]]"
+        line = f"- [{title}]({rel}) — auto-added, to be filed by the [[gardener]]"
         if INBOX_HEADER in mem:
             mem = mem.replace(INBOX_HEADER, INBOX_HEADER + "\n" + line, 1)
         else:
-            mem = mem.rstrip() + f"\n\n---\n\n{INBOX_HEADER}\n\n*Le hook dépose ici toute fiche non encore cartographiée ; le jardinier les range ensuite dans la bonne section.*\n\n{line}\n"
+            mem = mem.rstrip() + f"\n\n---\n\n{INBOX_HEADER}\n\n*The hook drops any note not yet on the map here; the gardener files them afterte dans la bonne section.*\n\n{line}\n"
         try:
             open(MEMORY, "w", encoding="utf-8").write(mem)
         except Exception:
             pass
 
 def refresh_doctor():
-    """Rafraîchit state/doctor.json en arrière-plan (détaché, jamais bloquant)."""
+    """Refreshes state/doctor.json in the background (detached, never blocking)."""
     try:
         import subprocess
         doc = os.path.join(BRAIN, "hooks", "brain_doctor.py")
@@ -142,8 +142,8 @@ def refresh_doctor():
         pass
 
 def refresh_planet():
-    """Régénère planet/graph.json — la PLANÈTE de connaissance grandit en temps réel
-    à chaque fiche écrite (détaché, jamais bloquant)."""
+    """Regenerates planet/graph.json — the knowledge PLANET grows in real time
+    with every note written (detached, never blocking)."""
     try:
         import subprocess
         ge = os.path.join(BRAIN, "hooks", "graph_export.py")
@@ -166,10 +166,10 @@ if __name__ == "__main__":
         main(data)
     except Exception:
         pass
-    # refresh des artefacts (doctor.json + planet/graph.json) UNIQUEMENT pour une écriture DANS
-    # le tronc. Avant, le hook étant global (Write|Edit), CHAQUE édition de n'importe quel projet
-    # lançait 2 scans complets du Brain et appendait une ligne à metrics.jsonl (sur-fréquence +
-    # courbe polluée). On gate sur l'appartenance au tronc.
+    # refresh the artefacts (doctor.json + planet/graph.json) ONLY for a write INSIDE
+    # the trunk. Before, the hook being global (Write|Edit), EVERY edit in any project
+    # triggered two full scans of the trunk and appended a line to metrics.jsonl (over-frequency +
+    # a polluted curve). We gate on belonging to the trunk.
     if in_brain:
         try:
             refresh_doctor()
