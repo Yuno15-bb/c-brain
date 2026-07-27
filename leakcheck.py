@@ -65,7 +65,11 @@ SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
 # c'est SON design-doc (même décision que pour le portfolio Claude Brain V2).
 # Tous les autres marqueurs — clients, tiers, secrets, chemins — s'y appliquent
 # normalement : seul le nom du propriétaire est exempté.
-EXEMPT = {"personne — propriétaire": ("docs/",)}
+# `LICENSE` et `NOTICE` : Apache 2.0 EXIGE le nom du titulaire du copyright.
+# Le retirer rendrait la licence inopérante. C'est une mention volontaire et
+# juridiquement nécessaire, pas une fuite. Exemption ciblée sur le seul marqueur
+# « propriétaire » : une clé ou un nom de client dans ces fichiers reste rouge.
+EXEMPT = {"personne — propriétaire": ("docs/", "LICENSE", "NOTICE")}
 
 # Adresses qui ressemblent à un mail sans en être un. Liste FERMÉE de littéraux
 # exacts — jamais un assouplissement du motif, qui rouvrirait la porte à tout.
