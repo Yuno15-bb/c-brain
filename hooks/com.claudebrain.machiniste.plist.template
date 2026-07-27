@@ -2,10 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- Machiniste — ronde machine du Claude Brain (RAM / CPU / chaleur).
      Toutes les 10 minutes, sans LLM : mesure, tue les serveurs de dev orphelins,
-     signale le reste. Coût quota : zéro.
+     reports the rest. Quota cost: zero.
 
-     TEMPLATE — __HOME__ doit être substitué par le vrai $HOME à l'installation
-     (même piège que com.claudebrain.resume : un /Users/<ancien-nom> en dur avait cassé
+     TEMPLATE — __HOME__ must be substituted with the real $HOME at install time
+     (the same trap as com.claudebrain.resume: a hardcoded home path silently broke
      silencieusement la reprise sur machine neuve le 2026-07-22). -->
 <plist version="1.0">
 <dict>

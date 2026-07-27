@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Réveil périodique d'auto-reprise du Claude Brain.
-     Draine la file pending-distill.json dès que le quota se réinitialise,
+<!-- Periodic auto-resume wake-up for C Brain.
+     Drains the pending-distill.json queue as soon as the quota resets,
      sans avoir besoin d'ouvrir une session.
 
-     TEMPLATE — ne pas installer ce fichier tel quel : __HOME__ doit être
-     substitué par le vrai $HOME (fait automatiquement par github-restore.sh
-     via `sed`). Généré après le bug du 2026-07-22 où /Users/<ancien-nom> était en
+     TEMPLATE — do not install this file as is: __HOME__ must be
+     substituted with the real $HOME (install.sh does it automatically
+     through `sed`). Written after a bug where a home path was hardcoded
      dur et cassait silencieusement la reprise sur toute nouvelle machine. -->
 <plist version="1.0">
 <dict>
@@ -17,9 +17,9 @@
         <string>/usr/bin/python3</string>
         <string>__HOME__/claude-brain/hooks/resume_pending.py</string>
     </array>
-    <!-- launchd démarre avec un PATH minimal (/usr/bin:/bin:/usr/sbin:/sbin) qui NE contient PAS
-         ~/.local/bin où vit `claude` → resume_pending ne trouvait jamais le binaire et la reprise
-         autonome au reset quota était inopérante. On donne un PATH complet. -->
+    <!-- launchd starts with a minimal PATH (/usr/bin:/bin:/usr/sbin:/sbin) that does NOT contain
+         ~/.local/bin where `claude` lives → resume_pending never found the binary and the
+         autonomous resume at quota reset was inoperative. We give it a full PATH. -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>

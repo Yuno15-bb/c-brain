@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Phase de test de l'animation de la capsule : parcourt TOUTES les activités,
-8 s par étape, en rafraîchissant le ts pour rester 'busy' (seuil idle = 6 s)."""
+"""Capsule animation test pass: walks through EVERY activity,
+8 s per step, refreshing ts to stay 'busy' (idle threshold = 6 s)."""
 import json, time, os
 
-# Dérivé de $HOME, pas de __file__ : c'est le state du TRONC qu'on pilote.
+# Derived from $HOME, not __file__: it is the TRUNK's state we drive.
 STATUS = os.path.join(os.path.expanduser('~'), 'claude-brain', 'state', 'status.json')
 
-# ordre du pipeline → couvre les 11 activités reconnues par index.html (idle exclu)
+# pipeline order → covers the 11 activities index.html recognizes (idle excluded)
 STEPS = [
     ("distilling",   "DISTILLATEUR — extraction des fiches"),
     ("gardening",    "JARDINIER — rangement & liens [[ ]]"),
@@ -14,22 +14,22 @@ STEPS = [
     ("correcting",   "JARDINIER — correction d'une fiche"),
     ("mapping",      "JARDINIER — cartographie de l'index"),
     ("architecting", "ARCHITECTE — ponts inter-domaines"),
-    ("challenging",  "CHALLENGER — mise à l'épreuve du savoir"),
-    ("archiving",    "ARCHIVISTE — élagage du poids mort"),
-    ("synthesizing", "SYNTHÉTISEUR — essai transverse"),
-    ("auditing",     "MÉCANICIEN — audit de la machine"),
+    ("challenging",  "CHALLENGER — putting the knowledge to the test"),
+    ("archiving",    "ARCHIVIST — pruning dead weight"),
+    ("synthesizing", "SYNTHESIZER — cross-cutting essay"),
+    ("auditing",     "MECHANIC — auditing the machine"),
     ("committing",   "SAUVEGARDE git — versionnage"),
 ]
 
-HOLD = 8.0       # secondes par étape
-REFRESH = 2.5    # ré-écriture du ts pour ne pas retomber en idle (<6 s)
+HOLD = 8.0       # seconds per step
+REFRESH = 2.5    # ts rewrite so it does not fall back to idle (<6 s)
 
 def write(state, activity=None, detail=None):
     with open(STATUS, 'w') as f:
         json.dump({"state": state, "activity": activity, "detail": detail,
                    "source": "test", "ts": time.time()}, f)
 
-print(f"▶ Phase de test — {len(STEPS)} étapes × {HOLD:.0f}s")
+print(f"▶ Test pass — {len(STEPS)} steps × {HOLD:.0f}s")
 for i, (act, detail) in enumerate(STEPS, 1):
     print(f"  [{i}/{len(STEPS)}] {act} — {detail}")
     t_end = time.time() + HOLD

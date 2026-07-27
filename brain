@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# brain — point d'entrée unique du Claude Brain.
+# brain — the single entry point of C Brain.
 # Usage : brain <status|doctor|audit|push|metrics|selftest|backup>
 set -euo pipefail
 BRAIN="$HOME/claude-brain"
@@ -14,20 +14,20 @@ case "$cmd" in
     python3 hooks/brain_doctor.py "${@:2}"
     ;;
   audit)
-    # état OPÉRATIONNEL du pipeline : qu'est-ce qui est distillé / en file / non capté + santé
+    # OPERATIONAL state of the pipeline: what is distilled / queued / uncaptured + health
     python3 hooks/brain_audit.py "${@:2}"
     ;;
   review)
-    # AUDIT GLOBAL du tronc (contenu/topologie) : agrège topology + utility +
-    # challenger + doctor + fiches périmées + chemins infra → state/review.{json,md}
+    # GLOBAL audit of the trunk (content/topology): aggregates topology + utility +
+    # challenger + doctor + stale notes + infrastructure paths → state/review.{json,md}
     python3 hooks/brain_review.py "${@:2}"
     ;;
   recall|search)
     python3 hooks/brain_recall.py "${@:2}"
     ;;
   embed)
-    # (re)construire l'index embeddings sémantiques (backend optionnel)
-    if [ -x .venv/bin/python ]; then .venv/bin/python hooks/brain_embed.py build; else echo "venv embeddings absent (BM25 par défaut)"; fi
+    # (re)build the semantic embeddings index (optional backend)
+    if [ -x .venv/bin/python ]; then .venv/bin/python hooks/brain_embed.py build; else echo "embeddings venv missing (BM25 by default)"; fi
     ;;
   next|reprises)
     python3 hooks/brain_anticipate.py
@@ -36,23 +36,23 @@ case "$cmd" in
     python3 hooks/brain_utility.py "${@:2}"
     ;;
   coherence)
-    # paires de fiches à fort recouvrement en attente d'arbitrage par le jardinier
+    # heavily overlapping note pairs awaiting the gardener's arbitration
     if [ -f state/coherence.json ]; then python3 -m json.tool state/coherence.json; else echo "✅ aucune paire en attente"; fi
     ;;
   metrics)
-    # dernières tendances (10 derniers relevés)
-    if [ -f state/metrics.jsonl ]; then tail -10 state/metrics.jsonl; else echo "(pas encore de métriques)"; fi
+    # latest trends (last 10 readings)
+    if [ -f state/metrics.jsonl ]; then tail -10 state/metrics.jsonl; else echo "(no metrics yet)"; fi
     ;;
   push|backup)
     git add -A
-    git commit -q -m "backup manuel via brain $(date +%F\ %H:%M)" || echo "(rien à committer)"
-    git push --quiet origin main && echo "✅ poussé sur origin/main" || echo "⚠️ push échoué (remote ?)"
+    git commit -q -m "manual backup via brain $(date +%F\ %H:%M)" || echo "(nothing to commit)"
+    git push --quiet origin main && echo "✅ pushed to origin/main" || echo "⚠️ push failed (remote?)"
     ;;
   selftest)
     bash hooks/selftest.sh
     ;;
   update)
-    # Mise à jour du MOTEUR uniquement. Le tronc — tes fiches — n'est jamais touché.
+    # Updates the ENGINE only. The trunk — your notes — is never touched.
     bash "$HOME/.c-brain/engine/cbrain/update.sh" "${@:2}"
     ;;
   version)
