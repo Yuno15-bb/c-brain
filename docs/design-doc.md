@@ -1,272 +1,224 @@
-# Cadrage — C Brain (Claude Brain installable et auto-mis-à-jour)
+# Design doc — C Brain (an installable, self-updating knowledge trunk)
 
-**Niveau de dosage : C léger.** Justification : la cible est privée-sur-invitation, mais un clone
-est irréversible (retirer l'accès ne reprend pas ce qui est déjà cloné), et la source du paquet
-est un système qui contient des PII réelles de tiers — cf. `pii-reelle-dans-brain-decouverte-anonymisation`.
-La mise à jour automatique ajoute un second risque de niveau C : **du code qui s'installe tout seul
-chez quelqu'un d'autre**.
+**TL;DR** — Extract, from a living `~/claude-brain`, a package called **C Brain**
+that installs in one command on another macOS machine, behaves **identically** to
+the original with everything around it (hooks, agents, capsule, planet,
+companion, status line, CLI, launchd), and **updates itself** on each user's
+machine.
 
-**TL;DR** — Extraire du `~/claude-brain` vivant un paquet **C Brain** installable en une commande
-sur une autre machine macOS, au fonctionnement **identique** à celui de Dylan, avec toutes ses
-dérivées (hooks, agents, capsule, planète, companion, statusline, CLI, launchd), et **capable de
-se mettre à jour tout seul** chez chaque utilisateur.
-
-**Décisions Dylan actées (2026-07-26)** : nom **C Brain** · privé sur invitation · nouveau repo
-propre · socle + planète + companion + **statusline** · **pas** les skills ·
-`Yuno15-bb/bbly-agents` **supprimé une fois C Brain en ligne et vérifié**.
+**Why this doc is sized the way it is**: publishing is irreversible (revoking
+access does not un-clone what is already cloned), the source of the package is a
+system holding **real personal data about third parties**, and automatic updates
+add a second serious risk: **code that installs itself on somebody else's
+machine**.
 
 ---
 
-## Pour qui, et pour quoi
+## Who it is for, and why
 
-**Public** : les utilisateurs d'un agent en ligne de commande — Claude Code d'abord, mais aussi
-tout autre modèle qui tourne dans un CLI — qui veulent **plus de mémoire, plus de contexte, et un
-arbre de connaissance qui grandit avec le temps et la masse de travail** accumulée avec leur agent.
+**Audience**: users of a command-line agent — Claude Code first, but any model
+running in a CLI — who want **more memory, more context, and a knowledge tree
+that grows with time and with the volume of work** accumulated alongside their
+agent.
 
-Ce n'est pas un outil de plus : c'est ce qui fait qu'une session ne repart pas de zéro, et que ce
-qui a été compris une fois reste trouvable depuis n'importe quel autre projet.
+This is not one more tool: it is what stops a session starting from zero, and
+keeps what was understood once findable from any other project.
 
-**Installation** : l'utilisateur ne suit pas une procédure. Il donne **une commande à l'agent qui
-tourne déjà dans son CLI**, et l'agent installe. C'est le mode d'emploi le plus court possible, et
-il correspond à la façon dont ce public travaille déjà.
+**Installation**: the user does not follow a procedure. They give **one command
+to the agent already running in their CLI**, and the agent installs it. That is
+the shortest possible manual, and it matches how this audience already works.
 
-**Contrainte honnête, à ne pas maquiller** : le tronc, les agents, la CLI, la planète et la capsule
-sont portables partout. En revanche le **câblage automatique** (hooks `SessionStart` /
-`SessionEnd` / `PostToolUse`, statusline) passe par `~/.claude/settings.json` et n'existe que dans
-Claude Code. Sur un autre CLI, C Brain fonctionne **à la demande** (`brain recall`, `brain status`,
-les agents invoqués explicitement) mais **pas en boucle fermée automatique**. L'installeur doit le
-détecter et le dire, jamais laisser croire à un système autonome qui ne l'est pas.
+**An honest constraint, not to be dressed up**: the trunk, the agents, the CLI,
+the planet and the capsule are portable everywhere. The **automatic wiring**
+(`SessionStart` / `SessionEnd` / `PostToolUse` hooks, the status line) goes
+through `~/.claude/settings.json` and exists only in Claude Code. On another CLI,
+C Brain works **on demand** (`brain recall`, `brain status`, agents invoked
+explicitly) but **not as a closed loop**. The installer detects this and says so;
+it never lets anyone believe in an autonomy that is not there.
 
-## Problème (le besoin, pas la solution)
+## Problem (the need, not the solution)
 
-Le Brain ne fonctionne aujourd'hui que sur **cette** machine, et son installation n'est pas un
-artefact : c'est une suite de gestes manuels reconstituée de mémoire.
+The trunk worked on **one** machine only, and its installation was not an
+artefact: it was a sequence of manual gestures reconstructed from memory.
 
-- La restauration du 2026-07-22 sur le Mac neuf l'a prouvé : le symlink `~/.claude/agents`
-  n'a jamais été recréé → **7 agents invisibles, boucle autonome à vide pendant 24 h**, sans
-  aucune erreur visible (`capsule-clignote-agents-non-resolus`).
-- Le `.plist` de reprise portait `/Users/<ancien-nom>` en dur → planificateur mort silencieusement.
-- Personne d'autre ne peut faire tourner le système, donc il n'est ni montrable ni transmissible.
-- Et une fois installé chez quelqu'un, **il se fige** : les corrections faites ici ne l'atteignent
-  jamais. Un système figé chez un tiers est pire qu'absent — il porte les bugs déjà réparés.
+- A machine migration proved it: the `~/.claude/agents` symlink was never
+  recreated → **the agents were invisible and the autonomous loop spun on nothing
+  for 24 hours**, with no visible error at all.
+- The resume `.plist` carried a hardcoded home path → the scheduler died silently.
+- Nobody else could run the system, so it was neither showable nor transmissible.
+- And once installed somewhere, **it freezes**: fixes made here never reach it. A
+  frozen system on somebody else's machine is worse than none — it carries the
+  bugs that have already been repaired.
 
-Le besoin : **qu'une autre personne obtienne le même système en marche, que ça se prouve, et que
-ça reste à jour sans qu'elle ait rien à faire.**
+The need: **that another person gets the same system running, that it can be
+proven, and that it stays current without them doing anything.**
 
-## Succès mesurable
+## Measurable success
 
-Sur un `HOME` isolé (test) puis une machine tierce :
+In an isolated `HOME` first, then on a third-party machine:
 
-| Critère | Seuil |
+| Criterion | Threshold |
 |---|---|
-| Installation | `git clone && ./install.sh` — **0 geste manuel** hors mot de passe admin, < 10 min |
-| Santé | `brain selftest` **vert**, `brain doctor` sans erreur |
-| Hooks actifs | une session Claude Code de test déclenche recall + archivage (prouvé par `state/`, pas par la doc) |
-| Agents résolus | les 8 agents listés par Claude Code (le piège du 22/07 est détecté par l'installeur) |
-| Capsule | fenêtre Electron qui s'anime sur un changement de `state/status.json` |
-| Planète | double-clic sur le `.command` → globe servi sur `localhost:8765` |
-| Statusline | ligne d'état visible dans Claude Code, même rendu que chez Dylan |
-| Idempotence | 2ᵉ exécution de `install.sh` = 0 dégât, `settings.json` non écrasé |
-| **Mise à jour** | une correction poussée ici arrive chez l'utilisateur **au démarrage de session suivant**, sans intervention, **sans toucher une seule de ses fiches** |
-| **Rollback user** | `brain update --rollback` restaure la version précédente en 1 commande |
-| Fuite | `leakcheck` : **0 marqueur** PII/secret dans le repo, historique git compris |
+| Installation | `git clone && ./install.sh` — **zero manual steps** beyond an admin password, under 10 minutes |
+| Health | `brain selftest` **green**, `brain doctor` without error |
+| Hooks live | a test session triggers recall + archiving (proven by `state/`, not by the docs) |
+| Agents resolved | the 8 agents listed by the CLI (the symlink trap is detected by the installer) |
+| Capsule | an Electron window animating on a change to `state/status.json` |
+| Planet | double-clicking the `.command` → a globe served on `localhost:8765` |
+| Status line | visible in the CLI, same rendering as on the source machine |
+| Idempotence | a second `install.sh` run does zero damage, `settings.json` untouched |
+| **Updates** | a fix published here reaches the user **at their next session start**, without intervention, **without touching a single one of their notes** |
+| **User rollback** | `brain update --rollback` restores the previous version in one command |
+| Leaks | `leakcheck`: **zero marker** of personal data or secrets in the repo, git history included |
 
-## Non-Goals (bornes explicites)
+## Non-goals (explicit boundaries)
 
-- **Aucun contenu de fiches.** Le paquet livre un tronc **vide**. Personne ne clone le cerveau de Dylan.
-- **Pas les skills** (`~/.claude/skills`) — trop personnels. Vérifié le 2026-07-26 : **20 skills
-  sur 20** contiennent des marqueurs perso (client, personnes, cadre d'accompagnement). Aucun n'est
-  transférable. Ce qui est livré à la place : `skills/` **vide** + `skills/README.md`, la doc du
-  **standard de fabrication** (9 exigences, forge-sur-blocage, frontière skill/agent, gabarit).
-  On transmet la méthode qui fabrique le skill, pas le skill.
-- **Pas `desktop_sync.py`** ni son plist : sauvegarde du Bureau de Dylan vers *son* GitHub,
-  strictement perso et dangereux chez un tiers (`--delete` sur une destination inconnue).
-- **Pas de publication publique**, pas de listing GitHub, pas de vitrine marketing.
-- **macOS uniquement** (launchd, Electron, `open`). Pas de Linux/Windows.
-- **Pas de télémétrie.** La mise à jour est un `git pull`, elle ne remonte **rien**.
-- **Pas de migration forcée du Brain de Dylan** vers la nouvelle disposition (voir « Impact »).
-- **Pas le corpus froid ni le venv embeddings** : optionnels, BM25 suffit par défaut.
+- **No note content whatsoever.** The package ships an **empty** trunk. Nobody clones somebody else's brain.
+- **No skills** (`~/.claude/skills`) — too personal. Measured: **20 out of 20** contained personal markers (client, people, personal context). None was transferable. What ships instead: an **empty** `skills/` plus `skills/README.md`, the documentation of the **house standard** (nine requirements, forge-on-block, the skill/agent boundary, a template). We pass on the method that makes the skill, not the skill.
+- **No `desktop_sync.py`** and no matching plist: it backs up the author's Desktop to *their* GitHub — strictly personal, and destructive on somebody else's machine (`--delete` on an unknown destination).
+- **macOS only** (launchd, Electron, `open`). No Linux or Windows.
+- **No telemetry.** An update is a `git pull`; it reports **nothing** back.
+- **No forced migration of the source machine** to the new layout (see "Impact").
+- **Neither the cold corpus nor the embeddings venv**: optional, BM25 is enough by default.
 
-## Approche
+## Approach
 
-### 1. La décision structurante : séparer le MOTEUR du TRONC
+### 1. The structural decision: separate the ENGINE from the TRUNK
 
-C'est ce qui rend la mise à jour automatique possible **sans risque pour les données**.
+This is what makes automatic updates possible **with no risk to the data**.
 
-Aujourd'hui `~/claude-brain` mélange le code (hooks, agents, capsule, planète) et le contenu
-(fiches). Un `git pull` sur un dépôt où l'utilisateur commite ses propres fiches finirait
-inévitablement en conflit — ou en perte.
+A single `~/claude-brain` mixes code (hooks, agents, capsule, planet) and content
+(notes). A `git pull` on a repo where the user also commits their own notes ends
+in conflict — or in loss.
 
 ```
-~/.c-brain/engine/     ← clone de C Brain. Code SEUL. git pull sans conflit possible.
-~/claude-brain/        ← tronc de l'utilisateur. Ses fiches, son git à lui. JAMAIS touché.
-    hooks/  → symlink vers ~/.c-brain/engine/hooks
-    agents/ → symlink vers ~/.c-brain/engine/agents
+~/.c-brain/engine/     ← a clone of C Brain. Code ONLY. git pull cannot conflict.
+~/claude-brain/        ← the user's trunk. Their notes, their own git. NEVER touched.
+    hooks/  → symlink to ~/.c-brain/engine/hooks
+    agents/ → symlink to ~/.c-brain/engine/agents
     capsule/ planet/ companion/ → symlinks
-    lessons/ projects/ meta/ life/ sessions/ state/ → RÉELS, à l'utilisateur
+    lessons/ projects/ meta/ life/ sessions/ state/ → REAL, the user's own
 ```
 
-Les chemins restent `~/claude-brain/hooks/...` : **aucun hook, aucun agent, aucun chemin n'est
-modifié**. Le fonctionnement est identique, seule la provenance des fichiers change.
+The paths stay `~/claude-brain/hooks/...`: **no hook, no agent and no path is
+modified**. Behaviour is identical; only where the files come from changes.
 
-### 2. La mise à jour automatique
+### 2. Automatic updates
 
-- `brain update` : `git pull` dans `~/.c-brain/engine`, puis **re-joue `install.sh`** (idempotent
-  par construction — il sait déjà ne rien écraser). Les symlinks rendent la propagation immédiate.
-- **Déclenchement auto** : un hook `SessionStart` vérifie au plus **1×/24 h** (throttle sur un
-  fichier d'horodatage) s'il existe un tag plus récent. Vérification en tâche de fond, jamais
-  bloquante, échec silencieux si pas de réseau.
-- **Versions taguées, pas `main`** : l'utilisateur suit les tags `vX.Y.Z`, pas la branche de
-  travail. Un commit de brouillon ne part chez personne.
-- **Migrations** : un dossier `migrations/` numéroté, chaque script idempotent et **jamais
-  destructif** sur `lessons|projects|meta|life|sessions`. Un compteur dans `~/.c-brain/state`.
-- **Rollback** : `brain update --rollback` fait un `git checkout` du tag précédent + re-`install.sh`.
+- `brain update`: `git pull` inside `~/.c-brain/engine`, then **replays `install.sh`** (idempotent by construction — it already knows not to overwrite anything). The symlinks make propagation immediate.
+- **Automatic trigger**: a `SessionStart` hook checks at most **once every 24 h** (throttled by a timestamp file) whether a newer tag exists. The check runs in the background, never blocks, and fails silently offline.
+- **Tagged versions, never `main`**: users follow `vX.Y.Z` tags, not the working branch. A draft commit reaches nobody.
+- **Migrations**: a numbered `migrations/` folder, each script idempotent and **never destructive** to `lessons|projects|meta|life|sessions`. The log lives in `~/.c-brain/state`.
+- **Rollback**: `brain update --rollback` checks out the previous tag and re-runs `install.sh`.
 
-### 3. La généralisation est déclarative, pas manuelle
+### 3. Generalization is declarative, not manual
 
-`sync.sh` recopie le moteur depuis le Brain vivant à chaque passe : **une correction faite à la
-main serait écrasée**, et la fuite reviendrait au commit suivant sans que rien ne le signale.
-D'où `rules.json` + `generalize.py`, **enchaîné automatiquement après chaque copie**, avec une
-garde : une règle qui trouve moins d'occurrences que prévu fait **échouer** le script — un
-compteur qui baisse veut dire que la source a changé de formulation, pas que le problème a disparu.
+`sync.sh` re-copies the engine from the living trunk on every pass: **a fix made
+by hand would be overwritten**, and the leak would be back at the next commit
+with nothing to flag it. Hence `rules.json` + `generalize.py`, **chained
+automatically after every copy**, with a guard: a rule finding fewer occurrences
+than expected makes the script **fail** — a falling counter means the source
+changed its wording, not that the problem went away.
 
-### Ce que la séparation moteur/tronc a cassé (trouvé en exécutant, pas en relisant)
+### What the engine/trunk split broke (found by running, not by reading)
 
-Deux fois le même piège : du code qui dérive ses chemins de `__file__` au lieu de `$HOME`.
-Sous symlink, il pointe alors dans le **moteur** au lieu du **tronc**.
+The same trap twice: code deriving its paths from `__file__` instead of `$HOME`.
+Under a symlink it then points into the **engine** instead of the **trunk**.
 
-- `tests/invariants_brain.py` écrivait `state/coherence.json` **dans le dépôt installé** → 3 tests
-  en erreur. Corrigé par une règle : deux racines distinctes, `CODE` (suit le fichier) et `BRAIN`
-  (dérive de `$HOME`). Les 22 autres usages de `__file__` servent à localiser du **code** voisin —
-  eux sont corrects et le restent.
-- `planet/graph.json` est régénéré **dans le moteur**. Toléré : il est gitignoré et reconstruit à
-  chaque lancement. À ne jamais étendre à des données de l'utilisateur.
+- `tests/invariants_brain.py` was writing `state/coherence.json` **into the installed repo** → three tests in error. Fixed by a rule: two distinct roots, `CODE` (follows the file) and `BRAIN` (derives from `$HOME`). The 22 other uses of `__file__` locate neighbouring **code** — those are correct and stay.
+- `capsule/main.js` watched `status.json` through `__dirname` while `index.html` derived it from `homedir()`. The capsule would have animated but **never re-shown itself** when an agent woke up. Two halves of the same component disagreeing.
+- `planet/graph.json` is regenerated **inside the engine**. Tolerated: it is gitignored and rebuilt on every launch. Never to be extended to user data.
 
-### Ce que le L2 a rattrapé (deux échecs silencieux)
+### Two silent failures the installer work caught
 
-- **Statusline installée et invisible** : le fichier était copié dans `~/.claude` mais la clé
-  `statusLine` n'était jamais écrite dans `settings.json`. Rien n'aurait signalé l'erreur — juste
-  une ligne d'état absente. Corrigé, et posée **seulement** si l'utilisateur n'en a pas déjà une.
-- **`brain update` annoncé mais inexistant** : le récapitulatif d'installation le listait alors
-  que la commande arrive au L6. Retiré du message plutôt que promis à vide.
+- **A status line installed and invisible**: the file was copied into `~/.claude` but the `statusLine` key was never written into `settings.json`. Nothing would have flagged it — just a missing line. Fixed, and set **only** when the user has none of their own.
+- **`brain update` announced but non-existent**: the installation summary listed it before the command existed. Removed from the message rather than promised empty.
 
-### Alternatives rejetées
+### Rejected alternatives
 
-| Alternative | Pourquoi non |
+| Alternative | Why not |
 |---|---|
-| **Un seul dépôt code+contenu, `git pull` dessus** | L'utilisateur commite ses fiches dans le même repo → conflit garanti au 1ᵉʳ update, perte de fiches au pire. C'est le cœur du problème, pas un détail. |
-| **Mettre à jour `bbly-agents`** | Son historique (3 commits, juin) a porté du contenu perso ; `git log -p` le ressort même après nettoyage. → nouveau repo, et **`bbly-agents` supprimé** une fois C Brain vérifié. |
-| **Publier le Brain lui-même avec un `.gitignore`** | Une liste noire laisse passer par défaut. Un seul fichier oublié = fuite de PII client. La liste blanche refuse par défaut. |
-| **Copie des fichiers au lieu de symlinks** | Chaque update devrait re-copier et deviner ce que l'utilisateur a modifié localement. Le symlink rend la frontière code/contenu **physique**, donc non-négociable. |
-| **Mise à jour silencieuse sur `main`** | Du code non relu s'installe chez un tiers. Les tags forcent une décision explicite de publication. |
-| **Installeur en Python / Makefile** | Le point d'entrée doit tourner sur un Mac neuf **avant** toute installation ; `bash` est garanti, un venv Python ne l'est pas. |
-| **Copie manuelle à chaque mise à jour** | Dérive garantie entre le Brain vivant et le paquet, sans signal — `contrat-copie-entre-repos-derive-silencieuse`. D'où `sync.sh --check` qui échoue si le paquet a divergé. |
+| **One repo for code and content, `git pull` on it** | The user commits their notes into the same repo → guaranteed conflict on the first update, lost notes at worst. That is the heart of the problem, not a detail. |
+| **Reusing the previous extraction repo** | Its history had carried personal content; `git log -p` brings it back even after cleaning. → a new repo, and the old one deleted once C Brain was verified. |
+| **Publishing the trunk itself behind a `.gitignore`** | A denylist lets things through by default. One forgotten file is a personal-data leak. An allowlist refuses by default. |
+| **Copying files instead of symlinking** | Every update would have to re-copy and guess what the user changed locally. The symlink makes the code/content boundary **physical**, which is non-negotiable. |
+| **Silent updates from `main`** | Unreviewed code would install on somebody else's machine. Tags force an explicit decision to publish. |
+| **A Python or Makefile installer** | The entry point must run on a fresh Mac **before** anything is installed; `bash` is guaranteed, a Python venv is not. |
+| **Copying by hand on every update** | Guaranteed drift between the living trunk and the package, with no signal. Hence `sync.sh --check`, which fails when the package has fallen behind. |
 
-## Contrat (ce sur quoi le reste s'appuie)
+## Contract (what everything else rests on)
 
 ```
 c-brain/
-  install.sh          # point d'entrée unique, idempotent, backup avant tout écrasement
-  uninstall.sh        # retour à l'état d'avant, en 1 commande
-  sync.sh             # ~/claude-brain → repo, liste blanche ; --check = diff seul
-  generalize.py       # applique rules.json APRÈS la copie (enchaîné par sync.sh)
-  rules.json          # 20 règles déclaratives : 3 blocs de code + 17 substitutions
-  leakcheck.py        # 0 marqueur, sinon exit 1 (bloque le commit)
+  install.sh          # the single entry point, idempotent, backs up before overwriting
+  uninstall.sh        # back to the previous state, in one command
+  publish.sh          # the only sanctioned path to a git push
+  sync.sh             # living trunk → repo, allowlist; --check = drift report only
+  generalize.py       # applies rules.json AFTER the copy (chained by sync.sh)
+  rules.json          # declarative rules: code blocks + text substitutions
+  leakcheck.py        # zero marker, otherwise exit 1 (blocks the commit)
   brain               # CLI (status|doctor|audit|review|recall|next|selftest|update|push…)
-  hooks/              # 28 hooks + .plist.template  (desktop-sync EXCLU)
-  agents/             # 8 agents .md, généralisés (aucun nom de client/projet perso)
-  capsule/            # Electron, sans node_modules, sans assets morts
-  planet/             # index.html, launch.sh, graph_export.py, media/  (graph.json EXCLU)
-  companion/          # panneau live des diffs
-  statusline.py       # ligne d'état Claude Code
-  migrations/         # 001-*.sh … numérotées, idempotentes, non destructives
-  skeleton/           # tronc VIDE à créer chez l'utilisateur (.gitkeep)
-  skills/             # VIDE + README.md = le standard de fabrication (aucun skill livré)
-  docs/               # ce cadrage + README d'installation
-  VERSION             # tag courant, lu par brain update
+  hooks/              # the hooks + .plist.template  (desktop-sync EXCLUDED)
+  agents/             # 8 agent definitions, generalized (no client or project names)
+  capsule/            # Electron, without node_modules, without dead assets
+  planet/             # index.html, launch.sh, media/  (graph.json EXCLUDED)
+  companion/          # live change tracking
+  statusline.py       # the CLI status line
+  cbrain/             # update.sh, check_update.py, migrations/ — C Brain specific
+  skeleton/           # the EMPTY trunk created on the user's machine
+  skills/             # EMPTY + README.md = the house standard (no skill shipped)
+  docs/               # this design doc, the install guide, the verification recipe
 ```
 
-**Invariants du contrat** (vérifiés par `selftest`, pas par la relecture) :
-- aucun chemin absolu `/Users/<qqn>` dans un fichier exécuté — tout dérive de `$HOME` ;
-- `state/`, `planet/graph.json`, `capsule/node_modules/`, `corpus/`, `.venv/` jamais commités ;
-- `install.sh` relancé 2× donne le même état ;
-- **aucun script du moteur n'écrit dans `lessons|projects|meta|life`** — sauf les agents, seul
-  chemin d'écriture légitime, qui passent par le tronc de l'utilisateur.
+**Contract invariants** (checked by `selftest`, not by re-reading):
 
-## Impact & risques
+- no absolute `/Users/<somebody>` path in an executed file — everything derives from `$HOME`;
+- `state/`, `planet/graph.json`, `capsule/node_modules/`, `corpus/`, `.venv/` are never committed;
+- `install.sh` run twice yields the same state;
+- **no engine script writes into `lessons|projects|meta|life`** — except the agents, the only legitimate write path, and they go through the user's trunk.
 
-- **Risque n°1 — fuite de PII de tiers.** `planet/graph.json` (1,4 Mo) contient le **texte
-  intégral des fiches**, noms de clients compris ; il est régénéré à chaque lancement. Exclu par
-  la liste blanche *et* par `.gitignore` *et* attrapé par leakcheck. Triple filet.
-- **Risque n°2 — l'auto-update est un canal d'exécution de code chez un tiers.** Parades :
-  tags uniquement, jamais `main` ; migrations non destructives par construction ; rollback en
-  1 commande ; le hook ne bloque jamais la session s'il échoue.
-- **Risque n°3 — le moteur nomme encore son auteur et ses clients.** Mesuré après le L0 :
-  **50 occurrences sur 16 fichiers**. Ce n'est pas cantonné aux agents — `hooks/archive_session.py`
-  porte une table de mots-clés → projets perso (8 occurrences), `capsule/index.html` cite le
-  propriétaire 5×, `hooks/brain_review.py` 5×, `graph_export.py` 6×. C'est le vrai contenu de L1.
-- **La machine de Dylan reste la source de vérité** et **ne migre pas** vers la disposition
-  moteur/tronc dans un premier temps : son Brain est en production avec 10 hooks actifs, on ne
-  le refactore pas pour livrer. `sync.sh` pousse son état vers C Brain. Migration éventuelle
-  ensuite, une fois C Brain éprouvé sur une machine tierce.
-- **Poids mort** : `capsule/assets/UAL.glb` (7,3 Mo) n'est référencé ni par `index.html` ni par
-  `main.js` — même constat qu'en juin, l'asset est revenu. À ne pas embarquer.
-- **Dette connue** : `hooks/brain_paths.py` (helper d'extraction créé en juin) n'existe plus dans
-  le Brain courant ; les hooks dérivent correctement de `$HOME` via `expanduser`, donc acceptable.
-- **Piège outillage (rencontré au L0)** : macOS 27 fournit **openrsync**, pas GNU rsync. Sur un
-  fichier *seul*, `--dry-run --itemize-changes` signale toujours un transfert → fausse divergence
-  permanente. `sync.sh` compare les fichiers isolés avec `cmp`, jamais avec rsync.
-- **Poids mort confirmé** : `capsule/assets/` (7,4 Mo) est **entièrement mort** — le sprite de la
-  créature est inline dans `index.html` (grille `BODY`), aucun fichier de `assets/` n'est
-  référencé par le code. Même constat qu'en juin ; exclu par la liste blanche.
-- **TCC macOS** : tout ce qui passe par launchd et lit `~/Desktop` sera refusé sans Accès complet
-  au disque — action GUI non scriptable, à écrire dans la procédure d'installation
-  (`launchd-tcc-desktop-operation-not-permitted`).
-- **Coût** : nul (repo privé, pas de serveur, l'update est un `git pull`).
+## Impact & risks
 
-## Réversibilité / kill-switch
+- **Risk #1 — leaking third parties' personal data.** `planet/graph.json` holds the **full text of the notes**, real names included, and is regenerated on every launch. Excluded by the allowlist *and* by `.gitignore` *and* caught by leakcheck. Three nets.
+- **Risk #2 — auto-update is a code-execution channel into somebody else's machine.** Mitigations: tags only, never `main`; migrations non-destructive by construction; rollback in one command; the hook never blocks a session when it fails.
+- **Risk #3 — the engine still named its author and their clients.** Measured after the first pass: **50 occurrences across 16 files**, and not confined to the agents. That was the real content of the generalization work.
+- **The source machine stays the source of truth** and does **not** migrate to the engine/trunk layout for now: it runs in production with ten active hooks, and it is not refactored just to ship. `sync.sh` pushes its state into C Brain. A migration can follow once C Brain is proven elsewhere.
+- **Confirmed dead weight**: `capsule/assets/` (7.4 MB) is **entirely dead** — the creature sprite is inline in `index.html` (the `BODY` grid), and no file under `assets/` is referenced by the code. Excluded by the allowlist.
+- **Tooling trap**: macOS 27 ships **openrsync**, not GNU rsync. On a *single* file, `--dry-run --itemize-changes` always reports a transfer → a permanent false drift. `sync.sh` compares standalone files with `cmp`, never with rsync.
+- **macOS TCC**: anything going through launchd and reading `~/Desktop` is refused without Full Disk Access — a GUI action that cannot be scripted, so it belongs in the install procedure.
+- **Cost**: none. No server; an update is a `git pull`.
 
-- **Avant le 1ᵉʳ push** : tout est local, `rm -rf` suffit.
-- **Après invitation** : retirer l'accès collaborateur **ne reprend pas** ce qui est cloné →
-  le kill-switch réel, c'est le leakcheck **avant** le push, pas après.
-- **Update foireux** : `brain update --rollback` (tag précédent + re-install). Et retirer le tag
-  côté GitHub stoppe la propagation aux utilisateurs qui n'ont pas encore tiré.
-- **Côté machine invitée** : `uninstall.sh` + backup horodaté de `settings.json` → retour à l'état
-  d'avant en 1 commande. Le tronc de l'utilisateur n'est jamais supprimé.
-- **Côté machine de Dylan** : aucun risque — le pipeline est en lecture seule sur `~/claude-brain`.
+## Reversibility / kill switch
 
-## Découpage (lots mergeables, chacun testable seul)
+- **Before the first push**: everything is local, `rm -rf` is enough.
+- **After publishing**: making the repo private again **does not un-clone** what is already out → the real kill switch is the leak check **before** the push, not after.
+- **A bad update**: `brain update --rollback` (previous tag + reinstall). Removing the tag on GitHub also stops propagation to users who have not pulled yet.
+- **On the user's machine**: `uninstall.sh` plus a timestamped `settings.json` backup → back to the previous state in one command. Their trunk is never deleted.
+- **On the source machine**: no risk — the pipeline is read-only on the living trunk.
 
-| Lot | Contenu | Fini quand |
+## Delivery (mergeable lots, each testable alone)
+
+| Lot | Content | Done when |
 |---|---|---|
-| **L0** ✅ | `sync.sh` (liste blanche) + `leakcheck.py` + `.gitignore` + `skills/` | outils livrés et **exécutés** : `sync --check` prouvé sur 3 divergences simultanées, leakcheck rouge à 50 (= il voit) |
-| **L1** ✅ | `generalize.py` + `rules.json` (20 règles) + `skeleton/` | **leakcheck vert** (50 → 0) ; `selftest` + `doctor` + `recall` + `graph_export` **verts en HOME isolé** |
-| **L2** ✅ | `install.sh` + `uninstall.sh` + `merge_settings.py` + `INSTALL.md` | cycle complet prouvé en HOME isolé : 2ᵉ passe = 0 changement ; `settings.json` revient **à l'identique** après désinstallation ; fiche utilisateur intacte |
-| **L3** ✅ | Capsule + statusline | capture d'écran : `DISTILLING` puis `IDLE` sur changement de `status.json` ; 3 composants alignés sur le même chemin |
-| **L4** ✅ | Planète + `.command` Bureau | `launch.sh` → `200` sur index/graph/glb ; capture headless du globe + légende |
-| **L5** ✅ | Companion | hooks pre/post rejoués : `+3 −1` agrégé, statusline à **2 lignes** |
-| **L6** ✅ | `brain update` + `check_update.py` + `migrations/` + `VERSION` | dépôt distant factice, 2 tags : mise à jour, migration jouée 1× seule, rollback, fiche intacte à chaque étape |
-| **L7** ✅ | README + `docs/verification.md` + `publish.sh` + dépôt en ligne | `Yuno15-bb/c-brain` **privé**, `v1.0.2` publiée · clone depuis GitHub → `install.sh` → selftest + doctor **verts** |
+| **L0** ✅ | `sync.sh` (allowlist) + `leakcheck.py` + `.gitignore` + `skills/` | tools shipped and **executed**: `sync --check` proven on three simultaneous divergences, leakcheck red at 50 (it sees) |
+| **L1** ✅ | `generalize.py` + `rules.json` + `skeleton/` | **leakcheck green** (50 → 0); `selftest` + `doctor` + `recall` + `graph_export` green in an isolated HOME |
+| **L2** ✅ | `install.sh` + `uninstall.sh` + `merge_settings.py` + `INSTALL.md` | full cycle proven in an isolated HOME: second pass = zero change; `settings.json` returns **byte-identical** after uninstall; the user's note intact |
+| **L3** ✅ | Capsule + status line | screenshots: `DISTILLING` then `IDLE` on a `status.json` change; three components aligned on the same path |
+| **L4** ✅ | Planet + Desktop `.command` | `launch.sh` → `200` on index/graph/glb; headless capture of the globe and its legend |
+| **L5** ✅ | Companion | pre/post hooks replayed: `+3 −1` aggregated, status line at **two lines** |
+| **L6** ✅ | `brain update` + `check_update.py` + `migrations/` + `VERSION` | a fake remote with two tags: update, migration run exactly once, rollback, note intact at every step |
+| **L7** ✅ | README + verification recipe + `publish.sh` + the repo online | clone from GitHub → `install.sh` → selftest and doctor **green** |
+| **L8** ✅ | English translation, `main` / `fr` split | every file, every CLI output and every interface string in English; `fr` keeps the original and stays the sync branch |
 
-**Reste un seul geste, non scriptable** : la suppression de `bbly-agents` exige le droit
-`delete_repo`, accordé par une authentification interactive (`gh auth refresh -h github.com -s
-delete_repo`), puis `gh repo delete Yuno15-bb/bbly-agents --yes`.
+Critical path: **L0 → L1 → L2 → L6**. L3/L4/L5 parallelize after L2.
 
-Chemin critique : **L0 → L1 → L2 → L6**. L3/L4/L5 se parallélisent après L2.
-`bbly-agents` n'est supprimé qu'**après** C Brain en ligne et vérifié — jamais avant.
+## Open questions
 
-## Open Questions (non tranchées)
-
-1. **Signature des tags** : GPG (`~/.gnupg` existe déjà) ou simple tag annoté ? Le premier prouve
-   que la mise à jour vient bien de toi, le second est plus simple.
-2. **`brain_paths.py`** : réintroduire le helper dans le Brain courant (une seule source de vérité)
-   ou laisser chaque hook faire son `expanduser` ? Impacte le Brain réel → hors périmètre par défaut.
-3. **Cadence de `sync.sh`** : à la main, ou un hook qui alerte quand le paquet a divergé du Brain
-   de plus de N jours ?
-4. **Le tronc vide est-il vraiment vide ?** Un `MEMORY.md` d'exemple et 2-3 fiches de démonstration
-   aideraient un nouvel utilisateur à comprendre le format — mais il faut les **écrire**, pas les
-   extraire des tiennes.
+1. **Tag signing**: GPG or a plain annotated tag? The first proves an update really comes from the author; the second is simpler.
+2. **`sync.sh` cadence**: by hand, or a hook that warns when the package has fallen more than N days behind the living trunk?
+3. **Is the empty trunk really empty?** A sample `MEMORY.md` and two or three demonstration notes would help a newcomer grasp the format — but they must be **written**, not extracted from somebody's real notes.
 
 ---
 
-*Cadré le 2026-07-26. À relire à froid avant d'écrire la première ligne de L0.*
+*First drafted 2026-07-26. Kept in sync with reality as the implementation
+proceeded — a design doc that stops matching the code is a comment that lies.*

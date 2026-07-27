@@ -5,7 +5,7 @@ const os = require('os');
 
 let win;
 
-// --- Single-instance : une seule capsule, jamais de fenêtres zombies ------
+// --- Single instance: one capsule only, never zombie windows ------
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
@@ -16,10 +16,10 @@ if (!gotLock) {
 }
 
 // --- Watcher de state/status.json : la capsule se re-montre quand un agent
-//     se réveille (idle -> busy), même si elle avait été cachée. -----------
-// DÉRIVÉ DE $HOME, jamais de __dirname : le moteur peut vivre ailleurs que le
+//     wakes up (idle -> busy), even if it had been hidden. -----------
+// DERIVED FROM $HOME, never from __dirname: the engine can live elsewhere than the
 // tronc (installation par symlinks), et c'est le state de l'UTILISATEUR qu'on
-// surveille. Même chemin que celui utilisé par index.html.
+// watching. The same path index.html uses.
 const STATUS = path.join(os.homedir(), 'claude-brain', 'state', 'status.json');
 let lastState = 'idle';
 function watchStatus() {
@@ -31,13 +31,13 @@ function watchStatus() {
     }
     lastState = s;
   };
-  fs.watchFile(STATUS, { interval: 2000 }, poll);   // V22 : 1000→2000 ms, le renderer poll déjà status.json
+  fs.watchFile(STATUS, { interval: 2000 }, poll);   // 1000→2000 ms; the renderer already polls status.json
   poll();
 }
 
-// --- V22 — Mode veille : écran éteint / session verrouillée / batterie faible → la capsule
-//     se cache réellement (document.hidden côté renderer → boucle en pause). Sans ça elle
-//     continue d'animer et de faire recomposer WindowServer devant un écran noir. ---------
+// --- Sleep mode: screen off / session locked / low battery → the capsule
+//     really hides (document.hidden on the renderer side → the loop pauses). Without this it
+//     keeps animating and forcing WindowServer to recompose in front of a black screen. ------
 let _hiddenByPower = false;
 function powerSleep() {
   if (win && win.isVisible()) { _hiddenByPower = true; win.hide(); }
@@ -48,7 +48,7 @@ function powerWake() {
 function watchPower() {
   ['suspend', 'lock-screen'].forEach(e => powerMonitor.on(e, powerSleep));
   ['resume', 'unlock-screen'].forEach(e => powerMonitor.on(e, powerWake));
-  // macOS ne verrouille pas toujours : on suit aussi l'extinction de l'écran.
+  // macOS does not always lock: we also follow the screen going dark.
   if (powerMonitor.on) {
     powerMonitor.on('screen-locked', powerSleep);
     powerMonitor.on('screen-unlocked', powerWake);
@@ -70,9 +70,9 @@ function createWindow() {
     skipTaskbar: true,
     hasShadow: false,
     fullscreenable: false,
-    // backgroundThrottling:false → la capsule est un HUD JAMAIS focus (showInactive) ; sans ça Electron
-    //   bride le requestAnimationFrame à ~quelques fps quand la fenêtre n'a pas le focus → animation
-    //   « extrêmement saccadée ». On le désactive pour garder un rendu fluide en permanence.
+    // backgroundThrottling:false → the capsule is a HUD that NEVER takes focus (showInactive); without this Electron
+    //   throttles requestAnimationFrame to a few fps when the window is unfocused → an
+    //   "extremely stuttering" animation. We disable it to keep a smooth render at all times.
     webPreferences: { nodeIntegration: true, contextIsolation: false, backgroundThrottling: false },
   });
   win.webContents.setBackgroundThrottling(false);
@@ -82,11 +82,11 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
-  watchStatus();   // re-montre la capsule dès qu'un agent passe en 'busy'
-  watchPower();    // V22 : pause réelle quand l'écran dort ou que la session est verrouillée
-  // --- Hot-reload : la page se recharge à chaque modif d'index.html (persistance des changements en direct).
-  //     V22 — opt-in : c'est un confort de DÉVELOPPEMENT, pas une fonction de la capsule. En usage normal
-  //     il faisait un stat() disque toutes les 400 ms à vie pour un fichier qui ne bouge jamais.
+  watchStatus();   // re-shows the capsule as soon as an agent goes 'busy'
+  watchPower();    // a real pause when the screen sleeps or the session is locked
+  // --- Hot reload: the page reloads on every change to index.html (live editing).
+  //     Opt-in: this is a DEVELOPMENT convenience, not a capsule feature. In normal use
+  //     it did a disk stat() every 400 ms forever, for a file that never changes.
   //     Activer avec : CAPSULE_DEV=1 npx electron .
   if (process.env.CAPSULE_DEV === '1') {
     const PAGE = path.join(__dirname, 'index.html');
@@ -104,15 +104,15 @@ ipcMain.on('cap-show', () => { if (win && !win.isVisible()) win.showInactive(); 
 ipcMain.on('cap-hide', () => { if (win && win.isVisible()) win.hide(); });
 ipcMain.on('cap-quit', () => app.quit());
 
-// debug : capture la fenêtre dans un PNG (déclenché par un fichier /tmp/cap_shot_req)
+// debug: captures the window into a PNG (triggered by a /tmp/cap_shot_req file)
 async function shot(dest) {
   if (!win) return;
   try { const img = await win.webContents.capturePage();
     fs.writeFileSync(dest, img.toPNG()); } catch (e) {}
 }
 ipcMain.on('cap-shot', (_e, dest) => shot(dest));
-// V22 — capture de debug : opt-in aussi (CAPSULE_DEV=1). Le watchFile tournait à 300 ms en permanence
-//   pour un fichier qui n'apparaît qu'en session d'audit visuel.
+// The debug capture is opt-in too (CAPSULE_DEV=1). The watchFile ran at 300 ms forever
+//   for a file that only appears during a visual audit session.
 if (process.env.CAPSULE_DEV === '1') {
   const SHOT_REQ = '/tmp/cap_shot_req';
   fs.watchFile(SHOT_REQ, { interval: 1000 }, () => {

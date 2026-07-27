@@ -1,80 +1,94 @@
-# Recette de vérification
+# Verification recipe
 
-À rejouer **avant chaque tag publié**. Tout se fait dans un `HOME` isolé : aucune
-étape ne touche à la machine réelle.
+Replay this **before every published tag**. Everything happens inside an isolated
+`HOME`: no step touches the real machine.
 
-L'ordre compte : chaque étape suppose la précédente verte.
+The order matters: each step assumes the previous one is green.
 
-## 0. La chaîne d'extraction
+## 0. The extraction chain (on the `fr` branch)
 
 ```bash
-cd <dépôt>
-./sync.sh --check      # rc=0 → le paquet colle au Brain vivant
-./sync.sh              # copie + généralisation enchaînées
+git checkout fr
+./sync.sh --check      # rc=0 → the package matches the living Brain
+./sync.sh              # copy + generalization, chained
 python3 leakcheck.py --history
 ```
 
-**Attendu** : `✅ PROPRE`. Un seul marqueur = rien ne sort.
+**Expected**: `✅ CLEAN`. A single marker and nothing ships.
 
-> Le contrôle positif compte autant que le vert : modifie un fichier du paquet,
-> relance `./sync.sh --check`, il doit sortir en 1. Un vert qui ne peut jamais
-> virer au rouge ne prouve rien.
+> The positive control matters as much as the green: modify a file in the source
+> Brain, re-run `./sync.sh --check`, it must exit 1. A green that can never turn
+> red proves nothing.
 
-## 1. Installation depuis un vrai CLONE
+> On `main`, `sync.sh` refuses to run — see [`translation.md`](translation.md).
 
-**Jamais depuis une copie de dossier.** C'est en clonant qu'on découvre ce que le
-`.gitignore` avale — un motif non ancré avait fait disparaître tout le squelette
-du tronc, invisible en copiant.
+## 1. Install from a real CLONE
+
+**Never from a copied folder.** Cloning is what reveals what `.gitignore`
+swallows — an unanchored pattern once made the whole trunk skeleton disappear,
+which was invisible when copying.
 
 ```bash
 T=/tmp/iso-c-brain; rm -rf $T; mkdir -p $T/.claude $T/Desktop
-git clone <dépôt> $T/dev-c-brain
+git clone https://github.com/Yuno15-bb/c-brain $T/dev-c-brain
 HOME=$T bash $T/dev-c-brain/install.sh --no-launchd
 ```
 
-**Attendu** : `✅ selftest OK`, `✅ doctor — arbre cohérent`, `✅ C Brain installé.`
+**Expected**: `✅ selftest OK`, `✅ doctor — tree consistent`, `✅ C Brain installed.`
 
-## 2. Non destructif et idempotent
+## 2. Non-destructive and idempotent
 
-Pose un `settings.json` contenant un modèle, un thème et un hook personnel, puis :
+Write a `settings.json` holding a model, a theme and a personal hook, then:
 
 ```bash
-HOME=$T bash $T/dev-c-brain/install.sh      # 2e passe
+HOME=$T bash $T/dev-c-brain/install.sh      # second pass
 ```
 
-**Attendu** : « déjà relié » partout, `settings.json — rien à faire`. Le hook
-personnel, le modèle et le thème sont toujours là.
+**Expected**: "already linked" everywhere, `settings.json — nothing to do`. The
+personal hook, the model and the theme are all still there.
 
-## 3. Le cycle de vie complet
+## 3. The full life cycle
 
 ```bash
-echo "fiche test" > $T/claude-brain/lessons/test.md
+echo "test note" > $T/claude-brain/lessons/test.md
 HOME=$T bash $T/dev-c-brain/uninstall.sh --yes
 ```
 
-**Attendu** : la fiche existe encore, `settings.json` est **identique à son état
-d'origine**, les liens du moteur ont disparu.
+**Expected**: the note still exists, `settings.json` is **identical to its
+original state**, the engine symlinks are gone.
 
-## 4. Capsule
+## 4. Every CLI command
 
 ```bash
-HOME=$T CAPSULE_DEV=1 <dépôt>/capsule/node_modules/.bin/electron <dépôt>/capsule \
+for c in version status doctor audit review next "recall memory" coherence utility selftest; do
+  HOME=$T bash -c "PATH=\$HOME/.local/bin:\$PATH; brain $c" >/dev/null || echo "FAILED: $c"
+done
+```
+
+**Expected**: nothing printed. Then read the output of `brain audit` and
+`brain review` with your eyes — French strings without accents slip past every
+grep, and only reading catches them.
+
+## 5. Capsule
+
+```bash
+HOME=$T CAPSULE_DEV=1 <repo>/capsule/node_modules/.bin/electron <repo>/capsule \
   --user-data-dir=$T/electron-data &
 HOME=$T python3 $T/claude-brain/hooks/brain_status.py busy distilling "test"
 sleep 3; touch /tmp/cap_shot_req; sleep 3   # → /tmp/cap.png
 ```
 
-**Attendu** : la capture montre `DISTILLING` + le détail. Repasse en `idle`, la
-capture suivante montre `IDLE`.
+**Expected**: the capture shows `DISTILLING` plus the detail. Switch back to
+`idle` and the next capture shows `IDLE`.
 
-> `--user-data-dir` est obligatoire : sans lui, la seconde instance se ferme en
-> silence à cause du verrou d'instance unique, et on croit la capsule cassée.
+> `--user-data-dir` is mandatory: without it the second instance quits silently
+> because of the single-instance lock, and you think the capsule is broken.
 
-> Si Electron ne démarre pas : son téléchargeur laisse parfois une archive
-> tronquée en sortant pourtant en succès. `install.sh` le détecte désormais et le
-> dit. Remède : supprimer `capsule/node_modules/electron` et réinstaller.
+> If Electron will not start: its downloader sometimes leaves a truncated
+> archive while still exiting successfully. `install.sh` now detects this and
+> says so. Remedy: delete `capsule/node_modules/electron` and reinstall.
 
-## 5. Planète
+## 6. Planet
 
 ```bash
 HOME=$T bash $T/claude-brain/planet/launch.sh 8799 &
@@ -82,46 +96,57 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8799/
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8799/graph.json
 ```
 
-**Attendu** : deux fois `200`. Pour la preuve visuelle, une capture headless
-(Chromium `--use-gl=angle --use-angle=swiftshader`) doit montrer le globe, le
-champ d'étoiles et la légende des agents.
+**Expected**: `200` twice. For visual proof, a headless capture (Chromium
+`--use-gl=angle --use-angle=swiftshader`) must show the globe, the starfield and
+the agent legend — **and no French text**. Two strings without accents once
+survived every grep and were only caught on a rendered screenshot.
 
-## 6. Companion
+## 7. Companion
 
 ```bash
 J='{"session_id":"t","tool_input":{"file_path":"'$T'/demo.py"}}'
 echo "$J" | HOME=$T python3 $T/claude-brain/companion/hooks/pre_snapshot.py
-# … modifier le fichier …
+# … modify the file …
 echo "$J" | HOME=$T python3 $T/claude-brain/companion/hooks/post_diff.py
 echo '{"session_id":"t","model":{"display_name":"X"},"workspace":{"current_dir":"/tmp"}}' \
   | HOME=$T python3 $T/.claude/statusline.py
 ```
 
-**Attendu** : **deux** lignes, la seconde affichant le compte de fichiers et le
-solde `+`/`−`.
+**Expected**: **two** lines, the second showing the file count and the `+`/`−`
+balance.
 
-## 7. Mise à jour — le test qui compte le plus
+## 8. Updates — the test that matters most
 
-Monte un dépôt distant local, publie deux tags, installe le premier, écris une
-fiche, puis mets à jour.
+Set up a local bare remote, publish two tags, install the first, write a note,
+then update.
 
 ```bash
 git init --bare /tmp/remote.git
-# … pousser v1.0.0, installer, écrire une fiche …
-# … pousser v1.1.0 avec une migration et un changement visible …
+# … push v1.0.0, install, write a note …
+# … push v1.1.0 with a migration and a visible change …
 HOME=$T brain update
 ```
 
-**Attendu, dans cet ordre** :
+**Expected, in this order**:
 
-- [ ] la fiche de l'utilisateur est **intacte** ;
-- [ ] le changement de code est **arrivé** (les symlinks propagent instantanément) ;
-- [ ] la migration a tourné **une seule fois** et figure dans le journal ;
-- [ ] `brain version` renvoie le nouveau tag ;
-- [ ] un second `brain update` dit « déjà à jour » et **ne rejoue pas** la migration ;
-- [ ] `brain update --rollback` revient à la version précédente, selftest vert,
-      fiche toujours là.
+- [ ] the user's note is **intact**;
+- [ ] the code change **arrived** (symlinks propagate instantly);
+- [ ] the migration ran **exactly once** and is in the log;
+- [ ] `brain version` returns the new tag;
+- [ ] a second `brain update` says "already up to date" and does **not** replay the migration;
+- [ ] `brain update --rollback` returns to the previous version, selftest green, note still there.
 
-> Rappel : c'est l'updater **installé** qui s'exécute. Un correctif dans
-> `update.sh` ne protège que les utilisateurs déjà passés à cette version ou
-> après. Réfléchis-y à deux fois avant de publier un changement de l'updater.
+> Remember: it is the **installed** updater that runs. A fix in `update.sh` only
+> protects users already on that version or later. Think twice before publishing
+> a change to the updater itself.
+
+## 9. Publish
+
+```bash
+./publish.sh v1.2.3 "what this version changes"
+```
+
+It refuses to push if the package has drifted, if the tree is dirty, if the leak
+check is red, or if the tag already exists. **Never bypass it** — that guard
+exists precisely because a leak check once ran at the end of a pipe, where `tail`
+always succeeds and the exit code tested was the wrong one.

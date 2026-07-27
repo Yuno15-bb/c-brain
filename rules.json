@@ -1,16 +1,21 @@
 {
   "_doc": [
-    "Règles de généralisation appliquées APRÈS la copie par sync.sh.",
-    "Pourquoi déclaratif et pas des corrections à la main : sync.sh recopie depuis le Brain",
-    "vivant à chaque passe. Une correction manuelle serait écrasée, et la fuite reviendrait",
-    "silencieusement au commit suivant. Une règle, elle, se rejoue.",
+    "Generalization rules, applied AFTER sync.sh has copied the engine.",
     "",
-    "ORDRE SIGNIFICATIF : la forme longue passe avant la courte (Dylanp avant Dylan),",
-    "sinon la courte mange la longue et laisse un résidu.",
+    "Why declarative rather than hand edits: sync.sh re-copies from the living trunk on",
+    "every pass. A manual fix would be silently overwritten, and the leak would be back at",
+    "the next commit. A rule replays.",
     "",
-    "expect = nombre MINIMAL d'occurrences attendues. Un compteur tombé à 0 est un signal",
-    "d'alerte (la source a changé de formulation, la règle ne mord plus), pas une bonne",
-    "nouvelle : generalize.py échoue."
+    "THE PATTERNS STAY FRENCH ON PURPOSE: they match the French source Brain, which is the",
+    "only thing they will ever run against. This file is inert on the English `main` branch",
+    "and lives with the `fr` pipeline — see docs/translation.md.",
+    "",
+    "ORDER MATTERS: the longer form comes before the shorter one, otherwise the short one",
+    "eats the long one and leaves a residue.",
+    "",
+    "expect = the MINIMUM number of occurrences expected. A counter falling to 0 on an",
+    "expected rule is an alarm (the source changed its wording, the rule no longer bites),",
+    "not good news: generalize.py fails."
   ],
   "blocks": [
     {
