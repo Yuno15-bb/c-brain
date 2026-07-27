@@ -54,6 +54,13 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
 fi
 
 git tag -a "$TAG" -m "$MSG"
-git push origin main "$TAG"
+
+# La branche COURANTE, jamais `main` en dur. Avec `main` codé en dur, une
+# publication depuis `fr` poussait le tag et… la branche main (déjà à jour) :
+# les commits français ne partaient jamais. Le tag masquait le trou, puisqu'il
+# porte les objets — `brain update` marchait, mais la branche `fr` distante
+# restait figée, et le prochain qui la clone repart d'un état périmé.
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+git push origin "$BRANCH" "$TAG"
 echo
-echo "✅ $TAG publiée."
+echo "✅ $TAG publiée sur $BRANCH."
