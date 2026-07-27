@@ -71,6 +71,13 @@ SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
 # « propriétaire » : une clé ou un nom de client dans ces fichiers reste rouge.
 EXEMPT = {"personne — propriétaire": ("docs/", "LICENSE", "NOTICE")}
 
+# Le nom de l'auteur dans l'en-tête de copyright de CE dépôt n'est pas une fuite :
+# c'est une signature volontaire, et depuis le passage en Apache 2.0 il figure de
+# toute façon dans LICENSE, où la licence l'exige. Le motif est ancré sur la forme
+# EXACTE de l'en-tête — pas sur le nom seul, qui reste bloquant partout ailleurs
+# (prose, chemins /Users/..., commentaires).
+COPYRIGHT_HEADER = re.compile(r"Copyright \(c\) 20\d\d [A-Z][a-z]+ [A-Z][a-z]+")
+
 # Adresses qui ressemblent à un mail sans en être un. Liste FERMÉE de littéraux
 # exacts — jamais un assouplissement du motif, qui rouvrirait la porte à tout.
 FAUX_POSITIFS = {
@@ -83,6 +90,18 @@ def exempted(label: str, source: str) -> bool:
     # fichier, vu à deux moments.
     src = source[len("historique:"):] if source.startswith("historique:") else source
     return any(src.startswith(p) for p in EXEMPT.get(label, ()))
+
+
+# Les en-têtes de diff ne sont PAS du contenu publié : `index e855c2a..8ef0920
+# 100644` a été lu comme un numéro de téléphone français. On les retire avant de
+# scanner — un faux positif dans un garde-fou bloquant est aussi nuisible qu'un
+# trou : il pousse à assouplir les marqueurs pour « débloquer ».
+DIFF_META = re.compile(r"^(diff --git |index [0-9a-f]+\.\.|--- |\+\+\+ |@@ |old mode |new mode |"
+                       r"similarity index |rename (from|to) |new file mode |deleted file mode )")
+
+
+def strip_diff_metadata(patch: str) -> str:
+    return "\n".join(l for l in patch.splitlines() if not DIFF_META.match(l))
 
 
 def is_text(path: Path) -> bool:
@@ -109,6 +128,8 @@ def context(text, start, end, width=45):
 
 
 def scan(label_source, text, compiled, leaks):
+    if label_source.startswith("historique:"):
+        text = "\n".join(l for l in text.splitlines() if not COPYRIGHT_HEADER.search(l))
     for label, rx in compiled:
         if exempted(label, label_source):
             continue
@@ -155,7 +176,7 @@ def main():
                 continue
             if d:
                 n_hist += 1
-                scan(f"historique:{rel}", d, compiled, leaks)
+                scan(f"historique:{rel}", strip_diff_metadata(d), compiled, leaks)
         if n_hist:
             scanned += f" + historique de {n_hist} fichier(s)"
 
