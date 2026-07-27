@@ -18,9 +18,20 @@ Usage :
 """
 import os, sys, json, time, glob, subprocess
 
+def _transcripts_key() -> str:
+    """The folder name Claude Code uses for this HOME, under ~/.claude/projects.
+
+    It encodes the absolute home path by replacing BOTH "/" and "." with "-".
+    Replacing only "/" works for a plain account name and breaks silently for a
+    home like /Users/john.smith: the transcripts folder is never found, so
+    distillation runs and finds nothing to do. No error, no signal.
+    """
+    return os.path.expanduser("~").replace("/", "-").replace(".", "-")
+
+
 BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
 STATE = os.path.join(BRAIN, "state")
-TDIR = os.path.join(os.path.expanduser("~/.claude/projects"), os.path.expanduser("~").replace(os.sep, "-"))   # couche brute (transcripts)
+TDIR = os.path.join(os.path.expanduser("~/.claude/projects"), _transcripts_key())   # couche brute (transcripts)
 DISTILLED = os.path.join(BRAIN, "sessions", ".distilled.json")
 MIN_MSG = 20                                                    # seuil de auto_maintain
 # Birth of the automatic system. Before that date there was no auto-distillation

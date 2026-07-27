@@ -12,11 +12,22 @@ Golden rule: NEVER block or fail the session. Always exits 0.
 import sys, os, json, re, glob, subprocess
 from datetime import datetime
 
+def _transcripts_key() -> str:
+    """The folder name Claude Code uses for this HOME, under ~/.claude/projects.
+
+    It encodes the absolute home path by replacing BOTH "/" and "." with "-".
+    Replacing only "/" works for a plain account name and breaks silently for a
+    home like /Users/john.smith: the transcripts folder is never found, so
+    distillation runs and finds nothing to do. No error, no signal.
+    """
+    return os.path.expanduser("~").replace("/", "-").replace(".", "-")
+
+
 BRAIN = os.path.expanduser("~/claude-brain")
 # Nom du dossier transcripts = $HOME avec "/" -> "-" (convention Claude Code).
 # NEVER hardcode the user name here (it silently broke distillation during a
 # distillation lors de la migration d'un compte utilisateur vers un autre, cf. [[restauration-machine-2026-07-22]]).
-PROJECTS_DIR = os.path.join(os.path.expanduser("~/.claude/projects"), os.path.expanduser("~").replace(os.sep, "-"))
+PROJECTS_DIR = os.path.join(os.path.expanduser("~/.claude/projects"), _transcripts_key())
 SESSIONS = os.path.join(BRAIN, "sessions")
 ARCHIVE = os.path.join(SESSIONS, "archive")
 CACHE = os.path.join(SESSIONS, ".index.json")

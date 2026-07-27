@@ -78,6 +78,16 @@
   ],
   "replacements": [
     {
+      "id": "transcripts-key-point-dans-le-home",
+      "files": [
+        "hooks/*.py"
+      ],
+      "pattern": "os\\.path\\.expanduser\\(\"~\"\\)\\.replace\\(os\\.sep, \"-\"\\)",
+      "replace": "os.path.expanduser(\"~\").replace(\"/\", \"-\").replace(\".\", \"-\")",
+      "expect": 4,
+      "why": "Claude Code encodes the home path into a folder name by replacing BOTH '/' and '.' with '-'. Four hooks replaced only '/'. On a home like /Users/john.smith the transcripts folder is never found: distillation runs, finds nothing, and reports no error. Recovered from the June extraction, where brain_paths.py already had it right."
+    },
+    {
       "id": "compte-agents-perime",
       "files": [
         "capsule/*.html",

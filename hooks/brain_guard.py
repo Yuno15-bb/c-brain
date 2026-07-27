@@ -12,6 +12,17 @@ A quota or account problem only DEFERS distillation; it never breaks the system.
 """
 import os, sys, json, time, subprocess, hashlib, re, fcntl
 
+def _transcripts_key() -> str:
+    """The folder name Claude Code uses for this HOME, under ~/.claude/projects.
+
+    It encodes the absolute home path by replacing BOTH "/" and "." with "-".
+    Replacing only "/" works for a plain account name and breaks silently for a
+    home like /Users/john.smith: the transcripts folder is never found, so
+    distillation runs and finds nothing to do. No error, no signal.
+    """
+    return os.path.expanduser("~").replace("/", "-").replace(".", "-")
+
+
 BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
 STATE = os.path.join(BRAIN, "state")
 LOCK  = os.path.join(STATE, "maintenance.lock")
@@ -110,7 +121,7 @@ def account_fingerprint() -> str:
     credentials live in the macOS Keychain: we rely on the account_uuid present in
     recent transcripts (a reliable signal of which account ran)."""
     try:
-        tdir = os.path.join(os.path.expanduser("~/.claude/projects"), os.path.expanduser("~").replace(os.sep, "-"))
+        tdir = os.path.join(os.path.expanduser("~/.claude/projects"), _transcripts_key())
         jsonls = sorted(
             (os.path.join(tdir, f) for f in os.listdir(tdir) if f.endswith(".jsonl")),
             key=os.path.getmtime, reverse=True)

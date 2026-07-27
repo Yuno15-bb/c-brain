@@ -19,6 +19,17 @@ Garde-fous quotas/boucles :
 Sort toujours 0.
 """
 import os, sys, re, json, shutil, subprocess
+
+def _transcripts_key() -> str:
+    """The folder name Claude Code uses for this HOME, under ~/.claude/projects.
+
+    It encodes the absolute home path by replacing BOTH "/" and "." with "-".
+    Replacing only "/" works for a plain account name and breaks silently for a
+    home like /Users/john.smith: the transcripts folder is never found, so
+    distillation runs and finds nothing to do. No error, no signal.
+    """
+    return os.path.expanduser("~").replace("/", "-").replace(".", "-")
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from brain_status import write_status
@@ -38,7 +49,7 @@ LOG = os.path.join(SESS, "gardening.log")
 INBOX_HEADER = "## 🆕 Inbox — notes to file (auto)"
 # Nom du dossier transcripts = $HOME avec "/" -> "-" (convention Claude Code) ; ne
 # JAMAIS coder le nom d'utilisateur en dur (cf. [[restauration-machine-2026-07-22]]).
-TRANSCRIPTS = os.path.join(os.path.expanduser("~/.claude/projects"), os.path.expanduser("~").replace(os.sep, "-"))
+TRANSCRIPTS = os.path.join(os.path.expanduser("~/.claude/projects"), _transcripts_key())
 MANUAL_SAVES = os.path.join(BRAIN, "state", "manual-saves.jsonl")  # ledger written by on_fiche_write
 MIN_MSG = 20  # en dessous : session triviale, pas de distillation
 

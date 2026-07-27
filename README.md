@@ -97,3 +97,7 @@ source the engine is extracted from, and English is derived from it. See
 - `sync.sh` + `rules.json` + `leakcheck.py` — the chain that extracts this engine
   from a real, personal Brain without letting a single line of lived experience
   escape.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

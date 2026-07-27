@@ -62,10 +62,11 @@ SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
 # a broad exemption eventually covers a real leak.
 #
 # `docs/` = prose written and reviewed by hand. The owner keeps their name there,
-# it is THEIR design doc.
+# it is THEIR design doc. `LICENSE` names the copyright holder — that is what a
+# licence IS; stripping it would make the file meaningless.
 # Every other marker — clients, third parties, secrets, paths — still applies
-# there: only the owner's name is exempt.
-EXEMPT = {"person — owner": ("docs/",)}
+# in both: only the owner's name is exempt.
+EXEMPT = {"person — owner": ("docs/", "LICENSE")}
 
 # Strings that look like an email without being one. A CLOSED list of exact
 # literals — never a loosening of the pattern, which would reopen the door.
