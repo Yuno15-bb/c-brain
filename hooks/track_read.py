@@ -38,6 +38,20 @@ def main():
                                 "path": rel}, ensure_ascii=False) + "\n")
     except Exception:
         pass
+    refresh_live()
+
+
+def refresh_live():
+    """Rallume la fiche sur la planète TOUT DE SUITE (~0,15 s) : sans ça, l'activité « en direct »
+    n'apparaîtrait qu'à la prochaine écriture de fiche ou à la fin de session — donc jamais en direct.
+    Best-effort et silencieux : un échec ici ne doit rien casser du hook."""
+    import subprocess
+    for script in ("coactivation.py", "graph_export.py"):
+        try:
+            subprocess.run([sys.executable, os.path.join(BRAIN, "hooks", script)],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

@@ -80,13 +80,18 @@ def load_embed2():
 
 
 def load_coact():
-    """Chaleur (récence d'usage) par id + liens d'usage + fiches de la SESSION COURANTE — Étage 2. Stdlib."""
+    """Chaleur (récence d'usage) par id + liens d'usage + ACTIVITÉ EN DIRECT — Étage 2. Stdlib.
+
+    `live` = { path: ts } des fiches lues dans la fenêtre glissante (quelques minutes), plus la
+    fenêtre elle-même : le visualizer en a besoin pour éteindre un anneau tout seul, en continu,
+    même si le graphe n'est pas régénéré entre-temps."""
     try:
         c = json.load(open(COACT, encoding="utf-8"))
-        hot = set((c.get("hot_session") or {}).get("paths", []))   # fiches activées dans la session la plus récente
-        return c.get("heat_id", {}), c.get("edges", []), hot
+        lv = c.get("live") or {}
+        live = {p: ts for p, ts in lv.get("items", [])}
+        return c.get("heat_id", {}), c.get("edges", []), live, int(lv.get("window_min", 10))
     except Exception:
-        return {}, [], set()
+        return {}, [], {}, 10
 # dossiers de premier niveau = « domaines » (couleurs sur le globe)
 DOMAINS = ["projects", "lessons", "meta", "life", "agents"]
 
@@ -169,7 +174,7 @@ def scan():
     nodes = {}      # id -> {id, name, domain, group, desc, file}
     raw_links = []  # (src_id, target_name)
     embed2 = load_embed2()         # positions sémantiques par chemin de fiche (Étage 1)
-    heat, coact_edges, active = load_coact()   # chaleur + liens de co-activation + session courante (Étage 2)
+    heat, coact_edges, live, live_window_min = load_coact()   # chaleur + liens d'usage + activité en direct (Étage 2)
     challenges = load_challenges()             # avis du challenger par fiche (Étage 3)
     beliefs = load_beliefs()                   # convictions datées de l'auteur du tronc (Étage 3 : couche goût)
     media = load_media()                       # captures rejouables par fiche (Étage 4)
@@ -218,7 +223,8 @@ def scan():
                               "long": clean_body(text),
                               "embed2": embed2.get(rel_file),   # [x,y] sémantique ou None
                               "heat": heat.get(nid, 0.0),        # chaleur d'usage 0..1 (Étage 2)
-                              "active": rel_file in active,      # activée dans la session courante (Étage 2)
+                              "active": rel_file in live,        # LUE à l'instant (fenêtre glissante, Étage 2)
+                              "active_ts": live.get(rel_file),   # horodatage de cette lecture → extinction côté visualizer
                               "challenge": challenges.get(rel_file),   # avis du challenger (Étage 3) ou None
                               "conviction": beliefs.get(rel_file),     # conviction datée de l'auteur du tronc (Étage 3) ou None
                               "media": media.get(rel_file),            # capture rejouable (Étage 4) ou None
@@ -288,6 +294,9 @@ def scan():
                    "active": sum(1 for n in nodes.values() if n.get("active")),
                    "resume": sum(1 for n in nodes.values() if n.get("resume"))},
         "domains": DOMAINS,
+        # fenêtre de l'ACTIVITÉ EN DIRECT (minutes) : le visualizer éteint lui-même un anneau
+        # dont `active_ts` est sorti de la fenêtre, sans attendre une régénération du graphe.
+        "live_window_min": live_window_min,
         "projects": projects,
         "nodes": sorted(nodes.values(), key=lambda n: (n["domain"], n["group"], n["id"])),
         "links": links,

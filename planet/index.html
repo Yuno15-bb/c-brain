@@ -21,6 +21,9 @@
   #modes button:hover{ background:rgba(255,255,255,.1); }
   #modes button.on{ color:#07070b; background:#5ad7e6; border-color:#5ad7e6; font-weight:bold; }
   #grow{ font-size:11px; color:#f2c94c; opacity:0; transition:opacity .4s; margin-top:2px; }
+  /* compteur d'ACTIVITÉ EN DIRECT : recalculé à l'image, il s'éteint tout seul quand la fenêtre passe */
+  #livenow{ font-size:10.5px; color:#7fe9ff; opacity:.9; margin-top:6px; letter-spacing:.3px; }
+  #livenow .off{ color:#7f8b93; }
   #session{ font-size:10.5px; color:#86c8b0; opacity:.85; margin-top:6px; letter-spacing:.3px; }
   #session b{ color:#cdeadd; font-weight:normal; }
 
@@ -121,6 +124,7 @@
       <button data-mode="usage" title="liens d'usage : fiches activées ensemble en session">⚡ usage</button>
     </div>
     <div id="grow"></div>
+    <div id="livenow"></div>
     <div id="session"></div>
   </div>
   <div id="legend"></div>
@@ -329,12 +333,18 @@ let group=new THREE.Group(); scene.add(group);
 let nodeObjs=[], linkObjs=[], coactObjs=[];
 let beamGeo=null, beamPos=null, beamCol=null, beams=null;
 let prevIds=new Set();
+// fenêtre de l'ACTIVITÉ EN DIRECT, en secondes (valeur réelle reçue dans graph.json ; 10 min par défaut).
+let LIVE_WINDOW_S=600;
+const liveEl=document.getElementById('livenow');
+let _liveShown=-1;                       // n'écrit dans le DOM que quand le compte CHANGE (pas 60×/s)
 const tip=document.getElementById('tip');
 const SEG=14;
 
 function clearGroup(){ group.removeFromParent(); group.traverse(o=>{ o.geometry?.dispose?.(); o.material?.dispose?.(); }); group=new THREE.Group(); scene.add(group); nodeObjs=[]; linkObjs=[]; coactObjs=[]; beams=null; beamGeo=null; }
 
 function build(data){
+  if(data.live_window_min) LIVE_WINDOW_S = data.live_window_min*60;   // fenêtre décidée côté hooks, pas en dur ici
+  _liveShown=-1;                                                     // force le rafraîchissement du compteur
   clearGroup();
   layoutRegions(data); layoutNodes(data);
   const meshById={};
@@ -358,11 +368,14 @@ function build(data){
     // couleur de la région) ∝ usage récent. Plus chaud = pulsation plus ample & plus rapide. Animé dans tick().
     m.userData.halo=halo; m.userData.haloBaseOp=haloBaseOp;
     m.userData.heat=nd.heat||0; m.userData.pulse=hash(nd.id)*6.283;
-    // ANNEAU = ACTIVITÉ EN DIRECT (fiches de la session courante) — pulse = vivant
-    if(nd.active){
+    // ANNEAU = ACTIVITÉ EN DIRECT : fiche LUE à l'instant (fenêtre glissante de LIVE_WINDOW min).
+    // ≠ « vue une fois dans la session » — cette ancienne définition allumait ~1/3 de la planète.
+    // `active_ts` permet à tick() d'ÉTEINDRE l'anneau tout seul à l'expiration, sans recharger le graphe.
+    if(nd.active_ts){
       const ring=new THREE.Sprite(new THREE.SpriteMaterial({ map:RING_TEX, color:0x7fe9ff,
         transparent:true, opacity:0.6, depthTest:false, depthWrite:false }));
-      ring.scale.setScalar(0.95); m.add(ring); m.userData.activeRing=ring;
+      ring.scale.setScalar(0.95); m.add(ring);
+      m.userData.activeRing=ring; m.userData.activeTs=nd.active_ts;
     }
     // BADGES (petites icônes À CÔTÉ du point, empilées à droite) : ⚠ avis du challenger · ✦ conviction · ↻ à reprendre
     const badges=[];
@@ -426,7 +439,7 @@ function build(data){
   if(act.length){
     const rc={}; for(const n of act){ const r=regionOf(n); rc[r]=(rc[r]||0)+1; }
     const top=Object.entries(rc).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([r])=>`<b>${r}</b>`);
-    sEl.innerHTML=`◉ dernière activité : ${top.join(' · ')} <span style="opacity:.6">(${act.length} fiches)</span>`;
+    sEl.innerHTML=`◉ en direct dans : ${top.join(' · ')}`;
   } else sEl.textContent='';
   buildLegend(data);
 }
@@ -443,7 +456,8 @@ function buildLegend(data){
     `<div class="hd">villes (projets)</div>${villes}`+
     `<div class="hd">régions transverses</div>${autres}`+
     `<div class="hd">marqueur</div><div class="row"><span class="dot" style="color:#fff;background:#fff"></span>frontière (${data.counts.frontier})</div>`+
-    (data.counts.active ? `<div class="row"><span class="dot" style="color:#7fe9ff;background:transparent;box-shadow:0 0 0 2px #7fe9ff inset"></span>anneau = activité en direct (${data.counts.active})</div>` : '')+
+    // pas de compte figé ici : il périmerait entre deux exports — le compte VIVANT est dans le HUD (#livenow)
+    `<div class="row"><span class="dot" style="color:#7fe9ff;background:transparent;box-shadow:0 0 0 2px #7fe9ff inset"></span>anneau = lue à l'instant (≤${Math.round(LIVE_WINDOW_S/60)} min)</div>`+
     (data.counts.challenged ? `<div class="row"><span class="bdg" style="color:#e0a13a">⚠</span>avis du challenger (${data.counts.challenged})</div>` : '')+
     (data.counts.convictions ? `<div class="row"><span class="bdg" style="color:#f5e2a0">✦</span>conviction (${data.counts.convictions})</div>` : '')+
     (data.counts.resume ? `<div class="row"><span class="bdg" style="color:#7fd4a0">↻</span>à reprendre (${data.counts.resume})</div>` : '')+
@@ -706,6 +720,7 @@ function tick(now){
   if(now - _last < 16) return;                // cap ~60 fps (ProMotion 120 → on ne double pas la charge bloom)
   _last = now;
   const time=now/1000;
+  const nowSec=Date.now()/1000; let liveCount=0;    // ACTIVITÉ EN DIRECT : recomptée à chaque image
   view += (viewTarget-view)*0.08; if(Math.abs(viewTarget-view)<0.001) view=viewTarget;
   sem  += (semTarget-sem)*0.08;   if(Math.abs(semTarget-sem)<0.001)   sem=semTarget;
   usage += (usageTarget-usage)*0.08; if(Math.abs(usageTarget-usage)<0.001) usage=usageTarget;
@@ -732,10 +747,22 @@ function tick(now){
       m.userData.halo.scale.setScalar(1 + (0.14+0.4*ht)*k);      // gonflement discret
       m.userData.halo.material.opacity = m.userData.haloBaseOp + (0.06+0.12*ht)*k;
     }
-    // anneau d'ACTIVITÉ EN DIRECT : pulse vif (vivant)
-    if(m.userData.activeRing) m.userData.activeRing.material.opacity = 0.35 + 0.4*(0.5+0.5*Math.sin(time*2.4));
+    // anneau d'ACTIVITÉ EN DIRECT : pulse vif tant que la fiche est dans la fenêtre, puis s'éteint
+    // TOUT SEUL (horloge du navigateur) — pas besoin d'attendre une régénération de graph.json.
+    if(m.userData.activeRing){
+      const alive = (nowSec - m.userData.activeTs) <= LIVE_WINDOW_S;
+      m.userData.activeRing.visible = alive;
+      if(alive){ liveCount++; m.userData.activeRing.material.opacity = 0.35 + 0.4*(0.5+0.5*Math.sin(time*2.4)); }
+    }
     // glyphe ▷ rejouable (Étage 4) : clignote doucement pour signaler « double-clic = rejouer »
     if(m.userData.playMark) m.userData.playMark.material.opacity = 0.55 + 0.35*(0.5+0.5*Math.sin(time*2.2));
+  }
+  if(liveCount!==_liveShown){                       // compteur live : n° de points dont l'anneau est allumé
+    _liveShown=liveCount;
+    liveEl.innerHTML = liveCount
+      ? `◉ ${liveCount} point${liveCount>1?'s':''} actif${liveCount>1?'s':''} <span style="opacity:.6">— lu${liveCount>1?'s':''} dans les ${Math.round(LIVE_WINDOW_S/60)} dernières min</span>`
+      : `<span class="off">◉ 0 point actif — rien lu depuis ${Math.round(LIVE_WINDOW_S/60)} min</span>`;
+    if(!liveCount){ const s=document.getElementById('session'); if(s) s.textContent=''; }  // pas d'activité fantôme
   }
   updateLinks(time);
   vtag.textContent = view<0.5 ? '◉ 3D planète — V carte · S sens'

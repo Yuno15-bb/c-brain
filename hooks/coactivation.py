@@ -8,7 +8,10 @@ Sources : state/recall_log.jsonl ({ts,sid,path,score}) + state/read_log.jsonl ({
   • CO-ACTIVATION : deux fiches surgies/lues dans la MÊME session = liées par l'usage (≠ [[lien]] déclaré).
   • CHALEUR : récence d'activation d'une fiche (décroissance exponentielle) → ce qui est « chaud » maintenant.
 
-Sortie : state/coactivation.json = { heat:{path:0..1}, edges:[[a,b,w],…], hot_session:{sid,paths} }.
+Sortie : state/coactivation.json = { heat:{path:0..1}, edges:[[a,b,w],…],
+                                     live:{at,window_min,max,items:[[path,ts],…]} }.
+`live` = activité EN DIRECT (fenêtre glissante de quelques minutes sur les fiches vraiment LUES),
+à ne pas confondre avec `heat` (récence sur des jours).
 Pur stdlib, déterministe, ne lit QUE les fiches qui sont des nœuds de la planète (distillées) —
 le corpus froid et les sessions/ sont exclus (ils ne sont pas sur la carte). Sort toujours 0.
 """
@@ -25,6 +28,15 @@ TAU_DAYS = 10.0          # demi-vie ~ de la chaleur (récence)
 MAX_SESSION = 25         # une session qui « touche » trop de fiches n'informe pas sur les paires → ignorée
 MIN_EDGE = 2.0           # une paire doit co-survenir dans ≥ ce poids cumulé pour compter
 TOP_EDGES = 120          # garde les liens d'usage les plus forts (lisibilité)
+
+# ACTIVITÉ EN DIRECT (anneau bleu sur la planète) — mesure GLISSANTE, pas une session entière.
+# Historique du bug : « actif » valait « remontée par le rappel, à un moment quelconque de la
+# session courante ». Une session de 25 h → 68 fiches sur 218 allumées (31 % de la planète) :
+# l'anneau ne signalait plus rien. Deux corrections :
+#   • seul un Read RÉEL compte (read_log). Une fiche seulement PROPOSÉE par le rappel n'est pas activée.
+#   • fenêtre glissante depuis maintenant, plafonnée — pas l'amplitude d'une session.
+LIVE_WINDOW_MIN = 10     # minutes : au-delà, une fiche n'est plus « en direct » (extinction côté visualizer aussi)
+LIVE_MAX = 12            # plafond dur : au-delà, l'anneau redevient du bruit
 
 
 def node_paths():
@@ -88,13 +100,22 @@ def compute():
     edges.sort(key=lambda e: -e[2])
     edges = edges[:TOP_EDGES]
 
-    # session « chaude » courante = la plus récente avec ≥2 fiches sur la carte
-    hot_sid = max(sid_ts, key=sid_ts.get) if sid_ts else None
-    hot = {"sid": hot_sid, "paths": sorted(by_sid.get(hot_sid, []))} if hot_sid else {}
+    # ACTIVITÉ EN DIRECT : fiches RÉELLEMENT lues dans les LIVE_WINDOW_MIN dernières minutes.
+    # `at` + `window_min` sont publiés pour que le visualizer ÉTEIGNE tout seul, en continu,
+    # sans attendre une régénération du graphe (l'anneau ne peut pas rester allumé par inertie).
+    cutoff = now - LIVE_WINDOW_MIN * 60
+    last_read = defaultdict(float)
+    for _sid, path, ts in read_events(READ, keep):
+        if ts >= cutoff:
+            last_read[path] = max(last_read[path], ts)
+    live_items = sorted(last_read.items(), key=lambda kv: -kv[1])[:LIVE_MAX]
+    live = {"at": int(now), "window_min": LIVE_WINDOW_MIN, "max": LIVE_MAX,
+            "items": [[p, int(ts)] for p, ts in live_items]}
 
     return {"generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "counts": {"events": len(events), "fiches_chaudes": len(heat_n), "liens_usage": len(edges)},
-            "heat": heat_n, "edges": edges, "hot_session": hot,
+            "counts": {"events": len(events), "fiches_chaudes": len(heat_n),
+                       "liens_usage": len(edges), "en_direct": len(live_items)},
+            "heat": heat_n, "edges": edges, "live": live,
             "heat_id": {keep[p]: v for p, v in heat_n.items()}}
 
 
@@ -103,7 +124,8 @@ def main():
     json.dump(data, open(OUT, "w", encoding="utf-8"), ensure_ascii=False)
     if sys.stdout.isatty() or "--show" in sys.argv:
         c = data["counts"]
-        print(f"⚡ co-activation : {c['events']} activations · {c['fiches_chaudes']} fiches chaudes · {c['liens_usage']} liens d'usage")
+        print(f"⚡ co-activation : {c['events']} activations · {c['fiches_chaudes']} fiches chaudes · "
+              f"{c['liens_usage']} liens d'usage · {c['en_direct']} en direct (≤{LIVE_WINDOW_MIN} min)")
         top = sorted(data["heat"].items(), key=lambda kv: -kv[1])[:8]
         print("  🔥 plus chaudes :")
         for p, v in top:
