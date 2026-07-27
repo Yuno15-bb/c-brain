@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
-<title>🪐 Planète de connaissance — Claude Brain</title>
+<title>Knowledge Planet — C Brain</title>
 <style>
   *{ margin:0; padding:0; box-sizing:border-box; }
   html,body{ height:100%; background:#07070b; overflow:hidden;
@@ -94,7 +94,7 @@
 
   #hint{ position:fixed; bottom:14px; right:16px; font-size:10px; opacity:.5; text-align:right; line-height:1.6; }
 
-  /* viewer 3D rejouable (Étage 4) */
+  /* replayable 3D viewer */
   #viewer{ position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
     background:radial-gradient(ellipse at center, rgba(16,20,30,0.96), rgba(3,4,7,0.985)); }
   #viewer.show{ display:flex; }
@@ -111,14 +111,14 @@
 <body>
   <canvas id="c"></canvas>
   <div id="hud">
-    <div id="title">🪐 PLANÈTE DE CONNAISSANCE</div>
+    <div id="title">🪐 KNOWLEDGE PLANET</div>
     <div id="counts">…</div>
     <div id="viewtag"></div>
     <div id="modes">
-      <button data-mode="3d">◉ 3D planète</button>
+      <button data-mode="3d">◉ 3D planet</button>
       <button data-mode="struct">▦ structure</button>
-      <button data-mode="sens">✦ sens</button>
-      <button data-mode="usage" title="liens d'usage : fiches activées ensemble en session">⚡ usage</button>
+      <button data-mode="meaning">✦ meaning</button>
+      <button data-mode="usage" title="usage links: notes activated together in a session">⚡ usage</button>
     </div>
     <div id="grow"></div>
     <div id="session"></div>
@@ -126,7 +126,7 @@
   <div id="legend"></div>
   <div id="tip">
     <i class="scan"></i>
-    <button class="x" type="button" title="fermer (Échap)">✕</button>
+    <button class="x" type="button" title="close (Esc)">✕</button>
     <div class="body">
       <div class="src"><span class="swatch"></span><span class="lbl"></span></div>
       <div class="n"></div>
@@ -137,16 +137,16 @@
       <div class="media"></div>
       <div class="lnk"></div>
       <div class="d"></div>
-      <div class="hint2">défiler · échap / ✕ pour fermer</div>
+      <div class="hint2">scroll · Esc / ✕ to close</div>
       <div class="f"></div>
     </div>
   </div>
-  <div id="hint">glisser = tourner · molette = zoom<br>survol = aimant ✦ + liens éclairés<br><b>V</b> = 3D planète ⇄ 2D carte · <b>S</b> = structure ⇄ sens</div>
+  <div id="hint">drag = rotate · wheel = zoom<br>hover = magnet ✦ + lit links<br><b>V</b> = 3D planet ⇄ 2D map · <b>S</b> = structure ⇄ meaning</div>
   <div id="viewer">
     <canvas id="vc"></canvas>
     <div class="vcap"></div>
-    <button class="vx" type="button" title="fermer (Échap)">✕ FERMER</button>
-    <div class="vhint">▷ capture 3D rejouée · glisser = tourner · molette = zoom · Échap</div>
+    <button class="vx" type="button" title="close (Esc)">✕ CLOSE</button>
+    <div class="vhint">▷ 3D capture replayed · drag = rotate · wheel = zoom · Esc</div>
   </div>
 
 <script type="importmap">
@@ -158,50 +158,50 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-// post-process « data-poésie » (réf. Anadol/Lieberman) : bloom doux = luminance organique
+// "data poetry" post-processing: gentle bloom = organic luminance
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';   // Étage 4 : nœuds rejouables (.glb)
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';   // replayable nodes (.glb)
 
 const R = 10;                                   // rayon du globe
-const S2 = 13;                                  // rayon de l'anneau des régions en vue 2D
-const SEM = 16;                                 // rayon de la carte SÉMANTIQUE (Étage 1 : proximité = sens)
+const S2 = 13;                                  // radius of the region ring in the 2D view
+const SEM = 16;                                 // radius of the SEMANTIC map (proximity = meaning)
 const UP = new THREE.Vector3(0,1,0), RIGHT = new THREE.Vector3(1,0,0);
-// régions « hors-ville » = un domaine sans projet (chacune son continent propre)
-const DOM_REGION = { lessons:'principes', meta:'méta', life:'vie', agents:'agents', projects:'projets' };
-const CENTER_REGION = 'principes';              // les leçons transverses = capitale au centre (2D)
-// palette désaturée/assourdie (data-poésie premium, pas néon)
-const FIXED_COLOR = { 'principes':0xd9bd63, 'méta':0x57b6c4, 'vie':0x5cbf92, 'agents':0xa183d4, 'projets':0x9298a2 };
-const BEAM_BASE = new THREE.Color(0xffffff);    // « paquet d'info » qui voyage le long des liens (blanc doux)
+// "out-of-town" regions = a domain with no project (each gets its own continent)
+const DOM_REGION = { lessons:'principles', meta:'meta', life:'life', agents:'agents', projects:'projects' };
+const CENTER_REGION = 'principles';            // cross-cutting lessons = the capital at the centre (2D)
+// desaturated, muted palette (premium data poetry, not neon)
+const FIXED_COLOR = { 'principles':0xd9bd63, 'meta':0x57b6c4, 'life':0x5cbf92, 'agents':0xa183d4, 'projects':0x9298a2 };
+const BEAM_BASE = new THREE.Color(0xffffff);    // an "information packet" travelling along the links (soft white)
 const HOT = new THREE.Color(0xffffff);
-// sprite radial doux → points ronds et translucides (pas de carrés ni de glow additif criard)
+// soft radial sprite → round translucent dots (no squares, no garish additive glow)
 const BEAM_TEX = (function(){ const s=64, cv=document.createElement('canvas'); cv.width=cv.height=s;
   const x=cv.getContext('2d'), g=x.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
   g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(.45,'rgba(255,255,255,.55)'); g.addColorStop(1,'rgba(255,255,255,0)');
   x.fillStyle=g; x.fillRect(0,0,s,s); return new THREE.CanvasTexture(cv); })();
 const LINK_GREY = new THREE.Color(0x8a93a8);
-// anneau d'alerte (Étage 3 : avis du challenger) — cercle fin, billboardé via Sprite
+// alert ring (the challenger's verdict) — thin circle, billboarded through a Sprite
 const RING_TEX = (function(){ const s=64, cv=document.createElement('canvas'); cv.width=cv.height=s;
   const x=cv.getContext('2d'); x.strokeStyle='rgba(255,255,255,1)'; x.lineWidth=4;
   x.beginPath(); x.arc(s/2, s/2, s/2-4, 0, Math.PI*2); x.stroke(); return new THREE.CanvasTexture(cv); })();
-// glyphe ▷ (Étage 4 : marqueur d'un nœud REJOUABLE = porte une capture 3D)
+// ▷ glyph (marks a REPLAYABLE node = it carries a 3D capture)
 const PLAY_TEX = (function(){ const s=64, cv=document.createElement('canvas'); cv.width=cv.height=s;
   const x=cv.getContext('2d'); x.fillStyle='rgba(255,255,255,1)';
   x.beginPath(); x.moveTo(s*0.36,s*0.26); x.lineTo(s*0.36,s*0.74); x.lineTo(s*0.76,s*0.5); x.closePath(); x.fill();
   return new THREE.CanvasTexture(cv); })();
-// badges (petites icônes à côté du point) : ⚠ avis du challenger · ✦ conviction · ↻ à reprendre. Blanc → teinté par le Sprite.
+// badges (small icons beside the dot): ⚠ challenger verdict · ✦ conviction · ↻ to resume. White → tinted by the Sprite.
 function glyphTex(ch, font){ const s=64, cv=document.createElement('canvas'); cv.width=cv.height=s;
   const x=cv.getContext('2d'); x.fillStyle='#fff'; x.font=(font||'bold 44px')+' sans-serif';
   x.textAlign='center'; x.textBaseline='middle'; x.fillText(ch, s/2, s/2+3); return new THREE.CanvasTexture(cv); }
 const WARN_TEX=glyphTex('!','bold 50px'), CONV_TEX=glyphTex('✦','42px'), RESUME_TEX=glyphTex('↻','bold 46px');
 
-// ---------- scène ----------
+// ---------- scene ----------
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
-// PERF (leçon GPU overheating) : on plafonne le pixelRatio — le bloom coûte ∝ pixels ; la pleine
-// Retina ×2 + post-process ferait chauffer. 1.5 garde la netteté, divise ~la charge fragment.
+// PERF (GPU overheating lesson): we cap pixelRatio — bloom costs ∝ pixels; full
+// Retina ×2 plus post-processing would run hot. 1.5 keeps it crisp and roughly halves the fragment load.
 const DPR = Math.min(devicePixelRatio, 1.5);
 renderer.setPixelRatio(DPR);
 const scene = new THREE.Scene();
@@ -213,12 +213,12 @@ controls.minDistance = 13; controls.maxDistance = 80; controls.autoRotate = true
 controls.autoRotateSpeed = 0.35;
 const CAM2D = new THREE.Vector3(0, 0, 36), ORIGIN = new THREE.Vector3(0,0,0);
 
-// ---------- post-process : bloom cinématique (glow doux sur nœuds + beams) ----------
-// strength modéré + threshold > 0 → seuls les corps lumineux (nœuds, filaments) rayonnent ;
-// le fond sombre, le cœur et les liens gris discrets restent nets (pas de voile laiteux).
+// ---------- post-processing: cinematic bloom (soft glow on nodes + beams) ----------
+// moderate strength + threshold > 0 → only luminous bodies (nodes, filaments) glow;
+// the dark background, the core and the discreet grey links stay crisp (no milky veil).
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-// doux : strength bas + threshold HAUT → seuls les cœurs les plus lumineux scintillent (pas de blobs pâles)
+// gentle: low strength + HIGH threshold → only the brightest cores sparkle (no pale blobs)
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.12, 0.32, 0.72);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
@@ -238,11 +238,11 @@ addEventListener('resize', resize); resize();
 })();
 const coreMat = new THREE.MeshBasicMaterial({ color:0x10131c, transparent:true, opacity:0.55 });
 const core = new THREE.Mesh(new THREE.SphereGeometry(R*0.985, 48, 48), coreMat); scene.add(core);
-// (atmosphère supprimée — pas de halo bleuté autour du globe, sur demande)
+// (atmosphere removed — no bluish halo around the globe)
 
 function hash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return (h>>>0)/4294967296; }
 
-// ---------- régions (continents) ----------
+// ---------- regions (continents) ----------
 const regionOf = n => n.primary_project || DOM_REGION[n.domain] || n.domain;
 let REGION_DIR={}, REGION_2D={}, REGION_COLOR={}, REGION_LIST=[], REGION_COUNT={};
 function layoutRegions(data){
@@ -250,12 +250,12 @@ function layoutRegions(data){
   const projects = data.projects || [];
   const present=[], seen=new Set(), nreg={};
   for(const n of data.nodes){ const r=regionOf(n); REGION_COUNT[r]=(REGION_COUNT[r]||0)+1; nreg[n.id]=r; if(!seen.has(r)){ seen.add(r); present.push(r); } }
-  // affinité inter-régions = nb de liens qui croisent deux continents
+  // inter-region affinity = number of links crossing two continents
   const aff={}, deg={}; for(const r of present) deg[r]=0;
   for(const l of data.links){ const ra=nreg[l.source], rb=nreg[l.target]; if(!ra||!rb||ra===rb) continue;
     const k=ra<rb?ra+'|'+rb:rb+'|'+ra; aff[k]=(aff[k]||0)+1; deg[ra]++; deg[rb]++; }
   const affOf=(a,b)=> aff[a<b?a+'|'+b:b+'|'+a]||0;
-  // ordre glouton : on enchaîne les continents les plus reliés → voisins sur la spirale
+  // greedy ordering: chain the most connected continents → neighbours on the spiral
   const order=[], used=new Set();
   let cur=present.slice().sort((a,b)=>deg[b]-deg[a])[0]; order.push(cur); used.add(cur);
   while(order.length<present.length){
@@ -269,7 +269,7 @@ function layoutRegions(data){
   const n=order.length, ga=Math.PI*(3-Math.sqrt(5));
   order.forEach((r,i)=>{ const y=1-2*(i+0.5)/n, rad=Math.sqrt(Math.max(0,1-y*y));
     REGION_DIR[r]=new THREE.Vector3(Math.cos(ga*i)*rad, y, Math.sin(ga*i)*rad).normalize(); });
-  // 2D : capitale (principes) au centre, le reste sur un anneau (même ordre d'affinité)
+  // 2D: the capital (principles) at the centre, the rest on a ring (same affinity order)
   const ring=order.filter(r=>r!==CENTER_REGION);
   ring.forEach((r,i)=>{ const a=2*Math.PI*i/Math.max(1,ring.length); REGION_2D[r]={x:Math.cos(a),y:Math.sin(a)}; });
   REGION_2D[CENTER_REGION]={x:0,y:0};
@@ -279,7 +279,7 @@ function layoutRegions(data){
     REGION_COLOR[r]=new THREE.Color().setHSL((pi>=0?pi/Math.max(1,projects.length):hash(r)), 0.5, 0.56); });
 }
 const colorOf = n => REGION_COLOR[regionOf(n)] || new THREE.Color(0xffffff);
-const spreadOf = r => 0.12 + 0.05*Math.sqrt(REGION_COUNT[r]||1);   // continent plus grand si plus peuplé
+const spreadOf = r => 0.12 + 0.05*Math.sqrt(REGION_COUNT[r]||1);   // a bigger continent when more populated
 
 // ---------- placement 3D (continent) & 2D (carte) ----------
 function anchor3(n){
@@ -296,7 +296,7 @@ function anchor2(n){
     if(tot>0) return {x:x/tot,y:y/tot}; }
   const b=REGION_2D[regionOf(n)]||{x:0,y:0}; return {x:b.x,y:b.y};
 }
-// placement INTELLIGENT : tournesol par continent, rangé par échelle (cœur=vision → bord=détail)
+// SMART placement: sunflower per continent, ordered by scale (core=vision → edge=detail)
 let posById={};
 function layoutNodes(data){
   posById={};
@@ -309,7 +309,7 @@ function layoutNodes(data){
     const t2=new THREE.Vector3().crossVectors(base, t1).normalize();
     const c2=REGION_2D[r]||{x:0,y:0};
     arr.forEach((n,i)=>{
-      const f=(i+0.5)/m, ang=i*2.39996323;                 // angle d'or → packing régulier
+      const f=(i+0.5)/m, ang=i*2.39996323;                 // golden angle → even packing
       const rr=sp*Math.sqrt(f);                             // centre-out : i=0 (scale faible) au cœur
       const dir=base.clone().multiplyScalar(Math.cos(rr))
         .add(t1.clone().multiplyScalar(Math.sin(rr)*Math.cos(ang)))
@@ -318,13 +318,13 @@ function layoutNodes(data){
       posById[n.id]={ p3:dir.multiplyScalar(R), p2:new THREE.Vector3(c2.x*S2+Math.cos(ang)*RR, c2.y*S2+Math.sin(ang)*RR, 0) };
     });
   }
-  // frontières : posées SUR la frontière entre leurs deux villes (mélange des ancres)
+  // frontiers: placed ON the border between their two cities (anchors blended)
   for(const n of data.nodes){ if(n.frontier){
     const d3=anchor3(n), b2=anchor2(n);
     posById[n.id]={ p3:d3.multiplyScalar(R*1.004), p2:new THREE.Vector3(b2.x*S2, b2.y*S2, 0) }; }}
 }
 
-// ---------- état du graphe ----------
+// ---------- graph state ----------
 let group=new THREE.Group(); scene.add(group);
 let nodeObjs=[], linkObjs=[], coactObjs=[];
 let beamGeo=null, beamPos=null, beamCol=null, beams=null;
@@ -341,8 +341,8 @@ function build(data){
   for(const nd of data.nodes){
     const pp=posById[nd.id]||{p3:new THREE.Vector3(0,R,0), p2:new THREE.Vector3()};
     const p3=pp.p3, p2=pp.p2, col=colorOf(nd);
-    // position SÉMANTIQUE (Étage 1) : projetée par le SENS (embeddings), indépendante du rangement.
-    // fallback sur la position structurelle si une fiche n'a pas encore de vecteur.
+    // SEMANTIC position: projected by MEANING (embeddings), independent of filing.
+    // fall back to the structural position when a note has no vector yet.
     const e2=nd.embed2, p2s = e2 ? new THREE.Vector3(e2[0]*SEM, e2[1]*SEM, 0) : p2.clone();
     const m=new THREE.Mesh(new THREE.SphereGeometry(nd.frontier?0.16:0.125, 12, 12),
       new THREE.MeshBasicMaterial({ color:col }));
@@ -354,17 +354,17 @@ function build(data){
     const halo=new THREE.Mesh(new THREE.SphereGeometry(0.30,12,12),
       new THREE.MeshBasicMaterial({ color:nd.frontier?0xffffff:col, transparent:true, opacity:haloBaseOp }));
     m.add(halo);
-    // CHALEUR (Étage 2) : PAS de teinte fixe — les fiches chaudes PULSENT (le halo respire dans la
-    // couleur de la région) ∝ usage récent. Plus chaud = pulsation plus ample & plus rapide. Animé dans tick().
+    // HEAT: NO fixed tint — hot notes PULSE (the halo breathes in the
+    // region's colour) ∝ recent usage. Hotter = wider and faster pulse. Animated in tick().
     m.userData.halo=halo; m.userData.haloBaseOp=haloBaseOp;
     m.userData.heat=nd.heat||0; m.userData.pulse=hash(nd.id)*6.283;
-    // ANNEAU = ACTIVITÉ EN DIRECT (fiches de la session courante) — pulse = vivant
+    // RING = LIVE ACTIVITY (notes from the current session) — pulsing = alive
     if(nd.active){
       const ring=new THREE.Sprite(new THREE.SpriteMaterial({ map:RING_TEX, color:0x7fe9ff,
         transparent:true, opacity:0.6, depthTest:false, depthWrite:false }));
       ring.scale.setScalar(0.95); m.add(ring); m.userData.activeRing=ring;
     }
-    // BADGES (petites icônes À CÔTÉ du point, empilées à droite) : ⚠ avis du challenger · ✦ conviction · ↻ à reprendre
+    // BADGES (small icons BESIDE the dot, stacked right): ⚠ challenger verdict · ✦ conviction · ↻ to resume
     const badges=[];
     if(nd.challenge)  badges.push([WARN_TEX,   0xe0a13a]);
     if(nd.conviction) badges.push([CONV_TEX,   0xf5e2a0]);
@@ -374,7 +374,7 @@ function build(data){
         transparent:true, opacity:0.95, depthTest:false, depthWrite:false }));
       b.scale.setScalar(0.34); b.position.set(0.3, 0.34 - i*0.27, 0); m.add(b);
     });
-    // nœud REJOUABLE (Étage 4) : glyphe ▷ cyan au-dessus → double-clic ouvre la capture 3D
+    // REPLAYABLE node: a cyan ▷ glyph above → double-click opens the 3D capture
     if(nd.media){
       const pl=new THREE.Sprite(new THREE.SpriteMaterial({ map:PLAY_TEX, color:0x5ad7e6,
         transparent:true, opacity:0.9, depthTest:false, depthWrite:false }));
@@ -382,13 +382,13 @@ function build(data){
     }
     group.add(m); nodeObjs.push(m); meshById[nd.id]=m;
   }
-  // liens : 1 matériau par lien (surlignage individuel) + géométrie pré-allouée
+  // links: one material per link (individual highlighting) + pre-allocated geometry
   let idx=0;
   for(const l of data.links){
     const a=meshById[l.source], b=meshById[l.target]; if(!a||!b) continue;
     const arr=new Float32Array((SEG+1)*3);
     const g=new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(arr,3));
-    // depthTest:false → l'arc n'est jamais TRANCHÉ par le corps de la planète (atténué via `facing`, pas coupé)
+    // depthTest:false → the arc is never SLICED by the planet's body (dimmed through `facing`, not cut)
     const mat=new THREE.LineBasicMaterial({ color:LINK_GREY.clone(), transparent:true, opacity:0.16, depthTest:false, depthWrite:false });
     group.add(new THREE.Line(g, mat));
     const L={ a, b, attr:g.getAttribute('position'), mat, hot:false, idx:idx++,
@@ -396,7 +396,7 @@ function build(data){
               phase:hash(l.source+l.target), speed:0.18+0.22*hash(l.target+l.source) };
     linkObjs.push(L); a.userData.links.push(L); b.userData.links.push(L);
   }
-  // beams : un point lumineux par lien, voyageant en continu (Points additif = glow)
+  // beams: one bright dot per link, travelling continuously (additive Points = glow)
   const N=linkObjs.length;
   beamPos=new Float32Array(N*3); beamCol=new Float32Array(N*3);
   beamGeo=new THREE.BufferGeometry();
@@ -406,7 +406,7 @@ function build(data){
     transparent:true, opacity:0.5, blending:THREE.NormalBlending, depthWrite:false, depthTest:false, sizeAttenuation:true }));
   group.add(beams);
 
-  // liens d'USAGE (co-activation, Étage 2) — golden, invisibles jusqu'au mode ⚡ usage
+  // USAGE links (co-activation) — golden, invisible until the ⚡ usage mode
   const cmax=(data.coact && data.coact[0] && data.coact[0][2]) || 1;
   for(const e of (data.coact||[])){
     const a=meshById[e[0]], b=meshById[e[1]]; if(!a||!b) continue;
@@ -419,14 +419,14 @@ function build(data){
 
   prevIds=new Set(data.nodes.map(n=>n.id));
   document.getElementById('counts').innerHTML =
-    `${data.counts.nodes} fiches · ${data.counts.links} liens · ${REGION_LIST.length} régions · ${data.counts.frontier} frontière${data.counts.frontier>1?'s':''}`
-    + (data.counts.challenged ? ` · <span style="color:#e0a13a">⚠ ${data.counts.challenged} contestée${data.counts.challenged>1?'s':''}</span>` : '');
-  // reprise (Étage 2) : régions où la dernière session a travaillé — orientation au démarrage
+    `${data.counts.nodes} notes · ${data.counts.links} links · ${REGION_LIST.length} regions · ${data.counts.frontier} frontier${data.counts.frontier>1?'s':''}`
+    + (data.counts.challenged ? ` · <span style="color:#e0a13a">⚠ ${data.counts.challenged} challenged</span>` : '');
+  // resume: the regions the last session worked in — used to orient the camera at startup
   const act=data.nodes.filter(n=>n.active), sEl=document.getElementById('session');
   if(act.length){
     const rc={}; for(const n of act){ const r=regionOf(n); rc[r]=(rc[r]||0)+1; }
     const top=Object.entries(rc).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([r])=>`<b>${r}</b>`);
-    sEl.innerHTML=`◉ dernière activité : ${top.join(' · ')} <span style="opacity:.6">(${act.length} fiches)</span>`;
+    sEl.innerHTML=`◉ latest activity: ${top.join(' · ')} <span style="opacity:.6">(${act.length} notes)</span>`;
   } else sEl.textContent='';
   buildLegend(data);
 }
@@ -437,39 +437,39 @@ function buildLegend(data){
   const order=REGION_LIST.slice().sort((a,b)=>(REGION_COUNT[b]||0)-(REGION_COUNT[a]||0));
   const row=r=>{ const c='#'+REGION_COLOR[r].getHexString();
     return `<div class="row"><span class="dot" style="color:${c};background:${c}"></span>${r} (${REGION_COUNT[r]||0})</div>`; };
-  const villes=order.filter(isProj).map(row).join('');
+  const cities=order.filter(isProj).map(row).join('');
   const autres=order.filter(r=>!isProj(r)).map(row).join('');
   document.getElementById('legend').innerHTML =
-    `<div class="hd">villes (projets)</div>${villes}`+
-    `<div class="hd">régions transverses</div>${autres}`+
-    `<div class="hd">marqueur</div><div class="row"><span class="dot" style="color:#fff;background:#fff"></span>frontière (${data.counts.frontier})</div>`+
-    (data.counts.active ? `<div class="row"><span class="dot" style="color:#7fe9ff;background:transparent;box-shadow:0 0 0 2px #7fe9ff inset"></span>anneau = activité en direct (${data.counts.active})</div>` : '')+
+    `<div class="hd">cities (projects)</div>${cities}`+
+    `<div class="hd">cross-cutting regions</div>${autres}`+
+    `<div class="hd">marker</div><div class="row"><span class="dot" style="color:#fff;background:#fff"></span>frontier (${data.counts.frontier})</div>`+
+    (data.counts.active ? `<div class="row"><span class="dot" style="color:#7fe9ff;background:transparent;box-shadow:0 0 0 2px #7fe9ff inset"></span>ring = live activity (${data.counts.active})</div>` : '')+
     (data.counts.challenged ? `<div class="row"><span class="bdg" style="color:#e0a13a">⚠</span>avis du challenger (${data.counts.challenged})</div>` : '')+
     (data.counts.convictions ? `<div class="row"><span class="bdg" style="color:#f5e2a0">✦</span>conviction (${data.counts.convictions})</div>` : '')+
-    (data.counts.resume ? `<div class="row"><span class="bdg" style="color:#7fd4a0">↻</span>à reprendre (${data.counts.resume})</div>` : '')+
+    (data.counts.resume ? `<div class="row"><span class="bdg" style="color:#7fd4a0">↻</span>to resume (${data.counts.resume})</div>` : '')+
     (data.counts.media ? `<div class="row"><span class="dot" style="color:#5ad7e6;background:#5ad7e6"></span>▷ rejouable — capture 3D (${data.counts.media})</div>` : '');
 }
 
 // ---------- bascule de vue ----------
-// view : 0 = planète 3D ↔ 1 = carte 2D plate.  sem : 0 = 2D STRUCTURE (membership) ↔ 1 = 2D SENS (embeddings).
-// usage : overlay des liens d'USAGE (co-activation, Étage 2), indépendant de la vue.
+// view: 0 = 3D planet ↔ 1 = flat 2D map.  sem: 0 = 2D STRUCTURE (membership) ↔ 1 = 2D MEANING (embeddings).
+// usage: overlay of USAGE links (co-activation), independent of the view.
 let view=0, viewTarget=0, sem=0, semTarget=0, usage=0, usageTarget=0;
 addEventListener('keydown', e=>{
-  if(e.key==='v'||e.key==='V'){ viewTarget = viewTarget>0.5?0:1; if(viewTarget<0.5) semTarget=0; }  // retour planète = structure
-  if(e.key==='s'||e.key==='S'){ semTarget = semTarget>0.5?0:1; if(semTarget>0.5) viewTarget=1; }      // le sens n'a de sens qu'à plat
+  if(e.key==='v'||e.key==='V'){ viewTarget = viewTarget>0.5?0:1; if(viewTarget<0.5) semTarget=0; }  // back to the planet = structure
+  if(e.key==='s'||e.key==='S'){ semTarget = semTarget>0.5?0:1; if(semTarget>0.5) viewTarget=1; }      // meaning only makes sense when flat
   if(e.key==='u'||e.key==='U'){ usageTarget = usageTarget>0.5?0:1; }                                  // overlay usage on/off
 });
-// boutons cliquables (sans dépendre du focus clavier)
+// clickable buttons (no reliance on keyboard focus)
 function setMode(m){
   if(m==='3d'){ viewTarget=0; semTarget=0; }
   else if(m==='struct'){ viewTarget=1; semTarget=0; }
-  else if(m==='sens'){ viewTarget=1; semTarget=1; }
+  else if(m==='meaning'){ viewTarget=1; semTarget=1; }
   else if(m==='usage'){ usageTarget = usageTarget>0.5?0:1; }   // toggle overlay (ne touche pas la vue)
 }
 document.querySelectorAll('#modes button').forEach(b=>
   b.addEventListener('click', ()=> setMode(b.dataset.mode)));
 function syncModeButtons(){
-  const active = view<0.5 ? '3d' : (sem>0.5 ? 'sens' : 'struct');
+  const active = view<0.5 ? '3d' : (sem>0.5 ? 'meaning' : 'struct');
   document.querySelectorAll('#modes button').forEach(b=>{
     if(b.dataset.mode==='usage') b.classList.toggle('on', usage>0.5);
     else b.classList.toggle('on', b.dataset.mode===active);
@@ -494,17 +494,17 @@ function applyHot(m){
 let pinned=null;
 function memLine(n){
   const m=n.membership||{}, ks=Object.keys(m);
-  if(!n.primary_project) return `<b>${regionOf(n)}</b> · transverse, sans ville`;
-  return (n.frontier?'frontière · ':'ville · ')+ks.map(c=>`<b>${c}</b> ${m[c]}`).join('  ·  ');
+  if(!n.primary_project) return `<b>${regionOf(n)}</b> · cross-cutting, no city`;
+  return (n.frontier?'frontier · ':'city · ')+ks.map(c=>`<b>${c}</b> ${m[c]}`).join('  ·  ');
 }
 function showPanel(mesh, expanded){
   const n=mesh.userData.data;
   tip.style.setProperty('--accent', '#'+colorOf(n).getHexString());
   const title=n.title || (n.name||'').replace(/-/g,' ').replace(/^\w/, c=>c.toUpperCase());
-  tip.querySelector('.lbl').innerHTML=(n.primary_project||regionOf(n))+(n.frontier?' <span class="frontier">⟡ frontière</span>':'');
+  tip.querySelector('.lbl').innerHTML=(n.primary_project||regionOf(n))+(n.frontier?' <span class="frontier">⟡ frontier</span>':'');
   tip.querySelector('.n').textContent=title;
   tip.querySelector('.mem').innerHTML=memLine(n);
-  // avis du challenger (Étage 3) : la carte donne son avis sur cette fiche
+  // the challenger's verdict: the map gives its opinion on this note
   const chEl=tip.querySelector('.ch');
   if(n.challenge){ chEl.textContent='⚠ avis du challenger — '+n.challenge; chEl.classList.add('show'); }
   else { chEl.classList.remove('show'); chEl.textContent=''; }
@@ -512,12 +512,12 @@ function showPanel(mesh, expanded){
   if(n.conviction){ cvEl.textContent='✦ conviction — '+n.conviction; cvEl.classList.add('show'); }
   else { cvEl.classList.remove('show'); cvEl.textContent=''; }
   const rsEl=tip.querySelector('.rs');
-  if(n.resume){ rsEl.textContent='↻ point à reprendre — fil ouvert dans cette fiche'; rsEl.classList.add('show'); }
+  if(n.resume){ rsEl.textContent='↻ resume point — an open thread in this note'; rsEl.classList.add('show'); }
   else { rsEl.classList.remove('show'); rsEl.textContent=''; }
   const mEl=tip.querySelector('.media');
   if(n.media){ mEl.textContent='▷ capture 3D rejouable — double-clic pour l\'ouvrir'; mEl.classList.add('show'); }
   else { mEl.classList.remove('show'); mEl.textContent=''; }
-  // connexions : les fiches reliées à ce point (titre descriptif + région si autre catégorie)
+  // connections: the notes linked to this dot (descriptive title + region if another category)
   const others=(mesh.userData.links||[]).map(L=> L.a===mesh?L.b:L.a), CAP=16, rn=regionOf(n);
   let lh='';
   if(others.length){
@@ -534,7 +534,7 @@ function showPanel(mesh, expanded){
 function unpin(){ pinned=null; tip.classList.remove('expanded'); if(hovered) showPanel(hovered,false); else tip.classList.remove('show'); }
 addEventListener('dblclick', ()=>{ if(hovered){
   const nd=hovered.userData.data;
-  if(nd.media){ openViewer(nd.media); return; }      // nœud REJOUABLE → ouvre la capture 3D (Étage 4)
+  if(nd.media){ openViewer(nd.media); return; }      // REPLAYABLE node → opens the 3D capture
   pinned=hovered; showPanel(pinned,true); tip.querySelector('.body').scrollTop=0; } });
 tip.querySelector('.x').addEventListener('click', unpin);
 addEventListener('keydown', e=>{ if(e.key==='Escape'&&pinned) unpin(); });
@@ -562,7 +562,7 @@ function magnet(){
 
 const _off=new THREE.Vector3(), _tgt=new THREE.Vector3(), _p2=new THREE.Vector3();
 function easeMagnet(m){
-  _p2.copy(m.userData.p2).lerp(m.userData.p2s, sem);   // 2D : structure → sens
+  _p2.copy(m.userData.p2).lerp(m.userData.p2s, sem);   // 2D: structure → meaning
   _tgt.copy(m.userData.p3).lerp(_p2, view);            // 3D → 2D
   m.userData.base.copy(_tgt);
   const pull=m.userData._pull||0;
@@ -576,37 +576,37 @@ function easeMagnet(m){
   m.position.lerp(_tgt, 0.3);
 }
 
-// arcs PAR-DESSUS le globe (jamais à l'intérieur) + beams le long de chaque lien
+// arcs OVER the globe (never inside it) + beams travelling along each link
 const _cd=new THREE.Vector3();
 function updateLinks(time){
   _cd.copy(camera.position).normalize();
-  const flat=view;                               // 0=sphère, 1=plan
+  const flat=view;                               // 0=sphere, 1=plane
   for(const L of linkObjs){
     const a=L.a.position, b=L.b.position, arr=L.attr.array;
-    // distance angulaire → plus les points sont loin, plus l'arc monte haut (reste hors de la sphère)
+    // angular distance → the further apart the dots, the higher the arc rises (staying outside the sphere)
     const an=a.length()||1, bn=b.length()||1;
     const dot=THREE.MathUtils.clamp((a.x*b.x+a.y*b.y+a.z*b.z)/(an*bn), -1, 1);
-    const lift=R*(1.12 + 0.6*(1-dot)/2);          // rayon du point de contrôle (toujours > R)
+    const lift=R*(1.12 + 0.6*(1-dot)/2);          // control-point radius (always > R)
     const mdx=a.x+b.x, mdy=a.y+b.y, mdz=a.z+b.z, ml=Math.hypot(mdx,mdy,mdz)||1;
-    // contrôle : bombé vers l'extérieur en 3D, ramené au milieu plat en 2D
+    // control point: bulging outwards in 3D, pulled flat to the middle in 2D
     const ox=mdx/ml*lift, oy=mdy/ml*lift, oz=mdz/ml*lift;
     const cx=ox*(1-flat)+(mdx/2)*flat, cy=oy*(1-flat)+(mdy/2)*flat, cz=oz*(1-flat)+(mdz/2)*flat;
     for(let i=0;i<=SEG;i++){ const t=i/SEG, it=1-t, w=it*it, w2=2*it*t, w3=t*t;
       arr[i*3]=w*a.x+w2*cx+w3*b.x; arr[i*3+1]=w*a.y+w2*cy+w3*b.y; arr[i*3+2]=w*a.z+w2*cz+w3*b.z; }
     L.attr.needsUpdate=true;
-    // opacité/couleur : éclairé si relié au survol ; sinon discret + estompé sur la face cachée (3D)
+    // opacity/colour: lit when linked to the hovered node; otherwise discreet, and faded on the far side (3D)
     const mid=new THREE.Vector3(cx,cy,cz);
     const facing = view<0.5 ? THREE.MathUtils.clamp(mid.clone().normalize().dot(_cd)*0.5+0.5, 0.18, 1) : 1;
     if(L.hot){ L.mat.opacity=0.92; L.mat.color.copy(colorOf(L.a.userData.data)).lerp(HOT,0.45); }
     else { L.mat.opacity=0.14*facing*(1-0.8*usage); L.mat.color.copy(LINK_GREY); }   // s'estompe sous l'overlay usage
-    // beam : position le long de l'arc + couleur (blanc vif si relié au survol)
+    // beam: position along the arc + colour (bright white when linked to the hover)
     if(beams){
       const tt=((time*L.speed+L.phase)%1), it2=1-tt;
       const bx=it2*it2*a.x+2*it2*tt*cx+tt*tt*b.x;
       const by=it2*it2*a.y+2*it2*tt*cy+tt*tt*b.y;
       const bz=it2*it2*a.z+2*it2*tt*cz+tt*tt*b.z;
       beamPos[L.idx*3]=bx; beamPos[L.idx*3+1]=by; beamPos[L.idx*3+2]=bz;
-      // couleur du beam = mélange région source → cible selon l'avancée (passe par le jaune, puis le rose…)
+      // beam colour = source → target region blend along the way (through yellow, then pink…)
       if(L.hot){ beamCol[L.idx*3]=beamCol[L.idx*3+1]=beamCol[L.idx*3+2]=1; }
       else { const k=0.92;
         beamCol[L.idx*3]  =(L.ca.r+(L.cb.r-L.ca.r)*tt)*k;
@@ -615,7 +615,7 @@ function updateLinks(time){
     }
   }
   if(beams){ beamGeo.getAttribute('position').needsUpdate=true; beamGeo.getAttribute('color').needsUpdate=true; }
-  // liens d'USAGE (co-activation, Étage 2) : mêmes arcs, dorés, visibles selon `usage`
+  // USAGE links (co-activation): the same arcs, golden, visible according to `usage`
   for(const C of coactObjs){
     const a=C.a.position, b=C.b.position, arr=C.attr.array;
     const an=a.length()||1, bn=b.length()||1;
@@ -627,7 +627,7 @@ function updateLinks(time){
     if(usage>0.001) for(let i=0;i<=SEG;i++){ const t=i/SEG, it=1-t, w=it*it, w2=2*it*t, w3=t*t;
       arr[i*3]=w*a.x+w2*cx+w3*b.x; arr[i*3+1]=w*a.y+w2*cy+w3*b.y; arr[i*3+2]=w*a.z+w2*cz+w3*b.z; }
     C.attr.needsUpdate=true;
-    C.mat.opacity = usage*(0.12 + 0.55*C.w);            // les paires les plus co-activées brillent plus
+    C.mat.opacity = usage*(0.12 + 0.55*C.w);        // the most co-activated pairs shine brighter
   }
 }
 
@@ -640,26 +640,26 @@ async function poll(){
       lastStamp=data.generated_at; const before=prevIds.size; build(data);
       const added=data.counts.nodes-before;
       if(before && added>0){ const g=document.getElementById('grow');
-        g.textContent=`✦ +${added} fiche${added>1?'s':''} — la planète grandit`;
+        g.textContent=`✦ +${added} note${added>1?'s':''} — the planet is growing`;
         g.style.opacity='1'; setTimeout(()=>g.style.opacity='0',4000); }
     }
   }catch(e){ document.getElementById('counts').textContent='graph.json introuvable — lance launch.sh'; }
 }
 poll(); setInterval(poll, 3000);
 
-// ---------- viewer 3D rejouable (Étage 4) : double-clic sur un nœud média → la capture apparaît, tournable ----------
+// ---------- replayable 3D viewer: double-click a media node → the capture appears, rotatable ----------
 let vR=null, vS, vCam, vCtrl, vModel=null, vOpen=false;
 const vEl=document.getElementById('viewer'), vc=document.getElementById('vc');
 function vResize(){ const w=vc.clientWidth||720, h=vc.clientHeight||560; vR.setSize(w,h,false); vCam.aspect=w/h; vCam.updateProjectionMatrix(); }
 function openViewer(media){
   vEl.classList.add('show'); vOpen=true;
-  if(!vR){                                            // init paresseuse d'un MINI renderer dédié
+  if(!vR){                                            // lazy init of a dedicated MINI renderer
     vR=new THREE.WebGLRenderer({ canvas:vc, antialias:true, alpha:true }); vR.setPixelRatio(Math.min(devicePixelRatio,1.5));
     vR.toneMapping=THREE.ACESFilmicToneMapping; vR.toneMappingExposure=1.35;
     vS=new THREE.Scene(); vCam=new THREE.PerspectiveCamera(45,1,0.01,100); vCam.position.set(0,0,3.2);
     vCtrl=new OrbitControls(vCam,vc); vCtrl.enableDamping=true; vCtrl.dampingFactor=0.08;
     vCtrl.autoRotate=true; vCtrl.autoRotateSpeed=1.1; vCtrl.enablePan=false;
-    // éclairage FORT (Bennu est très sombre, albédo ~4%) : ambiant + hémisphère + 3 lumières dont un rim
+    // STRONG lighting (the sample asteroid is very dark, ~4% albedo): ambient + hemisphere + 3 lights including a rim
     vS.add(new THREE.AmbientLight(0xffffff,1.1));
     vS.add(new THREE.HemisphereLight(0xcfe0ff, 0x3a2a1e, 1.1));
     const dl=new THREE.DirectionalLight(0xffffff,2.4); dl.position.set(3,4,5); vS.add(dl);
@@ -672,21 +672,21 @@ function openViewer(media){
   if(media.type==='glb'){
     new GLTFLoader().load(media.src, g=>{
       const model=g.scene;
-      // normalise le matériau : modèle scanné → souvent normales manquantes / winding inversé / base sombre.
-      // DoubleSide + normales recalculées + texture conservée, éclairé proprement → l'astéroïde devient visible.
+      // normalize the material: scanned models often lack normals, have inverted winding, or a dark base.
+      // DoubleSide + recomputed normals + texture kept, lit properly → the asteroid becomes visible.
       model.traverse(o=>{ if(o.isMesh){
         if(!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
         const map = (o.material && o.material.map) || null;
         o.material = new THREE.MeshStandardMaterial({ color: map?0xffffff:0x9b9286, map, roughness:0.92, metalness:0.02, side:THREE.DoubleSide });
         o.frustumCulled=false;
       }});
-      // centre + cadre via un GROUPE (scaler le groupe, jamais setScalar sur la racine du glb → écraserait son échelle)
+      // centre + frame through a GROUP (scale the group, never setScalar on the glb root → that would crush its own scale)
       const wrap=new THREE.Group(); wrap.add(model);
       const box=new THREE.Box3().setFromObject(model), c=box.getCenter(new THREE.Vector3()), s=box.getSize(new THREE.Vector3());
       model.position.sub(c);
       const md=Math.max(s.x,s.y,s.z)||1; wrap.scale.setScalar(1.8/md);
       vS.add(wrap); vModel=wrap;
-    }, undefined, e=>{ vEl.querySelector('.vcap').textContent='⚠ échec de chargement de '+media.src; console.log('GLB ERREUR', e&&e.message); });
+    }, undefined, e=>{ vEl.querySelector('.vcap').textContent='⚠ failed to load '+media.src; console.log('GLB ERROR', e&&e.message); });
   }
   vLoop();
 }
@@ -701,8 +701,8 @@ const vtag=document.getElementById('viewtag');
 let _last=0;
 function tick(now){
   requestAnimationFrame(tick);
-  if(document.hidden) return;                 // PERF : 0 calcul quand l'onglet est caché
-  if(vOpen) return;                           // viewer 3D rejouable ouvert → planète en pause (un seul GPU à la fois)
+  if(document.hidden) return;                 // PERF: zero computation while the tab is hidden
+  if(vOpen) return;                           // replayable 3D viewer open → the planet pauses (one GPU job at a time)
   if(now - _last < 16) return;                // cap ~60 fps (ProMotion 120 → on ne double pas la charge bloom)
   _last = now;
   const time=now/1000;
@@ -712,8 +712,8 @@ function tick(now){
   const morphing = Math.abs(viewTarget-view)>0.001;
   controls.autoRotate  = view<0.5;
   controls.enableRotate = view<0.5;                 // 2D = carte plate : zoom/pan oui, rotation non
-  controls.minDistance = view>0.5 ? 4 : 13;          // en 2D on peut zoomer plus près dans un cluster
-  // on ne recadre la caméra que PENDANT la bascule vers la 2D — ensuite le zoom molette est libre
+  controls.minDistance = view>0.5 ? 4 : 13;          // in 2D you can zoom deeper into a cluster
+  // we only re-frame the camera WHILE switching to 2D — after that, wheel zoom is free
   if(viewTarget>0.5 && morphing){ camera.position.lerp(CAM2D, 0.06); controls.target.lerp(ORIGIN, 0.08); }
   controls.update();
   coreMat.opacity=0.55*(1-view); core.visible=view<0.98;
@@ -723,24 +723,24 @@ function tick(now){
     easeMagnet(m);
     const ts=(m===hovered)?MAGNET_SCALE:1;
     m.scale.setScalar(THREE.MathUtils.lerp(m.scale.x, ts, 0.25));
-    // pulsation des fiches CHAUDES (Étage 2) : halo qui respire ∝ chaleur, dans la couleur de région.
-    // heartbeat organique = sinus élevé à une puissance → long repos calme + gonflement net (qui rayonne sous le bloom).
+    // pulsing of HOT notes: a halo breathing ∝ heat, in the region's colour.
+    // organic heartbeat = a sine raised to a power → long calm rest + a sharp swell (which radiates under the bloom).
     const ht=m.userData.heat||0;
-    if(ht>0.25){                                       // seules les fiches VRAIMENT chaudes pulsent (~10, pas 76)
+    if(ht>0.25){                                       // only the REALLY hot notes pulse (~10, not 76)
       const s=0.5+0.5*Math.sin(time*(1.1+1.2*ht)+m.userData.pulse);
-      const k=s*s*s;                                   // ease : creux étirés, pic franc
+      const k=s*s*s;                                   // easing: stretched troughs, sharp peak
       m.userData.halo.scale.setScalar(1 + (0.14+0.4*ht)*k);      // gonflement discret
       m.userData.halo.material.opacity = m.userData.haloBaseOp + (0.06+0.12*ht)*k;
     }
-    // anneau d'ACTIVITÉ EN DIRECT : pulse vif (vivant)
+    // LIVE ACTIVITY ring: a bright pulse (alive)
     if(m.userData.activeRing) m.userData.activeRing.material.opacity = 0.35 + 0.4*(0.5+0.5*Math.sin(time*2.4));
-    // glyphe ▷ rejouable (Étage 4) : clignote doucement pour signaler « double-clic = rejouer »
+    // replayable ▷ glyph: blinks gently to signal "double-click to replay"
     if(m.userData.playMark) m.userData.playMark.material.opacity = 0.55 + 0.35*(0.5+0.5*Math.sin(time*2.2));
   }
   updateLinks(time);
-  vtag.textContent = view<0.5 ? '◉ 3D planète — V carte · S sens'
-    : (sem>0.5 ? '✦ 2D SÉMANTIQUE — proximité = sens · S structure · V planète'
-               : '▦ 2D structure — S sens · V planète');
+  vtag.textContent = view<0.5 ? '◉ 3D planet — V map · S meaning'
+    : (sem>0.5 ? '✦ 2D SEMANTIC — proximity = meaning · S structure · V planet'
+               : '▦ 2D structure — S meaning · V planet');
   syncModeButtons();
   composer.render();                            // rendu via le post-process (bloom + output)
 }
