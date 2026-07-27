@@ -61,7 +61,12 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
   exit 1
 fi
 
-BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+# The CURRENT branch, never a hardcoded `main` — BRANCH is already resolved at
+# the top of this script. Hardcoding it meant a publish from `fr` pushed the tag
+# and an already up-to-date main branch, while the French commits never left.
+# The tag hid the hole, since it carries the objects: `brain update` worked, but
+# the remote `fr` branch stayed frozen. Fixed here in c91c10d; `fr` only caught
+# up on 2026-07-27, after two releases had gone out with the branch behind.
 git tag -a "$TAG" -m "$MSG"
 git push origin "$BRANCH" "$TAG"
 echo
