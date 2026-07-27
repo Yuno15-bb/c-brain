@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""track_read — boucle de vérité (H3) : journalise quand une fiche du Brain est LUE.
+"""track_read — the truth loop: logs when a note in the trunk is actually READ.
 
 Hook PostToolUse (Read). Si un Read cible une fiche du tronc, on l'enregistre dans
-state/read_log.jsonl. Croisé avec recall_log.jsonl (ce qui a été remonté), ça donne
-l'UTILITÉ réelle de chaque fiche : remontée souvent mais jamais lue = peu utile ;
-jamais remontée ni lue depuis longtemps = poids mort (candidate archivage).
+state/read_log.jsonl. Cross-referenced with recall_log.jsonl (what was surfaced), it gives
+the real USEFULNESS of each note: surfaced often but never read = of little use;
+never surfaced nor read for a long time = dead weight (an archiving candidate).
 
-Signal fondé sur l'usage RÉEL, pas l'introspection. Sort toujours 0.
+A signal grounded in REAL usage, not introspection. Always exits 0.
 """
 import sys, os, json, time
 

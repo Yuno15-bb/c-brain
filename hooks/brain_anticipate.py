@@ -2,8 +2,8 @@
 """brain_anticipate — proactif (Volet 2 · Horizon 4) : le cerveau devance le besoin.
 
 Au lieu d'attendre qu'on l'interroge, il scanne les fiches pour les POINTS DE REPRISE
-(« REPRENDRE ICI », « PROCHAIN », « point de reprise »…) et surface, par récence, là où
-tu en étais et quelle était la prochaine étape — au démarrage de session (hook SessionStart)
+("RESUME HERE", "NEXT", "resume point"…) and surfaces, by recency, where you
+left off and what the next step was — at session start (SessionStart hook)
 ou via `brain next`.
 
 Le cerveau qui tend la fiche AVANT qu'on la cherche. Sort toujours 0.
@@ -12,21 +12,26 @@ import os, re, sys, glob
 
 BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
 SKIP_PARTS = (".git", "node_modules", "capsule", "sessions/archive", "corpus", "audits")
-# marqueurs forts (vrais points de reprise) puis faibles (todo génériques)
-STRONG = re.compile(r"(REPRENDRE ICI|POINT DE REPRISE|À REPRENDRE|REPRENDRE"
+# Strong markers (real resume points) then weak ones (generic todos).
+# BILINGUAL on purpose: these patterns match what YOU wrote in your own notes,
+# not the language of this codebase. Dropping the French forms would silently
+# stop surfacing resume points for anyone writing in French.
+# Add your own language here — it is a plain list of alternatives.
+STRONG = re.compile(r"(RESUME HERE|RESUME POINT|PICK UP HERE|NEXT STEP|LEFT TO DO"
+                    r"|REPRENDRE ICI|POINT DE REPRISE|À REPRENDRE|REPRENDRE"
                     r"|PROCHAINE ÉTAPE|RESTE À FAIRE)", re.I)
-WEAK = re.compile(r"(PROCHAIN[E]?\b|À FAIRE\b|TODO|NEXT)", re.I)
+WEAK = re.compile(r"(TODO|NEXT\b|PROCHAIN[E]?\b|À FAIRE\b)", re.I)
 
 
 def best_marker(text):
-    """Privilégie un marqueur FORT ; à défaut un faible. Prend la DERNIÈRE occurrence
-    (les points de reprise sont en général en fin de fiche)."""
+    """Prefer a STRONG marker; fall back to a weak one. Takes the LAST occurrence
+    (resume points usually sit at the end of a note)."""
     hits = list(STRONG.finditer(text)) or list(WEAK.finditer(text))
     return hits[-1] if hits else None
 
 
 def snippet(text, m):
-    """~160 caractères autour du marqueur, sur une ligne."""
+    """~160 characters around the marker, on a single line."""
     start = text.rfind("\n", 0, m.start()) + 1
     end = text.find("\n", m.end())
     if end == -1:
@@ -40,7 +45,7 @@ def collect():
     for p in glob.glob(os.path.join(BRAIN, "**", "*.md"), recursive=True):
         rel = os.path.relpath(p, BRAIN)
         # skip par SEGMENT de dossier (pas substring : sinon une fiche projet « capsule-… »
-        # serait sautée à tort, ratant son point de reprise). cf. [[scan-skip-par-segment-pas-substring]]
+        # would be wrongly skipped, missing its resume point). Skip by path SEGMENT, not substring.
         if rel == "MEMORY.md" or any(part in rel.split(os.sep) for part in SKIP_PARTS):
             continue
         zone = rel.split(os.sep)[0]
@@ -67,7 +72,7 @@ def main():
     mode_hook = "--hook" in sys.argv
     if mode_hook:
         print("<brain-reprises> Points de reprise en attente (tes fiches projet, "
-              "du plus récent au plus ancien) — propose de continuer si pertinent :")
+              "newest first) — offer to continue if relevant:")
     else:
         print("🧭 Reprises en attente :\n")
     for it in items:

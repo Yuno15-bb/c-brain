@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""inject_recall — hook UserPromptSubmit : rappel automatique de mémoire pertinente.
+"""inject_recall — UserPromptSubmit hook: automatic recall of relevant memory.
 
-À CHAQUE message de l'utilisateur, lance brain_recall sur la demande et injecte en
+On EVERY user message, runs brain_recall on the request and injects the
 contexte les 2-3 fiches du Claude Brain les plus pertinentes (nom + description + chemin).
 → Le bon souvenir remonte tout seul, au bon moment, sans charger tout MEMORY.md.
 
-C'est le payoff du Volet 2 · Horizon 1 : un retriever branché, pas juste une CLI.
+This is what makes it a wired-in retriever rather than just a CLI.
 
 Garde-fous :
-  - n'injecte QUE si la pertinence dépasse un seuil (pas de bruit sur les prompts triviaux),
+  - injects ONLY when relevance crosses a threshold (no noise on trivial prompts),
   - silencieux et non bloquant : sort toujours 0, n'injecte rien en cas de souci,
-  - léger : pointeurs (nom/desc/chemin), pas le contenu intégral → coût en tokens minime.
+  - lightweight: pointers (name/description/path), not full content → minimal token cost.
 """
 import os, sys, json
 
@@ -33,7 +33,7 @@ def main():
         return
     prompt = (data.get("prompt") or data.get("user_prompt") or "").strip()
     if len(prompt) < 8:
-        return  # trop court pour être une vraie requête
+        return  # too short to be a real query
 
     try:
         results = recall.BM25(recall.load_corpus()).search(prompt, TOP_K)
@@ -49,10 +49,10 @@ def main():
         desc = (" — " + d["desc"][:120]) if d["desc"] else ""
         lines.append(f"- {d['name']} ({d['path']}){desc}")
     lines.append("</brain-recall>")
-    # stdout d'un hook UserPromptSubmit = contexte ajouté à la session
+    # a UserPromptSubmit hook's stdout = context added to the session
     print("\n".join(lines))
 
-    # boucle de vérité (H3) : journaliser ce qui a été REMONTÉ (pour mesurer l'utilité)
+    # truth loop: log what was SURFACED (so usefulness can be measured)
     try:
         import time
         sid = data.get("session_id") or ""

@@ -1,33 +1,36 @@
 #!/usr/bin/env python3
-"""brain_doctor — healthcheck d'intégrité du Claude Brain.
+"""brain_doctor — integrity healthcheck of the trunk.
 
-Vérifie, sans rien modifier :
-  1. liens [[x]] morts (en EXCLUANT les exemples de doc et les blocs de code),
-  2. fiches orphelines (jamais ciblées par un lien),
+Checks, without modifying anything:
+  1. dead [[x]] links (EXCLUDING doc examples and code blocks),
+  2. orphan notes (never targeted by a link),
   3. frontmatter complet (name / description / metadata.type) et name == nom de fichier,
   4. convention de nom kebab-case,
-  5. présence dans l'index MEMORY.md,
-  6. drift git (modifs non commitées).
+  5. presence in the MEMORY.md index,
+  6. git drift (uncommitted changes).
 
 Usage :
   brain_doctor.py            → rapport lisible + exit 0 (sain) / 1 (anomalies)
-  brain_doctor.py --json     → écrit state/doctor.json (pour les hooks) + exit code
+  brain_doctor.py --json     → writes state/doctor.json (for the hooks) + exit code
   brain_doctor.py --quiet    → exit code seulement
 """
 import os, re, sys, json, subprocess, glob
 
 BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
 MEMORY = os.path.join(BRAIN, "MEMORY.md")
-LINKED_DIRS = ("projects", "lessons", "life", "meta")           # zones tissées
-# skip cohérent avec brain_recall/brain_embed : segments de DOSSIER (set) + préfixes (startswith).
+LINKED_DIRS = ("projects", "lessons", "life", "meta")           # the woven areas
+# skip logic consistent with brain_recall/brain_embed: FOLDER segments (set) + prefixes (startswith).
 # L'ancien `"sessions/archive" in parts` (token multi-segment vs segment unique) ne matchait JAMAIS
-# → les ~130 notes d'archive + TIMELINE étaient comptées comme « fiches », polluant le compteur et
+# → the archive notes + TIMELINE were being counted as "notes", polluting the counter and
 # la courbe metrics.jsonl. cf. [[scan-skip-par-segment-pas-substring]]
 SKIP_DIRS = {".git", "node_modules", "capsule", "corpus", "audits"}
-SKIP_PREFIX = ("sessions",)   # toute la couche d'archive/timeline (≠ savoir tissé)
-# tokens qui apparaissent comme [[...]] mais sont des EXEMPLES de doc, pas des liens
-EXAMPLE_WHITELIST = {"slug", "nom-du-fichier", "exemples", "lien", "liens",
-                     "...", "name", "class", "defined", "x", "their-name"}
+SKIP_PREFIX = ("sessions",)   # the whole archive/timeline layer (not woven knowledge)
+# tokens that appear as [[...]] but are doc EXAMPLES, not links
+# Bilingual on purpose: these are placeholder link names used in documentation,
+# and users write their notes in their own language.
+EXAMPLE_WHITELIST = {"slug", "name", "link", "links", "another-note", "examples",
+                     "nom-du-fichier", "exemples", "lien", "liens",
+                     "...", "class", "defined", "x", "their-name"}
 INDEX_EXEMPT = {"MEMORY", "README", "TIMELINE"}
 
 
@@ -80,18 +83,18 @@ def main():
     memory = read(MEMORY)
 
     all_links = set()
-    problems = {"liens_morts": [], "orphelins": [], "frontmatter": [],
-                "nommage": [], "hors_index": []}
+    problems = {"dead_links": [], "orphans": [], "frontmatter": [],
+                "naming": [], "off_index": []}
 
     for f in files:
         txt = read(f)
         all_links |= extract_links(txt)
 
-    # 1. liens morts
+    # 1. dead links
     for l in sorted(all_links):
         if l in slugs or l in EXAMPLE_WHITELIST:
             continue
-        problems["liens_morts"].append(l)
+        problems["dead_links"].append(l)
 
     for f in files:
         rel = os.path.relpath(f, BRAIN)
@@ -99,7 +102,7 @@ def main():
         zone = rel.split(os.sep)[0]
         txt = read(f)
 
-        # 3+4. frontmatter & nommage (uniquement zones tissées)
+        # 3+4. front matter & naming (woven areas only)
         if zone in LINKED_DIRS:
             fm = frontmatter(txt)
             if fm is None:
@@ -112,15 +115,15 @@ def main():
                 if not fm.get("description"):
                     problems["frontmatter"].append(f"{rel} : 'description' manquante")
             if not re.fullmatch(r"[a-z0-9-]+", base):
-                problems["nommage"].append(f"{rel} : '{base}' n'est pas en kebab-case")
+                problems["naming"].append(f"{rel} : '{base}' n'est pas en kebab-case")
 
-            # 2. orphelin (jamais ciblé par un lien)
+            # 2. orphan (never targeted by a link)
             if base not in INDEX_EXEMPT and base not in all_links:
-                problems["orphelins"].append(base)
+                problems["orphans"].append(base)
 
-            # 5. présence dans l'index MEMORY.md (par chemin ou par [[name]])
+            # 5. presence in the MEMORY.md index (by path or by [[name]])
             if base not in INDEX_EXEMPT and base not in memory and rel not in memory:
-                problems["hors_index"].append(base)
+                problems["off_index"].append(base)
 
     # 6. drift git
     drift = []
@@ -132,8 +135,8 @@ def main():
         pass
 
     total = sum(len(v) for v in problems.values())
-    report = {"ok": total == 0, "total": total, "fiches": len(files),
-              "liens": len(all_links), "drift_git": len(drift), **problems}
+    report = {"ok": total == 0, "total": total, "notes": len(files),
+              "links": len(all_links), "drift_git": len(drift), **problems}
 
     if "--json" in sys.argv:
         try:
@@ -146,10 +149,10 @@ def main():
         try:
             import time
             lessons = len([f for f in files if os.path.relpath(f, BRAIN).startswith("lessons")])
-            metric = {"ts": int(time.time()), "fiches": len(files), "lecons": lessons,
-                      "liens": len(all_links), "liens_morts": len(problems["liens_morts"]),
-                      "orphelins": len(problems["orphelins"]),
-                      "hors_index": len(problems["hors_index"]), "ok": report["ok"]}
+            metric = {"ts": int(time.time()), "notes": len(files), "lecons": lessons,
+                      "links": len(all_links), "dead_links": len(problems["dead_links"]),
+                      "orphans": len(problems["orphans"]),
+                      "off_index": len(problems["off_index"]), "ok": report["ok"]}
             with open(os.path.join(BRAIN, "state", "metrics.jsonl"), "a", encoding="utf-8") as mf:
                 mf.write(json.dumps(metric, ensure_ascii=False) + "\n")
         except Exception:
@@ -157,16 +160,16 @@ def main():
 
     if "--quiet" not in sys.argv and "--json" not in sys.argv:
         ico = "✅" if report["ok"] else "⚠️"
-        print(f"{ico} brain_doctor — {len(files)} fiches, {len(all_links)} liens, "
-              f"{len(drift)} modif(s) non commitée(s)")
-        labels = {"liens_morts": "Liens morts", "orphelins": "Orphelins",
-                  "frontmatter": "Frontmatter", "nommage": "Nommage",
-                  "hors_index": "Hors index"}
+        print(f"{ico} brain_doctor — {len(files)} notes, {len(all_links)} links, "
+              f"{len(drift)} uncommitted change(s)")
+        labels = {"dead_links": "Liens morts", "orphans": "Orphelins",
+                  "frontmatter": "Frontmatter", "naming": "Nommage",
+                  "off_index": "Hors index"}
         for k, lab in labels.items():
             if problems[k]:
                 print(f"  ⚠️  {lab} ({len(problems[k])}): " + ", ".join(map(str, problems[k][:12])))
         if report["ok"]:
-            print("  Rien à signaler — arbre cohérent.")
+            print("  Nothing to report — the tree is consistent.")
 
     sys.exit(0 if report["ok"] else 1)
 

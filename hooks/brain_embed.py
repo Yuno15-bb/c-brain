@@ -133,7 +133,7 @@ def main():
             print(json.dumps([{"path": m["path"], "name": m["name"], "desc": m["desc"],
                                "score": round(s, 3)} for s, m in res], ensure_ascii=False))
         else:
-            print(f"🔎 (sémantique) Top {len(res)} pour « {q} » :\n")
+            print(f"🔎 (semantic) Top {len(res)} for '{q}':\n")
             for s, m in res:
                 print(f"  [{s:5.3f}] {m['name']}  ({m['path']})")
                 if m["desc"]: print(f"          {m['desc'][:110]}")

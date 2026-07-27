@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""coactivation — la MÉMOIRE DE TRAVAIL du cerveau, rendue calculable (Étage 2).
+"""coactivation — the brain's WORKING MEMORY, made computable.
 
-Étage 1 = la carte par le SENS. Étage 2 = le cerveau qui CONSOMME son propre graphe :
-on regarde ce qui a réellement été activé ENSEMBLE pendant les sessions (pas les liens déclarés).
+One layer maps by MEANING. This layer is the brain CONSUMING its own graph:
+we look at what was actually activated TOGETHER during sessions (not the declared links).
 
 Sources : state/recall_log.jsonl ({ts,sid,path,score}) + state/read_log.jsonl ({ts,sid,path}).
-  • CO-ACTIVATION : deux fiches surgies/lues dans la MÊME session = liées par l'usage (≠ [[lien]] déclaré).
-  • CHALEUR : récence d'activation d'une fiche (décroissance exponentielle) → ce qui est « chaud » maintenant.
+  • CO-ACTIVATION: two notes surfaced/read in the SAME session = linked by usage (not a declared [[link]]).
+  • HEAT: how recently a note was activated (exponential decay) → what is "hot" right now.
 
 Sortie : state/coactivation.json = { heat:{path:0..1}, edges:[[a,b,w],…], hot_session:{sid,paths} }.
-Pur stdlib, déterministe, ne lit QUE les fiches qui sont des nœuds de la planète (distillées) —
+Pure stdlib, deterministic, reads ONLY the notes that are planet nodes (distilled) —
 le corpus froid et les sessions/ sont exclus (ils ne sont pas sur la carte). Sort toujours 0.
 """
 import os, sys, json, time, math
@@ -21,14 +21,14 @@ READ = os.path.join(BRAIN, "state", "read_log.jsonl")
 GRAPH = os.path.join(BRAIN, "planet", "graph.json")
 OUT = os.path.join(BRAIN, "state", "coactivation.json")
 
-TAU_DAYS = 10.0          # demi-vie ~ de la chaleur (récence)
-MAX_SESSION = 25         # une session qui « touche » trop de fiches n'informe pas sur les paires → ignorée
-MIN_EDGE = 2.0           # une paire doit co-survenir dans ≥ ce poids cumulé pour compter
-TOP_EDGES = 120          # garde les liens d'usage les plus forts (lisibilité)
+TAU_DAYS = 10.0          # approximate half-life of heat (recency)
+MAX_SESSION = 25         # a session "touching" too many notes says nothing about pairs → ignored
+MIN_EDGE = 2.0           # a pair must co-occur with at least this cumulative weight to count
+TOP_EDGES = 120          # keep the strongest usage links (readability)
 
 
 def node_paths():
-    """Les fiches qui sont des nœuds de la planète (file → id). Tout le reste est ignoré."""
+    """The notes that are planet nodes (file → id). Everything else is ignored."""
     try:
         g = json.load(open(GRAPH, encoding="utf-8"))
         return {n["file"]: n["id"] for n in g["nodes"]}
@@ -59,7 +59,7 @@ def compute():
     now = time.time()
     tau = TAU_DAYS * 86400.0
 
-    # CHALEUR : somme des activations pondérées par la récence (exp decay)
+    # HEAT: sum of activations weighted by recency (exponential decay)
     heat = defaultdict(float)
     last = defaultdict(float)
     for sid, path, ts in events:
@@ -69,7 +69,7 @@ def compute():
     hmax = max(heat.values()) if heat else 1.0
     heat_n = {p: round(v / hmax, 4) for p, v in heat.items()}
 
-    # CO-ACTIVATION : paires de fiches vues dans la même session, pondérées par la récence de la session
+    # CO-ACTIVATION: pairs of notes seen in the same session, weighted by the session's recency
     by_sid = defaultdict(set)
     sid_ts = defaultdict(float)
     for sid, path, ts in events:
@@ -80,7 +80,7 @@ def compute():
         ps = sorted(paths)
         if len(ps) < 2 or len(ps) > MAX_SESSION:
             continue
-        w = 0.5 + 0.5 * math.exp(-(now - sid_ts[sid]) / tau)   # sessions récentes pèsent plus
+        w = 0.5 + 0.5 * math.exp(-(now - sid_ts[sid]) / tau)   # recent sessions weigh more
         for i in range(len(ps)):
             for j in range(i + 1, len(ps)):
                 pair[(ps[i], ps[j])] += w
@@ -88,7 +88,7 @@ def compute():
     edges.sort(key=lambda e: -e[2])
     edges = edges[:TOP_EDGES]
 
-    # session « chaude » courante = la plus récente avec ≥2 fiches sur la carte
+    # current "hot" session = the most recent one with ≥2 notes on the map
     hot_sid = max(sid_ts, key=sid_ts.get) if sid_ts else None
     hot = {"sid": hot_sid, "paths": sorted(by_sid.get(hot_sid, []))} if hot_sid else {}
 
@@ -108,7 +108,7 @@ def main():
         print("  🔥 plus chaudes :")
         for p, v in top:
             print(f"     {v:.2f}  {os.path.basename(p)[:-3]}")
-        print("  🔗 liens d'usage forts (co-activés, pas forcément liés en [[…]]) :")
+        print("  🔗 strong usage links (co-activated, not necessarily linked with [[…]]):")
         for a, b, w in data["edges"][:8]:
             print(f"     {w:.1f}  {a}  ⟷  {b}")
 

@@ -145,7 +145,7 @@ def build():
     review = {
         "generated_at": time.strftime("%Y-%m-%d %H:%M"),
         "topology_generated_at": topo.get("generated_at"),
-        "n_fiches": topo.get("n_fiches", doctor.get("fiches")),
+        "n_notes": topo.get("n_notes", doctor.get("notes")),
         "n_liens": topo.get("n_liens"),
         # — topology (l'architecte tisse / reclasse) —
         "liens_manquants": topo.get("liens_manquants", []),
@@ -161,10 +161,10 @@ def build():
         "doutes": challenges,
         "recouvrements": coherence,
         # — doctor (défauts ponctuels ; le mécanicien/jardinier répare) —
-        "liens_morts": doctor.get("liens_morts", []),
-        "orphelins": doctor.get("orphelins", []),
-        "hors_index": doctor.get("hors_index", []),
-        "nommage": doctor.get("nommage", []),
+        "dead_links": doctor.get("dead_links", []),
+        "orphans": doctor.get("orphans", []),
+        "off_index": doctor.get("off_index", []),
+        "naming": doctor.get("naming", []),
         "frontmatter": doctor.get("frontmatter", []),
         "drift_git": doctor.get("drift_git"),
         # — contrôles neufs de brain_review —
@@ -182,7 +182,7 @@ def to_markdown(r):
     L = []
     a = L.append
     a(f"# Audit global du tronc — {r['generated_at']}")
-    a(f"\n{r['n_fiches']} fiches · {r['n_liens']} liens · {r['n_composantes']} composante(s)"
+    a(f"\n{r['n_notes']} fiches · {r['n_liens']} liens · {r['n_composantes']} composante(s)"
       f" · topologie mesurée le {r.get('topology_generated_at','?')}\n")
 
     a("## 🔴 À traiter (par ordre d'impact)\n")
@@ -196,9 +196,9 @@ def to_markdown(r):
         ("Recouvrements forts (doublon ?)", "recouvrements", "→ jardinier : dédupe/contradiction"),
         ("Fiches périmées (>3 mois)", "fiches_perimees", "→ archiviste : vérifier fraîcheur"),
         ("Chemins d'infra incohérents", "chemins_incoherents", "→ mécanicien : corriger l'infra"),
-        ("Liens morts", "liens_morts", "→ mécanicien/jardinier"),
-        ("Orphelins (hors carte)", "orphelins", "→ jardinier : indexer"),
-        ("Hors index (MEMORY.md)", "hors_index", "→ jardinier : indexer"),
+        ("Liens morts", "dead_links", "→ mécanicien/jardinier"),
+        ("Orphelins (hors carte)", "orphans", "→ jardinier : indexer"),
+        ("Hors index (MEMORY.md)", "off_index", "→ jardinier : indexer"),
     ]
     for label, key, who in rows:
         n = (r["n_composantes"] - 1 if key is None and r.get("n_composantes") else _n(r.get(key)))

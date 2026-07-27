@@ -40,7 +40,9 @@ DOMAINS = ("projects", "lessons", "meta", "life", "agents")
 
 LINK = re.compile(r"\[\[([^\]]+)\]\]")
 # placeholders de syntaxe présents dans les docs d'agents — jamais de vrais liens
-NOT_A_LINK = {"slug", "lien", "liens", "...", "exemples", "nom-du-fichier", "name"}
+# Bilingual on purpose (see brain_doctor.EXAMPLE_WHITELIST).
+NOT_A_LINK = {"slug", "name", "link", "links", "another-note", "examples", "...",
+              "lien", "liens", "exemples", "nom-du-fichier"}
 
 MISS_MIN = 0.30     # cosinus TF-IDF : au-delà = assez proches pour SE CITER (< 0.45 = seuil doublon)
 MISS_TOP = 25       # nb max de suggestions de liens remontées
@@ -181,7 +183,7 @@ def analyze():
 
     return {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-        "n_fiches": len(fiches), "n_liens": len(edges),
+        "n_notes": len(fiches), "n_liens": len(edges),
         "liens_intra_domaine": intra, "ponts_inter_domaines": cross,
         "domaines": dict(dom_counts),
         "isolees": isolated, "faiblement_liees": weak,
@@ -205,7 +207,7 @@ def main():
         print(json.dumps(data, ensure_ascii=False, indent=2))
         return
     # rapport lisible
-    print(f"🕸️  TOPOLOGIE DU BRAIN — {data['n_fiches']} fiches, {data['n_liens']} liens "
+    print(f"🕸️  TOPOLOGIE DU BRAIN — {data['n_notes']} fiches, {data['n_liens']} liens "
           f"({data['liens_intra_domaine']} internes, {data['ponts_inter_domaines']} ponts inter-domaines)\n")
     if data["isolees"]:
         print(f"🏝️  ISOLÉES ({len(data['isolees'])}) — aucun lien dans tout l'arbre :")

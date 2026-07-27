@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
-"""brain_recall — récupération par pertinence dans le Claude Brain (Volet 2 · Horizon 1).
+"""brain_recall — relevance retrieval inside the trunk.
 
-FONDATION du rappel sémantique : au lieu de charger MEMORY.md en entier à chaque
-session, on récupère le top-k des fiches PERTINENTES pour une requête.
+The FOUNDATION of semantic recall: instead of loading all of MEMORY.md on every
+session, we retrieve the top-k RELEVANT notes for a query.
 
-Backend v0 = BM25 lexical (pur Python, ZÉRO dépendance, ZÉRO API, instantané).
+Default backend = lexical BM25 (pure Python, ZERO dependencies, ZERO API, instant).
 Architecture enfichable : un backend `Embedding` (sentence-transformers local) pourra
-remplacer/compléter BM25 sans toucher l'appelant — c'est l'upgrade « vrai sémantique ».
+replace or complement BM25 without touching the caller — that is the "true semantic" upgrade.
 
 Usage :
   brain_recall.py "rotation main capteur profondeur"        → top-k fiches
-  brain_recall.py -k 8 "facturation coûts IA"
+  brain_recall.py -k 8 "billing AI costs"
   brain_recall.py --json "..."                              → sortie machine
 """
 import os, re, sys, json, math, glob, unicodedata
 from collections import Counter
 
 BRAIN = os.path.realpath(os.path.expanduser("~/claude-brain"))
-# on exclut du recall les couches BRUTES/infra — le recall doit remonter le savoir DISTILLÉ
+# the RAW/infra layers are excluded from recall — recall must surface DISTILLED knowledge
 # (projects/lessons/meta/life/agents), pas l'archive ni le corpus froid des 4 comptes.
 #   • sessions/ : TIMELINE.md = index de 80+ sessions, si long qu'il matche presque tout → bruit.
-#   • corpus/   : couche froide (milliers de conversations importées) → noierait le top-k. cf. carte-vivante
-# Matché par SEGMENTS de dossier (pas en substring : sinon une fiche « capsule-… » ou « …-sessions »
-# serait exclue à tort, comme l'ancien bug). cf. [[bm25-recall-exclure-index-catalogues]]
+#   • corpus/   : the cold layer (thousands of imported conversations) → would drown the top-k.
+# Matched on folder SEGMENTS (not substrings: otherwise a note named "capsule-…" or "…-sessions"
+# would be wrongly excluded, which is exactly the old bug).
 SKIP_DIRS = {".git", "node_modules", "capsule", "corpus", "audits"}
 SKIP_PREFIX = ("sessions",)
 
@@ -41,7 +41,7 @@ le la les un une que qui pour dans sur avec sans est the and for with not are wa
 
 
 def fold(s):
-    """minuscule + sans accents (robustesse FR : 'résumé' ~ 'resume')."""
+    """lowercase + accent-stripped (so 'résumé' matches 'resume')."""
     s = unicodedata.normalize("NFD", s.lower())
     return "".join(c for c in s if unicodedata.category(c) != "Mn")
 
@@ -70,7 +70,7 @@ def load_corpus():
         name = re.search(r"^name:\s*(.+)$", fm.group(1), re.M) if fm else None
         desc = re.search(r'^description:\s*"?(.+?)"?\s*$', fm.group(1), re.M) if fm else None
         body = strip_md(raw)
-        # le titre/description pèsent plus (×3) : signal le plus dense
+        # title/description weigh more (×3): the densest signal
         boosted = ((name.group(1) + " ") * 3 if name else "") + \
                   ((desc.group(1) + " ") * 3 if desc else "") + body
         docs.append({
@@ -83,7 +83,7 @@ def load_corpus():
 
 
 class BM25:
-    """Backend lexical v0 — Okapi BM25. Remplaçable par un backend embeddings."""
+    """Lexical backend — Okapi BM25. Swappable for an embeddings backend."""
     def __init__(self, docs, k1=1.5, b=0.75):
         self.docs, self.k1, self.b = docs, k1, b
         self.N = len(docs)
@@ -116,8 +116,8 @@ class BM25:
 def main():
     args = [a for a in sys.argv[1:]]
 
-    # mode --semantic : délègue au backend embeddings (venv model2vec) s'il est dispo.
-    # Défaut = BM25 (instantané, meilleur que les embeddings statiques à petite échelle).
+    # --semantic mode: delegates to the embeddings backend (venv model2vec) when available.
+    # Default = BM25 (instant, and better than static embeddings at small scale).
     if "--semantic" in args:
         args.remove("--semantic")
         venv_py = os.path.join(BRAIN, ".venv", "bin", "python")
@@ -139,7 +139,7 @@ def main():
             pass
     query = " ".join(args).strip()
     if not query:
-        print('Usage : brain_recall.py [-k N] [--json] "ta requête"'); sys.exit(1)
+        print('Usage: brain_recall.py [-k N] [--json] "your query"'); sys.exit(1)
 
     results = BM25(load_corpus()).search(query, k)
     if as_json:
@@ -149,7 +149,7 @@ def main():
         return
     if not results:
         print(f"Aucune fiche pertinente pour : {query}"); return
-    print(f"🔎 Top {len(results)} pour « {query} » :\n")
+    print(f"🔎 Top {len(results)} for '{query}':\n")
     for s, d in results:
         print(f"  [{s:5.2f}] {d['name']}  ({d['path']})")
         if d["desc"]:
