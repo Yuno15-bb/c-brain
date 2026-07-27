@@ -85,13 +85,18 @@ def load_embed2():
 
 
 def load_coact():
-    """Heat (usage recency) per id + usage links + notes from the CURRENT SESSION. Stdlib."""
+    """Chaleur (récence d'usage) par id + liens d'usage + ACTIVITÉ EN DIRECT — Étage 2. Stdlib.
+
+    `live` = { path: ts } des fiches lues dans la fenêtre glissante (quelques minutes), plus la
+    fenêtre elle-même : le visualizer en a besoin pour éteindre un anneau tout seul, en continu,
+    même si le graphe n'est pas régénéré entre-temps."""
     try:
         c = json.load(open(COACT, encoding="utf-8"))
-        hot = set((c.get("hot_session") or {}).get("paths", []))   # notes activated in the most recent session
-        return c.get("heat_id", {}), c.get("edges", []), hot
+        lv = c.get("live") or {}
+        live = {p: ts for p, ts in lv.get("items", [])}
+        return c.get("heat_id", {}), c.get("edges", []), live, int(lv.get("window_min", 10))
     except Exception:
-        return {}, [], set()
+        return {}, [], {}, 10
 # dossiers de premier niveau = « domaines » (couleurs sur le globe)
 DOMAINS = ["projects", "lessons", "meta", "life", "agents"]
 
@@ -175,11 +180,11 @@ def clean_body(text):
 def scan():
     nodes = {}      # id -> {id, name, domain, group, desc, file}
     raw_links = []  # (src_id, target_name)
-    embed2 = load_embed2()         # semantic positions keyed by note path
-    heat, coact_edges, active = load_coact()   # heat + co-activation links + current session
-    challenges = load_challenges()             # the challenger's verdict per note
-    beliefs = load_beliefs()                   # the author's dated convictions (the taste layer)
-    media = load_media()                       # replayable captures per note
+    embed2 = load_embed2()         # positions sémantiques par chemin de fiche (Étage 1)
+    heat, coact_edges, live, live_window_min = load_coact()   # chaleur + liens d'usage + activité en direct (Étage 2)
+    challenges = load_challenges()             # avis du challenger par fiche (Étage 3)
+    beliefs = load_beliefs()                   # convictions datées de l'auteur du tronc (Étage 3 : couche goût)
+    media = load_media()                       # captures rejouables par fiche (Étage 4)
 
     for domain in DOMAINS:
         root = os.path.join(BRAIN, domain)
@@ -224,12 +229,13 @@ def scan():
                               "born_from": born, "scale": scale,
                               "long": clean_body(text),
                               "embed2": embed2.get(rel_file),   # semantic [x,y] or None
-                              "heat": heat.get(nid, 0.0),        # usage heat 0..1
-                              "active": rel_file in active,      # activated in the current session
-                              "challenge": challenges.get(rel_file),   # the challenger's verdict, or None
-                              "conviction": beliefs.get(rel_file),     # a dated conviction, or None
-                              "media": media.get(rel_file),            # a replayable capture, or None
-                              "resume": bool(RESUME_RE.search(text)),  # carries a resume point (↻ badge)
+                              "heat": heat.get(nid, 0.0),        # usage heat 0..1 (Tier 2)
+                              "active": rel_file in live,        # READ just now (sliding window, Tier 2)
+                              "active_ts": live.get(rel_file),   # timestamp of that read -> fade-out in the visualizer
+                              "challenge": challenges.get(rel_file),   # challenger's verdict (Tier 3) or None
+                              "conviction": beliefs.get(rel_file),     # dated conviction of the trunk author (Tier 3) or None
+                              "media": media.get(rel_file),            # replayable capture (Tier 4) or None
+                              "resume": bool(RESUME_RE.search(text)),  # carries a "resume point" (badge)
                               "file": rel_file}
                 # outgoing links (deduplicated below)
                 for tgt in set(LINK.findall(text)):
@@ -295,6 +301,9 @@ def scan():
                    "active": sum(1 for n in nodes.values() if n.get("active")),
                    "resume": sum(1 for n in nodes.values() if n.get("resume"))},
         "domains": DOMAINS,
+        # fenêtre de l'ACTIVITÉ EN DIRECT (minutes) : le visualizer éteint lui-même un anneau
+        # dont `active_ts` est sorti de la fenêtre, sans attendre une régénération du graphe.
+        "live_window_min": live_window_min,
         "projects": projects,
         "nodes": sorted(nodes.values(), key=lambda n: (n["domain"], n["group"], n["id"])),
         "links": links,

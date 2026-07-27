@@ -68,7 +68,14 @@ SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
 # licence IS; stripping it would make the file meaningless.
 # Every other marker — clients, third parties, secrets, paths — still applies
 # in both: only the owner's name is exempt.
-EXEMPT = {"person — owner": ("docs/", "LICENSE")}
+EXEMPT = {"person — owner": ("docs/", "LICENSE", "NOTICE")}
+
+# The author's name in THIS repository's copyright header is not a leak: it is a
+# deliberate signature, and since the move to Apache 2.0 it appears in LICENSE
+# anyway, where the licence requires it. The pattern is anchored on the EXACT
+# shape of the header — not on the name alone, which stays blocking everywhere
+# else (prose, /Users/... paths, comments).
+COPYRIGHT_HEADER = re.compile(r"Copyright \(c\) 20\d\d [A-Z][a-z]+ [A-Z][a-z]+")
 
 # Strings that look like an email without being one. A CLOSED list of exact
 # literals — never a loosening of the pattern, which would reopen the door.
@@ -141,6 +148,8 @@ def _on_a_copyright_line(text: str, pos: int) -> bool:
 
 
 def scan(label_source, text, compiled, leaks):
+    if label_source.startswith("history:"):
+        text = "\n".join(l for l in text.splitlines() if not COPYRIGHT_HEADER.search(l))
     for label, rx in compiled:
         if exempted(label, label_source):
             continue
