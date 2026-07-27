@@ -55,11 +55,16 @@ case "$cmd" in
     # Mise à jour du MOTEUR uniquement. Le tronc — tes fiches — n'est jamais touché.
     bash "$HOME/.c-brain/engine/cbrain/update.sh" "${@:2}"
     ;;
+  demo)
+    # Trois fiches d'exemple, posées puis retirées à la demande. Un tronc
+    # vide au premier lancement ne montre rien de ce que l'outil sait faire.
+    bash "$HOME/.c-brain/engine/cbrain/demo.sh" "${@:2}"
+    ;;
   version)
     cat "$HOME/.c-brain/VERSION" 2>/dev/null || echo "(version inconnue)"
     ;;
   *)
-    echo "Usage : brain <status|doctor|audit|review|recall|next|coherence|utility|embed|push|metrics|selftest|backup|update|version>"
+    echo "Usage : brain <status|doctor|audit|review|recall|next|coherence|utility|embed|push|metrics|selftest|backup|update|demo|version>"
     echo "        (recall accepte --semantic pour le backend embeddings)"
     exit 1
     ;;

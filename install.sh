@@ -237,6 +237,13 @@ fi
 echo
 echo "✅ C Brain installé."
 echo
+# Proposé en PREMIER, et pas en note de bas de page : un tronc vide au premier
+# lancement ne montre rien de ce que l'outil sait faire. C'est là qu'on décroche.
+echo "   ▸ Ton tronc est vide. Pour voir à quoi ça ressemble en marche :"
+echo "       brain demo                pose 3 fiches d'exemple"
+echo "       brain recall cache        ce que le rappel retrouve"
+echo "       brain demo --remove       les retire, sans laisser de trace"
+echo
 echo "   brain status     où en est le tronc"
 echo "   brain recall <q> chercher dans ta mémoire"
 echo "   brain doctor     santé de l'arbre"

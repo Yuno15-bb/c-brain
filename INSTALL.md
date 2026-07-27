@@ -85,6 +85,24 @@ explicitement. L'installeur le détecte et te le dit — il ne fait pas semblant
 
 ## Premiers gestes
 
+Ton tronc part **vide**, et un tronc vide ne montre rien. Commence par le
+remplir d'exemples, le temps de comprendre la boucle :
+
+```bash
+brain demo                     # pose 3 fiches d'exemple
+brain recall cache déploiement # ce que le rappel retrouve, et pourquoi
+brain demo --remove            # les retire, sans laisser de trace
+```
+
+Les trois fiches montrent les trois types utiles — une **leçon**, une fiche de
+**méthode**, un **point de reprise** de projet — et sont reliées entre elles,
+pour que le graphe ait quelque chose à afficher.
+
+`--remove` ne touche pas à une fiche que tu aurais modifiée : elle a cessé
+d'être un exemple à la première ligne que tu y as écrite.
+
+Ensuite, au quotidien :
+
 ```bash
 brain status          # où en est le tronc
 brain recall <mot>    # chercher dans ta mémoire
@@ -93,8 +111,8 @@ brain selftest        # revérifier l'installation
 ```
 
 Puis ouvre `~/.c-brain/trunk/MEMORY.md` : c'est l'index chargé au début de chaque
-session, et le format des fiches y est expliqué. Ton arbre part vide — il grandit
-avec le travail, pas avant.
+session, et le format des fiches y est expliqué. Ton arbre grandit avec le
+travail, pas avant.
 
 ## Désinstaller
 
