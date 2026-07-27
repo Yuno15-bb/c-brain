@@ -239,6 +239,13 @@ fi
 echo
 echo "✅ C Brain installed."
 echo
+# Offered FIRST, not as a footnote: an empty trunk on first launch shows nothing
+# of what the tool can do. That is the screen where people give up.
+echo "   ▸ Your trunk is empty. To see it working:"
+echo "       brain demo                place 3 example notes"
+echo "       brain recall cache        what recall finds"
+echo "       brain demo --remove       take them away, leaving no trace"
+echo
 echo "   brain status     where the trunk stands"
 echo "   brain recall <q> search your memory"
 echo "   brain doctor     tree health"

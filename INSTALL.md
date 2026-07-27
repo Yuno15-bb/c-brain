@@ -70,6 +70,24 @@ The installer detects this and tells you — it does not pretend.
 
 ## First steps
 
+Your trunk starts **empty**, and an empty trunk shows nothing. Fill it with
+examples first, long enough to understand the loop:
+
+```bash
+brain demo                # place 3 example notes
+brain recall cache deploy # what recall finds, and why
+brain demo --remove       # take them away, leaving no trace
+```
+
+The three notes cover the three useful types — a **lesson**, a **method** note,
+a project **resume point** — and they link to each other, so the graph has
+something to show.
+
+`--remove` will not touch a note you have edited: it stopped being an example
+the moment you wrote your first line in it.
+
+Then, day to day:
+
 ```bash
 brain status          where the trunk stands
 brain recall <word>   search your memory
@@ -78,8 +96,8 @@ brain selftest        verify the installation
 ```
 
 Then open `~/.c-brain/trunk/MEMORY.md`: it is the index loaded at the start of every
-session, and it explains the note format. Your tree starts empty — it grows with
-the work, not before.
+session, and it explains the note format. Your tree grows with the work, not
+before.
 
 ## Uninstalling
 

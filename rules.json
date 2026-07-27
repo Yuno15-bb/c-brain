@@ -65,8 +65,8 @@
       "id": "cli-commande-update",
       "file": "brain",
       "pattern": "  \\*\\)\\n    echo \"Usage : brain <status\\|doctor\\|audit\\|review\\|recall\\|next\\|coherence\\|utility\\|embed\\|push\\|metrics\\|selftest\\|backup>\"",
-      "why": "`brain update` n'existe que dans C Brain : sur la machine d'origine il n'aurait aucun sens (elle EST la source). Injecté par règle et non écrit à la main, sinon le prochain sync.sh l'effacerait.",
-      "replace": "  update)\n    # Mise à jour du MOTEUR uniquement. Le tronc — tes fiches — n'est jamais touché.\n    bash \"$HOME/.c-brain/engine/cbrain/update.sh\" \"${@:2}\"\n    ;;\n  version)\n    cat \"$HOME/.c-brain/VERSION\" 2>/dev/null || echo \"(version inconnue)\"\n    ;;\n  *)\n    echo \"Usage : brain <status|doctor|audit|review|recall|next|coherence|utility|embed|push|metrics|selftest|backup|update|version>\""
+      "why": "`brain update`, `brain demo` and `brain version` exist only in C Brain: on the original machine they would make no sense (it IS the source). Injected by rule rather than hand-written, otherwise the next sync.sh would wipe them.",
+      "replace": "  update)\n    # Mise à jour du MOTEUR uniquement. Le tronc — tes fiches — n'est jamais touché.\n    bash \"$HOME/.c-brain/engine/cbrain/update.sh\" \"${@:2}\"\n    ;;\n  demo)\n    # Trois fiches d'exemple, posées puis retirées à la demande. Un tronc\n    # vide au premier lancement ne montre rien de ce que l'outil sait faire.\n    bash \"$HOME/.c-brain/engine/cbrain/demo.sh\" \"${@:2}\"\n    ;;\n  version)\n    cat \"$HOME/.c-brain/VERSION\" 2>/dev/null || echo \"(version inconnue)\"\n    ;;\n  *)\n    echo \"Usage : brain <status|doctor|audit|review|recall|next|coherence|utility|embed|push|metrics|selftest|backup|update|demo|version>\""
     },
     {
       "id": "detecteur-home-perime",

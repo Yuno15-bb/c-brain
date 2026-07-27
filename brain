@@ -55,12 +55,17 @@ case "$cmd" in
     # Updates the ENGINE only. The trunk — your notes — is never touched.
     bash "$HOME/.c-brain/engine/cbrain/update.sh" "${@:2}"
     ;;
+  demo)
+    # Three example notes, placed and taken away on demand. An empty trunk on
+    # first launch shows nothing of what the tool can do.
+    bash "$HOME/.c-brain/engine/cbrain/demo.sh" "${@:2}"
+    ;;
   version)
-    cat "$HOME/.c-brain/VERSION" 2>/dev/null || echo "(version inconnue)"
+    cat "$HOME/.c-brain/VERSION" 2>/dev/null || echo "(unknown version)"
     ;;
   *)
-    echo "Usage : brain <status|doctor|audit|review|recall|next|coherence|utility|embed|push|metrics|selftest|backup|update|version>"
-    echo "        (recall accepte --semantic pour le backend embeddings)"
+    echo "Usage: brain <status|doctor|audit|review|recall|next|coherence|utility|embed|push|metrics|selftest|backup|update|demo|version>"
+    echo "       (recall accepts --semantic for the embeddings backend)"
     exit 1
     ;;
 esac
