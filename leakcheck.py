@@ -81,6 +81,25 @@ def exempted(label: str, source: str) -> bool:
     return any(src.startswith(p) for p in EXEMPT.get(label, ()))
 
 
+def strip_diff_metadata(diff_text: str) -> str:
+    """Drop git's own plumbing lines from a diff before scanning.
+
+    They are structure, not content — and they produce real false positives:
+    a blob-hash header like `index e855c2a..8ef0920 100644` matches the French
+    phone-number pattern and blocked a publish. Filtering the metadata is
+    correct; loosening the phone pattern would not be.
+    """
+    keep = []
+    for line in diff_text.split("\n"):
+        if line.startswith(("diff --git ", "index ", "--- ", "+++ ", "@@ ",
+                            "new file mode ", "deleted file mode ",
+                            "similarity index ", "rename from ", "rename to ",
+                            "old mode ", "new mode ", "Binary files ")):
+            continue
+        keep.append(line)
+    return "\n".join(keep)
+
+
 def is_text(path: Path) -> bool:
     try:
         return b"\0" not in path.read_bytes()[:2048]
@@ -151,7 +170,7 @@ def main():
                 continue
             if d:
                 n_hist += 1
-                scan(f"history:{rel}", d, compiled, leaks)
+                scan(f"history:{rel}", strip_diff_metadata(d), compiled, leaks)
         if n_hist:
             scanned += f" + history of {n_hist} file(s)"
 
