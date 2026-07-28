@@ -61,6 +61,32 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
   exit 1
 fi
 
+# The plugin manifest carries an explicit version, and Claude Code will NOT
+# hand users an update until that string changes — pushing commits alone does
+# nothing. Leaving it to a human is the same class of gesture as translating,
+# and we already know how that ends. So the tag writes it, here, once.
+PLUGIN_MANIFEST=".claude-plugin/plugin.json"
+if [ -f "$PLUGIN_MANIFEST" ]; then
+  python3 - "$PLUGIN_MANIFEST" "${TAG#v}" <<'PYEOF'
+import json, re, sys
+path, version = sys.argv[1], sys.argv[2].removesuffix("-fr")
+raw = open(path, encoding="utf-8").read()
+# A targeted substitution, not a re-dump: json.dump would reflow the whole file
+# and turn every release into a diff nobody can read.
+new = re.sub(r'("version"\s*:\s*)"[^"]*"', lambda m: m.group(1) + '"%s"' % version, raw, count=1)
+if new != raw:
+    open(path, "w", encoding="utf-8").write(new)
+    print("  plugin.json version → %s" % version)
+else:
+    print("  plugin.json already at %s" % version)
+PYEOF
+  if ! git diff --quiet -- "$PLUGIN_MANIFEST"; then
+    git add "$PLUGIN_MANIFEST"
+    git commit -q -m "Plugin manifest: version $TAG"
+    echo "  committed the version bump"
+  fi
+fi
+
 # The CURRENT branch, never a hardcoded `main` — BRANCH is already resolved at
 # the top of this script. Hardcoding it meant a publish from `fr` pushed the tag
 # and an already up-to-date main branch, while the French commits never left.

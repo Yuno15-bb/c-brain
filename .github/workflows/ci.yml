@@ -44,6 +44,17 @@ jobs:
         with: { python-version: '3.12' }
       - run: python3 tests/english_only.py
 
+  plugin:
+    name: plugin manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # the version gate compares against the tags
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python3 tests/plugin_manifest.py
+
   install:
     name: install · selftest · uninstall
     runs-on: macos-latest

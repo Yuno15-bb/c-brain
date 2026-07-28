@@ -36,7 +36,21 @@ conversation history, which only gets longer.
 
 ## Install
 
-Paste this into your CLI:
+**As a Claude Code plugin** — the short way, and the one that updates itself:
+
+```
+/plugin marketplace add Yuno15-bb/c-brain
+/plugin install c-brain@c-brain
+```
+
+That gives you the whole memory: the trunk, automatic recall, the eight agents
+and the `brain` command. It creates `~/.c-brain/trunk` on your first session and
+tells you so. It does **not** set up the capsule, the planet or the scheduled
+jobs — a plugin cannot install a background service, and pretending otherwise
+would leave you with a window that never opens.
+
+**The full install** — everything above, plus the capsule, the planet and the
+unattended maintenance:
 
 ```
 Install C Brain: clone https://github.com/Yuno15-bb/c-brain into ~/dev/c-brain, read its INSTALL.md,
