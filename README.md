@@ -57,6 +57,14 @@ Details, prerequisites and uninstall: **[INSTALL.md](INSTALL.md)**.
 The two never mix. That is what lets an update land with zero risk to your work —
 and lets `uninstall.sh` remove everything while leaving your knowledge intact.
 
+Both live behind a leading dot, out of the way. Your notes should not: the
+install puts a **`C Brain` shortcut in your home folder**, tagged, so the one
+part that is yours is the one part you can see.
+
+<p align="center">
+  <img src="docs/media/where-it-lands.png" alt="A home folder in Finder: the usual Applications, Desktop, Documents, Downloads, Movies, Music and Pictures — plus a red-tagged C Brain folder, with an arrow pointing at it" width="900">
+</p>
+
 ## What it does not do
 
 - **It sends nothing.** No telemetry, no network call beyond `git pull`.
