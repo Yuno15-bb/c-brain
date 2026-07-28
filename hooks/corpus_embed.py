@@ -129,7 +129,7 @@ def cmd_query(k, q):
 def build(a):
     files = sorted(glob.glob(os.path.join(COLD, "**", "*.md"), recursive=True))
     if not files:
-        print("Aucune conversation froide — lance d'abord corpus_import.py", file=sys.stderr); sys.exit(0)
+        print("No cold conversation — run corpus_import.py first", file=sys.stderr); sys.exit(0)
 
     rels, sources, titles, texts, tokens = [], [], [], [], []
     from collections import Counter

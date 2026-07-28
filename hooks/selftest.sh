@@ -24,8 +24,8 @@ node --check capsule/main.js 2>/dev/null && ok "node --check main.js" || ko "nod
 # claude agent (token spend + race risk). A test must never mutate real state.
 CLAUDE_BRAIN_GARDENING=1 bash -c "echo '{}' | python3 hooks/auto_maintain.py"; [ $? -eq 0 ] && ok "auto_maintain exit 0 (empty input, no side effects)" || ko "auto_maintain"
 
-# 4. PostToolUse : on_fiche_write doit sortir 0 sur cible hors-tronc
-echo '{"tool_input":{"file_path":"/tmp/horstronc.md"}}' | python3 hooks/on_fiche_write.py; [ $? -eq 0 ] && ok "on_fiche_write exit 0 (hors-tronc)" || ko "on_fiche_write"
+# 4. PostToolUse: on_fiche_write must exit 0 on a target outside the trunk
+echo '{"tool_input":{"file_path":"/tmp/horstronc.md"}}' | python3 hooks/on_fiche_write.py; [ $? -eq 0 ] && ok "on_fiche_write exit 0 (outside the trunk)" || ko "on_fiche_write"
 
 # 5. brain_guard: interpreting a 429 must return 7 (a handled failure, not 0)
 tmp=$(mktemp); echo '{"is_error":true,"api_error_status":429,"result":"limit resets 2:50pm"}' > "$tmp"
@@ -50,8 +50,8 @@ except Exception: pass
 PY
 rm -f "$tmp"
 
-# 6. doctor doit tourner (0 sain / 1 anomalies) sans crasher
-python3 hooks/brain_doctor.py --quiet; rc=$?; { [ $rc -eq 0 ] || [ $rc -eq 1 ]; } && ok "brain_doctor tourne (rc=$rc)" || ko "brain_doctor crash"
+# 6. doctor must run (0 healthy / 1 anomalies) without crashing
+python3 hooks/brain_doctor.py --quiet; rc=$?; { [ $rc -eq 0 ] || [ $rc -eq 1 ]; } && ok "brain_doctor runs (rc=$rc)" || ko "brain_doctor crash"
 
 # 7. INVARIANTS — doc↔code relations, sensors that come back down, legacy tolerance.
 #    Each past bug is engraved there as a relation, not as a special case.

@@ -8,7 +8,7 @@ cd "$BRAIN"
 cmd="${1:-status}"
 case "$cmd" in
   status)
-    python3 hooks/brain_status.py show 2>/dev/null || cat state/status.json 2>/dev/null || echo "(pas de statut)"
+    python3 hooks/brain_status.py show 2>/dev/null || cat state/status.json 2>/dev/null || echo "(no status)"
     ;;
   doctor)
     python3 hooks/brain_doctor.py "${@:2}"
@@ -37,7 +37,7 @@ case "$cmd" in
     ;;
   coherence)
     # heavily overlapping note pairs awaiting the gardener's arbitration
-    if [ -f state/coherence.json ]; then python3 -m json.tool state/coherence.json; else echo "✅ aucune paire en attente"; fi
+    if [ -f state/coherence.json ]; then python3 -m json.tool state/coherence.json; else echo "✅ no pending pair"; fi
     ;;
   metrics)
     # latest trends (last 10 readings)

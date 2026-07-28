@@ -10,6 +10,11 @@ project.
 The more work piles up, the more useful the tree gets. That is the opposite of a
 conversation history, which only gets longer.
 
+<p align="center">
+  <img src="docs/media/capsule.gif" alt="The capsule: a small window showing the agents at work — distilling, gardening, committing, then back to idle" width="190">
+</p>
+<p align="center"><sub>The capsule, at its real size: the agents at work, live.</sub></p>
+
 ---
 
 ## What it actually does
@@ -57,7 +62,22 @@ and lets `uninstall.sh` remove everything while leaving your knowledge intact.
   [`skills/README.md`](skills/README.md) for the reasoning: we pass on the
   method, not somebody else's lived experience.
 
+## The planet
+
+Every note is a dot, every `[[link]]` an arc. The globe is rebuilt from your
+trunk on each launch — projects become cities, cross-cutting lessons become
+regions.
+
+<p align="center">
+  <img src="docs/media/planet.png" alt="The knowledge planet: a dark 3D globe, notes as coloured dots grouped into regions, links drawn as arcs" width="900">
+</p>
+<p align="center"><sub>A demo trunk of 57 notes and 178 links. Yours starts empty.</sub></p>
+
 ## Commands
+
+<p align="center">
+  <img src="docs/media/recall.png" alt="Terminal: brain demo places three notes, brain recall ranks them by relevance, brain demo --remove takes them away" width="820">
+</p>
 
 ```bash
 brain status          where the trunk stands
