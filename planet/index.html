@@ -520,7 +520,7 @@ function showPanel(mesh, expanded){
   tip.querySelector('.mem').innerHTML=memLine(n);
   // the challenger's verdict: the map gives its opinion on this note
   const chEl=tip.querySelector('.ch');
-  if(n.challenge){ chEl.textContent='⚠ avis du challenger — '+n.challenge; chEl.classList.add('show'); }
+  if(n.challenge){ chEl.textContent='⚠ challenger\'s verdict — '+n.challenge; chEl.classList.add('show'); }
   else { chEl.classList.remove('show'); chEl.textContent=''; }
   const cvEl=tip.querySelector('.cv');
   if(n.conviction){ cvEl.textContent='✦ conviction — '+n.conviction; cvEl.classList.add('show'); }

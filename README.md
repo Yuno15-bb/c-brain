@@ -11,9 +11,9 @@ The more work piles up, the more useful the tree gets. That is the opposite of a
 conversation history, which only gets longer.
 
 <p align="center">
-  <img src="docs/media/capsule.gif" alt="The capsule: a small window showing the agents at work — distilling, gardening, committing, then back to idle" width="190">
+  <img src="docs/media/capsule.webp" alt="The capsule: a small window cycling through every agent state — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing, then back to idle" width="190">
 </p>
-<p align="center"><sub>The capsule, at its real size: the agents at work, live.</sub></p>
+<p align="center"><sub>The capsule, at its real size — all eleven states it can show you, then idle.</sub></p>
 
 ---
 
@@ -68,8 +68,12 @@ Every note is a dot, every `[[link]]` an arc. The globe is rebuilt from your
 trunk on each launch — projects become cities, cross-cutting lessons become
 regions.
 
+Turn the globe, point at a note: its links light up, and the panel gives you its
+region, its neighbours, its description and the file it lives in — one
+double-click away from the note itself.
+
 <p align="center">
-  <img src="docs/media/planet.png" alt="The knowledge planet: a dark 3D globe, notes as coloured dots grouped into regions, links drawn as arcs" width="900">
+  <img src="docs/media/planet.webp" alt="The knowledge planet: the globe turns, the cursor lands on a note, its linked arcs light up and a panel opens showing the note's region, its seven connections, its description and its file path" width="900">
 </p>
 <p align="center"><sub>A demo trunk of 57 notes and 178 links. Yours starts empty.</sub></p>
 
