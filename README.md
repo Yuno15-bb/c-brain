@@ -1,5 +1,10 @@
 # C Brain
 
+[![CI](https://github.com/Yuno15-bb/c-brain/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Yuno15-bb/c-brain/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Yuno15-bb/c-brain?sort=semver&color=6b8afd)](https://github.com/Yuno15-bb/c-brain/releases/latest)
+[![Licence](https://img.shields.io/github/license/Yuno15-bb/c-brain?color=8a8f98)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS-8a8f98)](#compatibility)
+
 **A memory that grows** for command-line agents.
 
 Your CLI agent is brilliant within a session, and amnesic between two. C Brain
@@ -121,6 +126,11 @@ source the engine is extracted from, and English is derived from it. See
 - `sync.sh` + `rules.json` + `leakcheck.py` — the chain that extracts this engine
   from a real, personal Brain without letting a single line of lived experience
   escape.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — how the two branches relate, and why a
+  hand-edited engine file on `fr` disappears on the next sync.
+- [`SECURITY.md`](SECURITY.md) — what this writes to your machine, what runs
+  unattended, and how to report a hole privately.
+- [`CHANGELOG.md`](CHANGELOG.md) — generated from the tags, so it cannot drift.
 
 ## Licence
 
