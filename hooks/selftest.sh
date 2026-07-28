@@ -8,7 +8,7 @@ fail=0
 ok()   { echo "  ✅ $1"; }
 ko()   { echo "  ❌ $1"; fail=1; }
 
-echo "== selftest des hooks du C Brain =="
+echo "== C Brain — hook selftest =="
 
 # 1. compilation Python
 for f in hooks/*.py; do

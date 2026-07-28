@@ -68,7 +68,12 @@ SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
 # licence IS; stripping it would make the file meaningless.
 # Every other marker — clients, third parties, secrets, paths — still applies
 # in both: only the owner's name is exempt.
-EXEMPT = {"person — owner": ("docs/", "LICENSE", "NOTICE")}
+# `.claude-plugin/` joins them for the same reason as LICENSE: the plugin and
+# marketplace manifests have `author` / `owner` fields, Claude Code shows them
+# to whoever installs the plugin, and a catalogue entry with no maintainer is
+# not a thing anyone should publish. Same rule as always — only the OWNER's
+# name is exempt there; a client name or a key in those files still turns red.
+EXEMPT = {"person — owner": ("docs/", "LICENSE", "NOTICE", ".claude-plugin/")}
 
 # The author's name in THIS repository's copyright header is not a leak: it is a
 # deliberate signature, and since the move to Apache 2.0 it appears in LICENSE
