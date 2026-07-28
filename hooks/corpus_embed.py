@@ -41,6 +41,7 @@ do does did not no yes can could would should will just like get got make made h
 who which there here then than so up out about into over also their our""".split())
 # Accented letters are part of the class on purpose: without them, "problème"
 # would tokenize as "probl" + "me" and every French term would be shredded.
+# i18n-ok: this class describes the USER's words, not this codebase.
 WORD = re.compile(r"[a-zàâäéèêëïîôöùûüç]{3,}", re.I)
 
 

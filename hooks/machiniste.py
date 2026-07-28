@@ -272,7 +272,7 @@ def find_reportable(procs, mem, cpu):
                        "msg": f"{mem['swap_mb']} MB of swap — the machine is writing to the SSD"})
     if cpu["load15"] > cpu["ncpu"]:
         alerts.append({"niveau": "warn", "sujet": "charge",
-                       "msg": f"charge 15 min {cpu['load15']} > {cpu['ncpu']} cœurs — file d'attente"})
+                       "msg": f"15-min load {cpu['load15']} > {cpu['ncpu']} cores — work is queuing"})
     if cpu["uptime_days"] > 5:
         alerts.append({"niveau": "info", "sujet": "uptime",
                        "msg": f"{cpu['uptime_days']} days without a reboot — "
