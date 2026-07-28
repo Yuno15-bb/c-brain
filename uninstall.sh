@@ -30,7 +30,7 @@ echo
 echo "  Will be removed:"
 echo "    · the C Brain hooks from ~/.claude/settings.json (the rest untouched)"
 echo "    · the engine links inside $TRUNK (hooks, agents, capsule, planet, companion, tests)"
-echo "    · ~/.local/bin/brain, the Desktop launcher, the launchd jobs"
+echo "    · ~/.local/bin/brain, the Desktop launcher, the Finder shortcut, the launchd jobs"
 echo
 echo "  Will be KEPT:"
 echo "    · $TRUNK and ALL your notes"
@@ -82,6 +82,17 @@ done
 echo
 echo "▸ Odds and ends"
 [ -f "$HOME/Desktop/Planete-C-Brain.command" ] && { rm -f "$HOME/Desktop/Planete-C-Brain.command"; say "- Desktop launcher"; }
+
+# The Finder shortcut: a symlink we made, removed only if it still points at
+# the trunk. If the user re-aimed it somewhere, it stopped being ours.
+SHORTCUT="$HOME/C Brain"
+if [ -L "$SHORTCUT" ] && [ "$(readlink "$SHORTCUT")" = "$TRUNK" ]; then
+  rm -f "$SHORTCUT"; say "- $SHORTCUT"
+elif [ -e "$SHORTCUT" ]; then
+  say "! $SHORTCUT is not our shortcut — left in place"
+fi
+# …and the tag we put on the folder. Cosmetic, but we added it, so we take it back.
+xattr -d com.apple.metadata:_kMDItemUserTags "$TRUNK" 2>/dev/null && say "- Finder tag on the trunk" || true
 
 # Deterministic rule: if the file is IDENTICAL to the engine's, it is ours →
 # remove it. If it differs, it is the user's (pre-existing or since edited) →

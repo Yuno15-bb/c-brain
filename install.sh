@@ -12,7 +12,7 @@
 #   ~/.c-brain/engine  → link to THIS repo (the ENGINE: code, nothing else)
 #   ~/.c-brain/trunk     → YOUR trunk (your notes). Never overwritten, never updated.
 #
-# Usage: ./install.sh [--no-launchd] [--no-capsule] [--dry-run]
+# Usage: ./install.sh [--no-launchd] [--no-capsule] [--no-shortcut] [--dry-run]
 set -euo pipefail
 
 ENGINE="$(cd "$(dirname "$0")" && pwd -P)"
@@ -22,11 +22,12 @@ TS="$(date +%Y%m%d-%H%M%S)"
 BACKUPS="$CB/backups/$TS"
 MANIFEST="$CB/manifest.txt"
 
-DO_LAUNCHD=1; DO_CAPSULE=1; DRY=0
+DO_LAUNCHD=1; DO_CAPSULE=1; DO_SHORTCUT=1; DRY=0
 for a in "$@"; do
   case "$a" in
     --no-launchd) DO_LAUNCHD=0 ;;
     --no-capsule) DO_CAPSULE=0 ;;
+    --no-shortcut) DO_SHORTCUT=0 ;;
     --dry-run)    DRY=1 ;;
     *) echo "Unknown option: $a"; exit 1 ;;
   esac
@@ -222,7 +223,41 @@ else
   warn "  $TRUNK/planet/launch.sh"
 fi
 
-# ─── 10. Verification ─────────────────────────────────────────────────────
+# ─── 10. Making the trunk findable ────────────────────────────────────────
+# The trunk lives at ~/.c-brain/trunk. The leading dot keeps the plumbing out
+# of the way — and hides the one part of this that is YOURS. A new user gets a
+# memory they cannot see, in a folder Finder refuses to show. So we put a
+# visible door on it.
+#
+# NOT the Finder sidebar: it is stored in a binary .sfl4 plist with no
+# supported API, and the only way in is a third-party binary. Adding a
+# dependency to place an icon is not a trade worth making — dragging the folder
+# into Favourites takes the user two seconds, and we say so below.
+step "Making your memory findable"
+SHORTCUT="$HOME/C Brain"
+if [ "$DO_SHORTCUT" = "0" ]; then say "(skipped — --no-shortcut)"
+elif [ "$DRY" = "1" ]; then say "(dry-run) would create $SHORTCUT and tag the trunk"
+else
+  if [ -L "$SHORTCUT" ] && [ "$(readlink "$SHORTCUT")" = "$TRUNK" ]; then
+    say "= $SHORTCUT (already there)"
+  elif [ -e "$SHORTCUT" ]; then
+    warn "$SHORTCUT exists and is not our shortcut — left alone"
+  else
+    ln -s "$TRUNK" "$SHORTCUT"
+    note shortcut "$SHORTCUT"
+    say "+ $SHORTCUT → your notes, visible in Finder"
+  fi
+  # A Finder tag, so the folder is recognisable at a glance among thirty others.
+  python3 - "$TRUNK" <<'PY' 2>/dev/null || true
+import plistlib, subprocess, sys
+blob = plistlib.dumps(["C Brain\n6"], fmt=plistlib.FMT_BINARY)   # 6 = red
+subprocess.run(["xattr", "-w", "-x", "com.apple.metadata:_kMDItemUserTags",
+                blob.hex(), sys.argv[1]], check=True)
+PY
+  say "  Tip: drag it into the Finder sidebar once — it stays there."
+fi
+
+# ─── 11. Verification ─────────────────────────────────────────────────────
 step "Verification"
 if [ "$DRY" = "1" ]; then say "(dry-run) would run the selftest"
 else

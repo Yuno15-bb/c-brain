@@ -6,7 +6,8 @@ Worth stating plainly, because it is the honest basis for judging risk:
 
 - **It writes inside `$HOME`.** `~/.c-brain/` (engine and trunk), `~/.claude/`
   (settings merge, status line), `~/Library/LaunchAgents/com.claudebrain.*`
-  (scheduled jobs), and a launcher on the Desktop. `install.sh` records every
+  (scheduled jobs), a launcher on the Desktop, and a `C Brain` shortcut in your
+  home folder pointing at your trunk (`--no-shortcut` skips it). `install.sh` records every
   one of them in a manifest, and `uninstall.sh` undoes them.
 - **It runs code on your machine automatically.** That is the point: hooks fire
   on your CLI agent's events, and two `launchd` jobs run on a timer. Install

@@ -79,6 +79,9 @@ jobs:
           HOME="$H" brain doctor
           # …and prove the merge actually happened, so the rest is not vacuous.
           grep -q hooks "$H/.claude/settings.json" || { echo "❌ settings.json was never merged"; exit 1; }
+          # The visible door on a hidden folder: if it stops being created, a
+          # user gets a memory they cannot find, and nothing else would notice.
+          [ -L "$H/C Brain" ] || { echo "❌ the Finder shortcut was not created"; exit 1; }
 
       - name: install is idempotent
         run: |
@@ -120,6 +123,8 @@ jobs:
               sys.exit(1)
           print("✅ settings.json restored, key for key")
           PY
+          if [ -e "$H/C Brain" ]; then echo "❌ the Finder shortcut survived uninstall"; exit 1; fi
+          echo "✅ shortcut removed"
           # The trunk is the user's; uninstall must never take it.
           [ -d "$H/.c-brain/trunk" ] || { echo "❌ uninstall removed the trunk"; exit 1; }
           echo "✅ trunk still there"

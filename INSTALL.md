@@ -20,7 +20,8 @@ cd ~/dev/c-brain
 ```
 
 Options: `--dry-run` (writes nothing, shows what would happen) ·
-`--no-launchd` (no scheduled jobs) · `--no-capsule` (no Electron).
+`--no-launchd` (no scheduled jobs) · `--no-capsule` (no Electron) · `--no-shortcut`
+(no `C Brain` shortcut in your home folder).
 
 ---
 
