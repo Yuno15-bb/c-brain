@@ -1,6 +1,16 @@
-# `skills/` — volontairement vide
+# `skills/` — trois qui pilotent l'outil, aucun qui porte du savoir
 
-C Brain ne livre **aucun skill**, par décision explicite.
+Il y a ici deux sortes de skills, et c'est pour empêcher de les confondre que
+ce fichier existe.
+
+**Les skills qui pilotent C Brain** — `recall`, `distill`, `doctor` — sont
+livrés avec lui. Ils sont la surface du produit, exactement la même catégorie
+que la commande `brain` : ils manœuvrent l'outil et ne savent rien de toi. Sans
+eux, installer le plugin donne à l'utilisateur des hooks qu'il ne voit pas et
+aucune commande qu'il puisse taper.
+
+**Les skills qui portent une méthode de travail** ne sont livrés avec rien, par
+décision explicite. C'est de ça que parle la suite de ce fichier.
 
 Un skill encode une méthode de travail : il cite tes clients, tes projets, ton
 cadre, tes exemples de dosage. C'est ce qui le rend bon chez son auteur, et
@@ -10,8 +20,16 @@ Aucun n'était transférable tel quel.
 
 Ce qui se transmet, ce n'est pas le skill. C'est **le standard qui le fabrique**.
 
-Ce dossier est le tien. Forge tes skills ici : Claude Code lit
-`~/.claude/skills/`, et l'installeur y branche ce dossier.
+**Forge tes skills dans `~/.claude/skills/`** — c'est le dossier que Claude
+Code lit, et il t'appartient plutôt qu'à un outil.
+
+> ⚠ Une version précédente de ce fichier disait « l'installeur y branche ce
+> dossier ». C'est faux, et ça l'a toujours été : `install.sh` ne contient
+> aucune référence à `skills/`. Qui suivait cette phrase forgeait ses skills
+> dans le moteur, où rien ne les lit — ni erreur, ni avertissement, juste un
+> skill qui ne se déclenche jamais. L'instruction est corrigée plus haut plutôt
+> qu'effacée, parce que ce no-op silencieux est le mode de panne que ce projet
+> doit sans cesse renommer.
 
 ---
 

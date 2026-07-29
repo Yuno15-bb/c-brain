@@ -8,24 +8,22 @@
 > 🇫🇷 Ceci est la **branche française**. La version anglaise, celle que tout le
 > monde installe par défaut, est sur [`main`](https://github.com/Yuno15-bb/c-brain).
 
-**Une mémoire qui grandit** pour les agents en ligne de commande.
+**C Brain transforme chaque session avec ton agent CLI en mémoire réutilisable —
+distillée en fiche, rangée, reliée, et rendue automatiquement la fois où ça
+compte. Depuis n'importe quel projet, et sans quitter ta machine.**
 
-Ton agent CLI est excellent dans une session, et amnésique entre deux. C Brain
-lui donne un tronc de connaissance persistant : ce que tu comprends une fois est
-distillé en fiche, rangé, relié, et **retrouvé automatiquement** la fois d'après —
-depuis n'importe quel projet.
+Ton agent est excellent dans une session et amnésique entre deux. Tu résous
+quelque chose lundi, tu le réexpliques jeudi. C Brain est la partie qui se
+souvient.
 
-Plus le travail s'accumule, plus l'arbre devient utile. C'est l'inverse d'un
+Plus le travail s'accumule, plus l'arbre devient utile — l'inverse d'un
 historique de conversation, qui ne fait que s'allonger.
-
-<p align="center">
-  <img src="docs/media/capsule.webp" alt="La capsule : une petite fenêtre qui parcourt tous les états des agents — distillation, jardinage, rangement, correction, cartographie, architecture, contestation, archivage, synthèse, audit, commit, puis retour au repos" width="190">
-</p>
-<p align="center"><sub>La capsule, à sa taille réelle — les onze états qu'elle peut te montrer, puis le repos.</sub></p>
 
 ---
 
 ## Ce que ça fait concrètement
+
+**La mémoire elle-même** — c'est ça le produit, et ça suffit :
 
 | | |
 |---|---|
@@ -33,9 +31,32 @@ historique de conversation, qui ne fait que s'allonger.
 | 🔎 **Rappel automatique** | à chaque question, les fiches pertinentes sont injectées dans le contexte |
 | 🤖 **8 agents** | ils distillent, rangent, relient, contestent, synthétisent, élaguent, réparent, surveillent la machine |
 | 🔁 **Boucle fermée** | fin de session → archivage → distillation → rangement, sans rien demander |
-| 🥚 **Une capsule** | petite fenêtre qui montre les agents travailler, en direct |
-| 🪐 **Une planète** | ton savoir en globe 3D navigable, régénéré à chaque lancement |
 | ⬆️ **Mises à jour** | le moteur se met à jour ; **tes fiches ne sont jamais touchées** |
+
+**Et deux façons de le regarder**, qui sont des extensions et s'installent à
+part — `./install.sh --core-only` laisse les deux de côté :
+
+| | |
+|---|---|
+| 🥚 **Une capsule** | petite fenêtre Electron qui montre les agents travailler, en direct |
+| 🪐 **Une planète** | ton savoir en globe 3D navigable, régénéré à chaque lancement |
+
+### Il est bon à quel point, ce rappel ?
+
+Mesuré, pas affirmé — `tests/recall_benchmark.py`, sur un corpus synthétique où
+trouver la réponse veut dire choisir **une** fiche parmi ~120 qui partagent son
+sujet et l'essentiel de son vocabulaire :
+
+| fiches | P@1 | P@3 | MRR | hors sujet dans ce qu'il injecte | par prompt |
+|---|---|---|---|---|---|
+| 100 | 0,94 | 0,98 | 0,96 | 35 % | 5 ms |
+| 1000 | 0,79 | 0,93 | 0,86 | 24 % | 47 ms |
+| 5000 | 0,46 | 0,83 | 0,64 | 39 % | — |
+
+Il tient jusqu'à environ mille fiches et se dégrade nettement au-delà. Publié
+ici parce qu'un outil de mémoire qui refuse de dire à quel point il se souvient
+demande une confiance qu'il n'a pas gagnée. La CI tient ces chiffres comme des
+seuils.
 
 ## Installation
 
@@ -47,8 +68,9 @@ seule (elle installe la version **anglaise** : le plugin suit `main`) :
 /plugin install c-brain@c-brain
 ```
 
-Ça te donne toute la mémoire : le tronc, le rappel automatique, les huit agents
-et la commande `brain`. Le tronc `~/.c-brain/trunk` est créé à ta première
+Ça te donne toute la mémoire : le tronc, le rappel automatique, les huit agents,
+la commande `brain`, et trois commandes que tu peux taper — `/c-brain:recall`,
+`/c-brain:distill`, `/c-brain:doctor`. Le tronc `~/.c-brain/trunk` est créé à ta première
 session, et on te le dit. Ça n'installe **pas** la capsule, la planète ni les
 tâches planifiées — un plugin ne peut pas installer un service d'arrière-plan,
 et prétendre le contraire te laisserait avec une fenêtre qui ne s'ouvre jamais.
@@ -63,6 +85,13 @@ le résultat de la vérification finale.
 ```
 
 Ou à la main : `git clone -b fr … && cd c-brain && ./install.sh`
+
+**La mémoire et rien d'autre** — pas de fenêtre Electron, pas de globe 3D, pas
+de tâche de fond :
+
+```bash
+./install.sh --core-only
+```
 
 Détails, prérequis et désinstallation : **[INSTALL.md](INSTALL.md)**.
 
@@ -96,7 +125,21 @@ touche jamais (`--no-shortcut` si tu n'en veux pas).
   [`skills/README.md`](skills/README.md) pour la philosophie : on transmet la
   méthode, pas le vécu de quelqu'un d'autre.
 
-## La planète
+## Les extensions
+
+Aucune des deux ci-dessous n'est le produit. Ce sont des façons de le *regarder*
+— agréables, facultatives, et entièrement sautées par `./install.sh --core-only`.
+L'installation en plugin ne les met jamais en place, parce qu'un plugin ne peut
+pas installer un service d'arrière-plan.
+
+### La capsule
+
+<p align="center">
+  <img src="docs/media/capsule.webp" alt="La capsule : une petite fenêtre qui parcourt tous les états des agents — distillation, jardinage, rangement, correction, cartographie, architecture, contestation, archivage, synthèse, audit, commit, puis retour au repos" width="190">
+</p>
+<p align="center"><sub>À sa taille réelle — les onze états qu'elle peut te montrer, puis le repos.</sub></p>
+
+### La planète
 
 Ton savoir en globe 3D, régénéré à chaque lancement depuis les fiches. Les
 continents sont les domaines, les arcs sont les liens `[[...]]` que les agents
@@ -126,6 +169,19 @@ brain version         version installée
 ## Compatibilité
 
 **macOS.** launchd, Electron et `open` sont utilisés.
+
+**Linux n'est pas encore supporté, et l'écart est plus petit qu'il n'y paraît.**
+En lisant le code plutôt qu'en devinant : macOS n'est supposé qu'à **quatre
+endroits** — le contrôle de plateforme d'`install.sh`, les gabarits `launchd`, le
+lanceur `.command` du Bureau, et le tag Finder `xattr`. Claude Code n'est supposé
+que dans **un** fichier, `merge_settings.py`. Tout le reste — tronc, rappel,
+agents, CLI `brain`, hooks — est déjà du Python et du shell portables.
+
+C'est donc un cœur portable avec deux adaptateurs minces, pas un produit macOS.
+L'ordre prévu : **des unités `systemd` à la place de `launchd`, une entrée
+`.desktop` à la place du `.command`, pas de tag Finder, et `--core-only` comme
+forme par défaut sous Linux.** Aucune date là-dessus : dire quels quatre endroits
+doivent changer est plus utile qu'une promesse.
 
 **Claude Code** pour l'expérience complète : c'est lui qui déclenche les hooks
 (rappel, archivage, maintenance autonome, ligne d'état). Avec un autre agent CLI,

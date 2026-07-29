@@ -12,7 +12,11 @@
 #   ~/.c-brain/engine  → lien vers CE dépôt (le MOTEUR : du code, rien d'autre)
 #   ~/.c-brain/trunk     → TON tronc (tes fiches). Jamais écrasé, jamais mis à jour.
 #
-# Usage : ./install.sh [--no-launchd] [--no-capsule] [--no-shortcut] [--dry-run]
+# Usage : ./install.sh [--core-only] [--no-launchd] [--no-capsule]
+#                      [--no-planet] [--no-shortcut] [--dry-run]
+#
+#   --core-only  la mémoire seule : tronc, rappel, agents, hooks, `brain`.
+#                Ni capsule, ni lanceur de planète, ni tâche planifiée.
 set -euo pipefail
 
 ENGINE="$(cd "$(dirname "$0")" && pwd -P)"
@@ -22,12 +26,19 @@ TS="$(date +%Y%m%d-%H%M%S)"
 BACKUPS="$CB/backups/$TS"
 MANIFEST="$CB/manifest.txt"
 
-DO_LAUNCHD=1; DO_CAPSULE=1; DO_SHORTCUT=1; DRY=0
+DO_LAUNCHD=1; DO_CAPSULE=1; DO_SHORTCUT=1; DO_PLANET=1; DRY=0
 for a in "$@"; do
   case "$a" in
     --no-launchd) DO_LAUNCHD=0 ;;
     --no-capsule) DO_CAPSULE=0 ;;
     --no-shortcut) DO_SHORTCUT=0 ;;
+    # La mémoire, et rien d'autre : tronc, rappel, agents, hooks, `brain`.
+    # Pas de fenêtre Electron, pas de globe 3D, pas de tâche de fond. Nommé
+    # comme une seule option parce que « installe-le sans les ornements » est
+    # une chose qu'on veut demander d'un coup, et trois drapeaux qu'il faut
+    # découvrir ne sont pas une réponse.
+    --core-only)  DO_LAUNCHD=0; DO_CAPSULE=0; DO_PLANET=0 ;;
+    --no-planet)  DO_PLANET=0 ;;
     --dry-run)    DRY=1 ;;
     *) echo "Option inconnue : $a"; exit 1 ;;
   esac
@@ -212,7 +223,8 @@ fi
 # ─── 9. Lanceur de la planète ─────────────────────────────────────────────
 step "Lanceur de la planète (Bureau)"
 CMD="$HOME/Desktop/Planete-C-Brain.command"
-if [ "$DRY" = "1" ]; then say "(dry-run) créerait $CMD"
+if [ "$DO_PLANET" = "0" ]; then say "(sauté — --core-only)"
+elif [ "$DRY" = "1" ]; then say "(dry-run) créerait $CMD"
 elif [ -d "$HOME/Desktop" ]; then
   printf '#!/bin/bash\nexport PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"\nexec "%s/planet/launch.sh"\n' "$TRUNK" > "$CMD"
   chmod +x "$CMD"

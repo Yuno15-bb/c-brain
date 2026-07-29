@@ -87,6 +87,21 @@ def main():
         if not (ROOT / rel).exists():
             erreurs += echec(f"hooks.json désigne un fichier qui n'existe pas : {rel}")
 
+    # Chaque skill doit déclarer une description. Claude Code décide d'invoquer
+    # un skill à partir de cette seule ligne : sans elle le skill se charge,
+    # n'apparaît nulle part d'utile, et ne se déclenche jamais — sans erreur,
+    # le même no-op silencieux que ce projet rencontre sans arrêt.
+    skills = sorted((ROOT / "skills").glob("*/SKILL.md"))
+    for sk in skills:
+        tete = sk.read_text(encoding="utf-8")[:800]
+        fm = re.match(r"^---\n(.*?)\n---", tete, re.S)
+        desc = re.search(r"^description:\s*(\S.*)$", fm.group(1), re.M) if fm else None
+        if not desc:
+            erreurs += echec(f"{sk.relative_to(ROOT)} n'a pas de description — il ne se déclencherait jamais")
+        elif len(desc.group(1)) < 40:
+            erreurs += echec(f"{sk.relative_to(ROOT)} a une description trop maigre pour router : "
+                             f"{desc.group(1)!r}")
+
     noms = [p.get("name") for p in marche.get("plugins", [])]
     if plugin.get("name") not in noms:
         erreurs += echec(f"marketplace.json ne liste pas le plugin {plugin.get('name')!r} "
@@ -108,7 +123,8 @@ def main():
     if erreurs:
         return 1
     print(f"✅ manifestes de plugin cohérents — c-brain {plugin.get('version')}, "
-          f"{len(set(PATH_RE.findall(HOOKS.read_text(encoding='utf-8'))))} script(s) de hook présent(s)")
+          f"{len(set(PATH_RE.findall(HOOKS.read_text(encoding='utf-8'))))} script(s) de hook, "
+          f"{len(skills)} skill(s) capables de se déclencher")
     return 0
 
 

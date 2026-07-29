@@ -56,6 +56,21 @@ jobs:
         with: { python-version: '3.12' }
       - run: python3 tests/plugin_manifest.py
 
+  recall:
+    name: qualité du rappel · fraîcheur du cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      # Un index périmé est pire qu'un index lent : le rappel continuerait de
+      # répondre, avec assurance, à côté. Celui-ci passe en premier.
+      - run: python3 tests/recall_cache.py
+      # Et ce POUR QUOI le produit existe : la bonne fiche revient-elle ?
+      # Les seuils sont sous ce que le moteur obtient aujourd'hui, pour
+      # attraper une régression plutôt que figer un chiffre.
+      - run: python3 tests/recall_benchmark.py --check
+
   update:
     name: la mise à jour garde sa langue
     runs-on: ubuntu-latest
@@ -125,6 +140,14 @@ jobs:
           after="$(shasum -a 256 "$T/MEMORY.md" | cut -d' ' -f1)"
           [ "$before" = "$after" ] || { echo "❌ MEMORY.md diffère après un aller-retour de démo"; exit 1; }
           echo "✅ MEMORY.md identique à l'octet près"
+
+      - name: mettre à jour, puis revenir, sans toucher une fiche
+        run: |
+          set -euo pipefail
+          # Son propre HOME : celui-ci installe une ANCIENNE version depuis un
+          # faux amont local, il ne doit pas partager d'état avec l'install
+          # ci-dessus.
+          bash tests/update_rollback.sh
 
       - name: la désinstallation rend les réglages et garde le tronc
         run: |

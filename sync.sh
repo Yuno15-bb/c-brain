@@ -161,6 +161,7 @@ sync_dir companion '__pycache__' '*.pyc'
 # EXCLUS : les tests propres au PAQUET (manifeste de plugin, anglais seul).
 # Ils n'ont pas d'équivalent dans le Brain vivant ; --delete les emporterait.
 sync_dir tests 'plugin_manifest.py' 'english_only.py' 'update_tag_family.sh' \
+  'recall_benchmark.py' 'recall_cache.py' 'update_rollback.sh' \
   '__pycache__' '*.pyc'
 
 # --- 8. Statusline (vit dans ~/.claude, pas dans le tronc) ----------------

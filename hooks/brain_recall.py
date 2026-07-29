@@ -13,7 +13,7 @@ Usage :
   brain_recall.py -k 8 "facturation coûts IA"
   brain_recall.py --json "..."                              → sortie machine
 """
-import os, re, sys, json, math, glob, unicodedata
+import os, re, sys, json, math, glob, hashlib, unicodedata
 from collections import Counter
 
 BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
@@ -56,12 +56,84 @@ def strip_md(text):
     return text
 
 
-def load_corpus():
-    docs = []
+def _indexable():
+    """Les .md que le rappel considère, triés — l'entrée de l'empreinte."""
+    out = []
     for p in glob.glob(os.path.join(BRAIN, "**", "*.md"), recursive=True):
         rel = os.path.relpath(p, BRAIN)
-        if _skip(rel):
+        if not _skip(rel):
+            out.append((rel, p))
+    out.sort()
+    return out
+
+
+def _fingerprint(files):
+    """Identité du contenu indexable du tronc : chemin, mtime, taille.
+
+    Un stat() par fichier, quelques millisecondes — contre les ~200 ms qu'il
+    faut pour les lire et les tokeniser. Hacher le contenu obligerait à tout
+    lire, c'est-à-dire exactement le coût qu'on évite.
+    """
+    h = hashlib.sha256()
+    for rel, p in files:
+        try:
+            st = os.stat(p)
+        except OSError:
             continue
+        h.update(f"{rel}\0{st.st_mtime_ns}\0{st.st_size}\0".encode())
+    return h.hexdigest()
+
+
+# Incrémenté dès que la tokenisation ou la forme d'un document change, pour
+# qu'un vieux cache soit jeté au lieu de servir en silence des fiches notées
+# selon les règles précédentes.
+_CACHE_VERSION = 1
+
+
+def load_corpus():
+    """Fiches tokenisées, depuis un cache tant que le tronc n'a pas bougé.
+
+    POURQUOI C'EST CACHÉ. Ceci tourne à CHAQUE prompt, via le hook de rappel.
+    Sans cache, il relisait et retokenisait tout le tronc à chaque fois :
+    214 ms sur un tronc de 241 fiches, et ça croît linéairement — environ 1,6 s
+    à 5000 fiches. L'utilisateur payait ça à chaque message, et rien ne l'aurait
+    jamais signalé, puisque le rappel restait parfaitement correct. Il devenait
+    simplement plus lent chaque semaine.
+
+    JSON plutôt que pickle : le cache est un fichier sur disque, et un format
+    capable d'exécuter du code au chargement ne vaut pas quelques millisecondes.
+    """
+    files = _indexable()
+    fp = _fingerprint(files)
+    cache = os.path.join(BRAIN, "state", "recall-index.json")
+
+    try:
+        with open(cache, encoding="utf-8") as f:
+            blob = json.load(f)
+        if blob.get("fingerprint") == fp and blob.get("version") == _CACHE_VERSION:
+            return blob["docs"]
+    except Exception:
+        pass        # absent, illisible, tronqué : on reconstruit, jamais d'échec
+
+    docs = _read_corpus(files)
+
+    try:
+        os.makedirs(os.path.dirname(cache), exist_ok=True)
+        # Atomique : un hook tué en pleine écriture ne doit pas laisser un
+        # demi-fichier que la fois suivante lira comme faisant autorité.
+        tmp = f"{cache}.{os.getpid()}.tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"version": _CACHE_VERSION, "fingerprint": fp, "docs": docs}, f)
+        os.replace(tmp, cache)
+    except Exception:
+        pass        # tronc en lecture seule, disque plein : le rappel marche, en plus lent
+
+    return docs
+
+
+def _read_corpus(files):
+    docs = []
+    for rel, p in files:
         try:
             raw = open(p, encoding="utf-8").read()
         except Exception:
