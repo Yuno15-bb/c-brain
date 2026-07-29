@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# bin/brain — fait de `brain` une commande nue dans l'outil Bash quand C Brain
+# est installé en PLUGIN. Les fichiers de bin/ sont mis sur le PATH tant que le
+# plugin est actif : c'est le seul moyen pour un utilisateur de plugin d'avoir
+# le CLI sans lancer install.sh.
+#
+# Il ne réimplémente rien : le vrai script est à la racine du plugin et
+# travaille sur ~/.c-brain/trunk, dont plugin_bootstrap.py repointe les liens
+# moteur à chaque SessionStart.
+set -euo pipefail
+exec "$(cd "$(dirname "$0")/.." && pwd -P)/brain" "$@"

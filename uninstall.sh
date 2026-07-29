@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# C Brain — Copyright (c) 2026 Dylan Peellaert.
+# Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
 # uninstall.sh — défait ce que install.sh a fait, et RIEN d'autre.
 #
 # Règle absolue : **ton tronc n'est jamais supprimé**. Tes fiches sont ton
@@ -80,6 +82,16 @@ done
 echo
 echo "▸ Divers"
 [ -f "$HOME/Desktop/Planete-C-Brain.command" ] && { rm -f "$HOME/Desktop/Planete-C-Brain.command"; say "- lanceur du Bureau"; }
+# Le raccourci vers le tronc — retiré SEULEMENT s'il pointe encore chez nous.
+# Réorienté par l'utilisateur, il est devenu le sien : on n'y touche pas.
+SHORTCUT="$HOME/C Brain"
+if [ -L "$SHORTCUT" ] && [ "$(readlink "$SHORTCUT")" = "$TRUNK" ]; then
+  rm -f "$SHORTCUT"; say "- $SHORTCUT"
+elif [ -e "$SHORTCUT" ]; then
+  say "! $SHORTCUT n'est pas notre raccourci — laissé en place"
+fi
+# …et le tag qu'on a posé sur le dossier. Cosmétique, mais on l'a ajouté, on le reprend.
+xattr -d com.apple.metadata:_kMDItemUserTags "$TRUNK" 2>/dev/null && say "- tag Finder sur le tronc" || true
 # Règle déterministe : si le fichier est IDENTIQUE à celui du moteur, il est de
 # nous → on le retire. S'il diffère, c'est celui de l'utilisateur (préexistant
 # ou retouché depuis) → on n'y touche pas.

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# C Brain — Copyright (c) 2026 Dylan Peellaert.
+# Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
 # update.sh — met à jour le MOTEUR. Ne touche jamais au TRONC.
 #
 # Ce que ça fait :

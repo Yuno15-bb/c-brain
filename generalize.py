@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# C Brain — Copyright (c) 2026 Dylan Peellaert.
+# Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
 """C Brain — généralisation déclarative, jouée APRÈS la copie de sync.sh.
 
 Pourquoi un script et pas des corrections à la main : sync.sh recopie le moteur

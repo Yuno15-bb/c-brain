@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# C Brain — Copyright (c) 2026 Dylan Peellaert.
+# Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
 """C Brain — branchement des hooks dans ~/.claude/settings.json.
 
 NON DESTRUCTIF, et c'est tout l'enjeu : ce fichier appartient à l'utilisateur.

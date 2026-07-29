@@ -1,5 +1,13 @@
 # 🧠 C Brain
 
+[![CI](https://github.com/Yuno15-bb/c-brain/actions/workflows/ci.yml/badge.svg?branch=fr)](https://github.com/Yuno15-bb/c-brain/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Yuno15-bb/c-brain?sort=semver&color=6b8afd)](https://github.com/Yuno15-bb/c-brain/releases/latest)
+[![Licence](https://img.shields.io/github/license/Yuno15-bb/c-brain?color=8a8f98)](LICENSE)
+[![Plateforme](https://img.shields.io/badge/plateforme-macOS-8a8f98)](#compatibilité)
+
+> 🇫🇷 Ceci est la **branche française**. La version anglaise, celle que tout le
+> monde installe par défaut, est sur [`main`](https://github.com/Yuno15-bb/c-brain).
+
 **Une mémoire qui grandit** pour les agents en ligne de commande.
 
 Ton agent CLI est excellent dans une session, et amnésique entre deux. C Brain
@@ -9,6 +17,11 @@ depuis n'importe quel projet.
 
 Plus le travail s'accumule, plus l'arbre devient utile. C'est l'inverse d'un
 historique de conversation, qui ne fait que s'allonger.
+
+<p align="center">
+  <img src="docs/media/capsule.webp" alt="La capsule : une petite fenêtre qui parcourt tous les états des agents — distillation, jardinage, rangement, correction, cartographie, architecture, contestation, archivage, synthèse, audit, commit, puis retour au repos" width="190">
+</p>
+<p align="center"><sub>La capsule, à sa taille réelle — les onze états qu'elle peut te montrer, puis le repos.</sub></p>
 
 ---
 
@@ -26,14 +39,30 @@ historique de conversation, qui ne fait que s'allonger.
 
 ## Installation
 
-Colle ceci dans ton CLI :
+**En plugin Claude Code** — la voie courte, et celle qui se met à jour toute
+seule (elle installe la version **anglaise** : le plugin suit `main`) :
 
 ```
-Installe C Brain : clone <URL-DU-DÉPÔT> dans ~/dev/c-brain, lis son INSTALL.md,
-puis exécute ./install.sh et montre-moi le résultat de la vérification finale.
+/plugin marketplace add Yuno15-bb/c-brain
+/plugin install c-brain@c-brain
 ```
 
-Ou à la main : `git clone … && cd c-brain && ./install.sh`
+Ça te donne toute la mémoire : le tronc, le rappel automatique, les huit agents
+et la commande `brain`. Le tronc `~/.c-brain/trunk` est créé à ta première
+session, et on te le dit. Ça n'installe **pas** la capsule, la planète ni les
+tâches planifiées — un plugin ne peut pas installer un service d'arrière-plan,
+et prétendre le contraire te laisserait avec une fenêtre qui ne s'ouvre jamais.
+
+**L'install complète, en français** — tout ce qui précède, plus la capsule, la
+planète et la maintenance sans surveillance. Colle ceci dans ton CLI :
+
+```
+Installe C Brain : clone https://github.com/Yuno15-bb/c-brain dans ~/dev/c-brain
+sur la branche fr, lis son INSTALL.md, puis exécute ./install.sh et montre-moi
+le résultat de la vérification finale.
+```
+
+Ou à la main : `git clone -b fr … && cd c-brain && ./install.sh`
 
 Détails, prérequis et désinstallation : **[INSTALL.md](INSTALL.md)**.
 
@@ -48,6 +77,15 @@ Les deux ne se mélangent jamais. C'est ce qui permet à une mise à jour d'arri
 sans le moindre risque pour ton travail — et à `uninstall.sh` de tout retirer en
 laissant ta connaissance intacte.
 
+Le point de `~/.c-brain` le **cache dans le Finder**. L'installation pose donc
+un raccourci `C Brain` dans ton dossier personnel, tagué en rouge, qui ouvre ton
+tronc — une mémoire qu'on ne peut pas voir est une mémoire à laquelle on ne
+touche jamais (`--no-shortcut` si tu n'en veux pas).
+
+<p align="center">
+  <img src="docs/media/where-it-lands.png" alt="Un dossier personnel dans le Finder : les habituels Applications, Bureau, Documents, Téléchargements, Films, Musique et Images — plus un dossier C Brain tagué en rouge, désigné par une flèche" width="900">
+</p>
+
 ## Ce que ça ne fait pas
 
 - **Ça n'envoie rien.** Aucune télémétrie, aucun appel réseau hors `git pull`.
@@ -58,7 +96,21 @@ laissant ta connaissance intacte.
   [`skills/README.md`](skills/README.md) pour la philosophie : on transmet la
   méthode, pas le vécu de quelqu'un d'autre.
 
+## La planète
+
+Ton savoir en globe 3D, régénéré à chaque lancement depuis les fiches. Les
+continents sont les domaines, les arcs sont les liens `[[...]]` que les agents
+ont tissés. Survoler une fiche allume ses connexions ; un double-clic l'épingle.
+
+<p align="center">
+  <img src="docs/media/planet.webp" alt="La planète de connaissance : le globe tourne, le curseur se pose sur une fiche, ses arcs de liens s'allument et un panneau s'ouvre montrant la région de la fiche, ses sept connexions, sa description et le chemin de son fichier" width="900">
+</p>
+
 ## Commandes
+
+<p align="center">
+  <img src="docs/media/recall.png" alt="Terminal : brain demo pose trois fiches, brain recall les classe par pertinence, brain demo --remove les retire" width="820">
+</p>
 
 ```bash
 brain status          où en est le tronc

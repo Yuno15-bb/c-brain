@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# C Brain — Copyright (c) 2026 Dylan Peellaert.
+# Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
 """C Brain — contrôle de fuite. Le garde-fou qui a le droit de bloquer le commit.
 
 Adapté de claude-brain-v2/build/leakcheck.py (2026-07-25), qui tourne déjà vert
@@ -69,7 +71,12 @@ SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
 # Le retirer rendrait la licence inopérante. C'est une mention volontaire et
 # juridiquement nécessaire, pas une fuite. Exemption ciblée sur le seul marqueur
 # « propriétaire » : une clé ou un nom de client dans ces fichiers reste rouge.
-EXEMPT = {"personne — propriétaire": ("docs/", "LICENSE", "NOTICE")}
+# `.claude-plugin/` les rejoint pour la même raison que LICENSE : les manifestes
+# de plugin et de marketplace portent des champs `author` / `owner`, Claude Code
+# les montre à qui installe, et une entrée de catalogue sans mainteneur n'a pas
+# à être publiée. Même règle : seul le nom du PROPRIÉTAIRE y est exempté ; un
+# nom de client ou une clé dans ces fichiers vire toujours au rouge.
+EXEMPT = {"personne — propriétaire": ("docs/", "LICENSE", "NOTICE", ".claude-plugin/")}
 
 # Le nom de l'auteur dans l'en-tête de copyright de CE dépôt n'est pas une fuite :
 # c'est une signature volontaire, et depuis le passage en Apache 2.0 il figure de
@@ -127,6 +134,21 @@ def context(text, start, end, width=45):
     return f"…{left}⟦{text[start:end]}⟧{right}…"
 
 
+def _sur_une_ligne_de_copyright(text: str, pos: int) -> bool:
+    """Ce résultat est-il posé sur une ligne de copyright / de licence ?
+
+    Le nom du propriétaire dans un en-tête de copyright est VOLONTAIRE — c'est
+    ce qui fait qu'un fichier copié porte son origine. Ce que le marqueur
+    traque vraiment, c'est la mention accidentelle (« la machine de l'auteur »,
+    « demandé par … »). Exempter la ligne de notice garde la chasse tranchante
+    au lieu d'émousser le motif.
+    """
+    start = text.rfind("\n", 0, pos) + 1
+    end = text.find("\n", pos)
+    line = text[start:end if end != -1 else len(text)]
+    return "Copyright (c)" in line or "All rights reserved" in line
+
+
 def scan(label_source, text, compiled, leaks):
     if label_source.startswith("historique:"):
         text = "\n".join(l for l in text.splitlines() if not COPYRIGHT_HEADER.search(l))
@@ -135,6 +157,8 @@ def scan(label_source, text, compiled, leaks):
             continue
         for m in rx.finditer(text):
             if m.group(0) in FAUX_POSITIFS.get(label, ()):
+                continue
+            if label == "personne — propriétaire" and _sur_une_ligne_de_copyright(text, m.start()):
                 continue
             leaks.append((label_source, label, context(text, m.start(), m.end())))
 

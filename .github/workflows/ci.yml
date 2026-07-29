@@ -1,0 +1,165 @@
+# C Brain — CI
+#
+# PÉRIMÈTRE, ET POURQUOI IL S'ARRÊTE LÀ. Ceci ne lance PAS une install
+# complète : les tâches launchd et une capsule Electron sur un runner macOS
+# hébergé sont un marécage, et n'apporteraient presque rien — les drapeaux
+# `--no-launchd --no-capsule` sautent exactement les deux parties qu'un runner
+# ne peut pas juger. Reste ce qui casse vraiment : le contrôle de fuite, la
+# traduction, l'installeur, les invariants du tronc, et la capacité d'une
+# migration à survivre à un rejeu.
+#
+# Les trois gestes de la chaîne de publication (sync, traduire, tagger) sont
+# humains et non surveillés. Ici, la machine surveille le deuxième.
+
+name: CI
+
+on:
+  push:
+    branches: [main, fr]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  leak:
+    name: contrôle de fuite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # --history scanne chaque commit, pas seulement la pointe
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python3 leakcheck.py --history
+
+  english:
+    name: anglais seul (main)
+    runs-on: ubuntu-latest
+    if: github.ref_name == 'main' || github.base_ref == 'main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python3 tests/english_only.py
+
+  plugin:
+    name: manifestes du plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # le verrou de version se compare aux tags
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python3 tests/plugin_manifest.py
+
+  install:
+    name: install · selftest · désinstallation
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+
+      - name: le dry-run n'écrit rien
+        run: |
+          set -euo pipefail
+          H="$(mktemp -d)"
+          HOME="$H" ./install.sh --dry-run --no-launchd --no-capsule
+          # Tout l'intérêt de --dry-run est d'être inerte. Quoi que ce soit sur le disque = bug.
+          if [ -e "$H/.c-brain" ] || [ -e "$H/.claude" ]; then
+            echo "❌ --dry-run a créé quelque chose :"; find "$H" | head -40; exit 1
+          fi
+          echo "✅ rien écrit"
+
+      - name: installer, puis vérifier
+        run: |
+          set -euo pipefail
+          H="$(mktemp -d)"; echo "H=$H" >> "$GITHUB_ENV"
+          # Un runner hébergé n'a pas Claude Code : install.sh sauterait donc
+          # entièrement la fusion des réglages, et tous les contrôles ci-dessous
+          # passeraient sur un fichier ABSENT — vert, et ne testant rien. On en
+          # plante donc un.
+          mkdir -p "$H/.claude"
+          printf '{"model": "opus", "permissions": {"allow": ["Bash(ls:*)"]}}\n' > "$H/.claude/settings.json"
+          cp "$H/.claude/settings.json" "$RUNNER_TEMP/settings.before.json"
+          HOME="$H" ./install.sh --no-launchd --no-capsule
+          export PATH="$H/.local/bin:$PATH"
+          HOME="$H" brain selftest
+          HOME="$H" brain doctor
+          # …et prouver que la fusion a bien eu lieu, sinon le reste est creux.
+          grep -q hooks "$H/.claude/settings.json" || { echo "❌ settings.json n'a jamais été fusionné"; exit 1; }
+          # La porte visible sur un dossier caché : si elle cesse d'être créée,
+          # l'utilisateur reçoit une mémoire qu'il ne peut pas trouver, et rien
+          # d'autre ne s'en apercevrait.
+          [ -L "$H/C Brain" ] || { echo "❌ le raccourci Finder n'a pas été créé"; exit 1; }
+
+      - name: l'install est idempotente
+        run: |
+          set -euo pipefail
+          before="$(shasum -a 256 "$H/.claude/settings.json" | cut -d' ' -f1)"
+          HOME="$H" ./install.sh --no-launchd --no-capsule >/dev/null
+          after="$(shasum -a 256 "$H/.claude/settings.json" | cut -d' ' -f1)"
+          [ "$before" = "$after" ] || { echo "❌ une seconde install a modifié settings.json"; exit 1; }
+          echo "✅ la seconde install ne fait rien"
+
+      - name: la démo ne laisse aucune trace
+        run: |
+          set -euo pipefail
+          export PATH="$H/.local/bin:$PATH"
+          T="$H/.c-brain/trunk"
+          before="$(shasum -a 256 "$T/MEMORY.md" | cut -d' ' -f1)"
+          HOME="$H" brain demo
+          HOME="$H" brain recall cache deploy | head -5
+          HOME="$H" brain demo --remove
+          after="$(shasum -a 256 "$T/MEMORY.md" | cut -d' ' -f1)"
+          [ "$before" = "$after" ] || { echo "❌ MEMORY.md diffère après un aller-retour de démo"; exit 1; }
+          echo "✅ MEMORY.md identique à l'octet près"
+
+      - name: la désinstallation rend les réglages et garde le tronc
+        run: |
+          set -euo pipefail
+          HOME="$H" ./uninstall.sh --yes
+          # PAS une comparaison d'octets : la désinstallation réécrit le fichier
+          # via le sérialiseur JSON de Python, donc l'indentation et l'espacement
+          # des clés reviennent dans SON style. Ce qui doit survivre, ce sont les
+          # RÉGLAGES de l'utilisateur — chacune de ses clés, intacte, et aucune
+          # des nôtres laissée derrière.
+          python3 - "$RUNNER_TEMP/settings.before.json" "$H/.claude/settings.json" <<'PY'
+          import json, sys
+          before, after = (json.load(open(p)) for p in sys.argv[1:3])
+          if before != after:
+              print("❌ settings.json n'est pas revenu :")
+              print("  before:", json.dumps(before, sort_keys=True))
+              print("  after :", json.dumps(after, sort_keys=True))
+              sys.exit(1)
+          print("✅ settings.json restauré, clé pour clé")
+          PY
+          if [ -e "$H/C Brain" ]; then echo "❌ le raccourci Finder a survécu à la désinstallation"; exit 1; fi
+          echo "✅ raccourci retiré"
+          # Le tronc appartient à l'utilisateur ; la désinstallation ne doit jamais le prendre.
+          [ -d "$H/.c-brain/trunk" ] || { echo "❌ la désinstallation a supprimé le tronc"; exit 1; }
+          echo "✅ tronc toujours là"
+
+  migrations:
+    name: les migrations se rejouent proprement
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: chaque migration, deux fois
+        run: |
+          set -euo pipefail
+          for m in cbrain/migrations/*.sh; do
+            H="$(mktemp -d)"
+            mkdir -p "$H/claude-brain/lessons"
+            echo "keep me" > "$H/claude-brain/lessons/a-note.md"
+            echo "▸ $m — 1er passage";  HOME="$H" bash "$m"
+            echo "▸ $m — 2e passage"; HOME="$H" bash "$m"
+            # Une migration rejouée doit être un non-événement, et ne jamais manger une fiche.
+            grep -q "keep me" "$H/.c-brain/trunk/lessons/a-note.md" \
+              || { echo "❌ $m a perdu une fiche au rejeu"; exit 1; }
+          done
+          echo "✅ les migrations sont idempotentes et gardent leurs fiches"

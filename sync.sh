@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# C Brain — Copyright (c) 2026 Dylan Peellaert.
+# Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
 # sync.sh — ~/claude-brain (Brain vivant de l'auteur, source de vérité) → dépôt C Brain.
 #
 # PRINCIPE : liste blanche. Ce qui n'est pas listé ici ne sort pas, point.
@@ -126,10 +128,16 @@ sync_file "$SRC/brain" "brain"
 # EXCLUS : desktop_sync.py + son plist (sauvegarde du Bureau de l'auteur vers SON
 # GitHub — perso, et destructeur chez un tiers), et le .plist non-template qui
 # porte /Users/mac en dur (seul le .template part).
+#
+# EXCLU AUSSI : hooks.json. Il n'existe QUE dans le paquet — c'est le manifeste
+# de hooks du plugin Claude Code, pas un fichier du Brain vivant. rsync tourne
+# avec --delete : sans cette exclusion, le premier sync venu l'effacerait, et
+# le plugin cesserait d'enregistrer QUOI QUE CE SOIT sans une seule erreur.
 sync_dir hooks \
   'desktop_sync.py' \
   'com.dylan.desktop-sync.plist.template' \
   'com.claudebrain.resume.plist' \
+  'hooks.json' \
   '__pycache__' '*.pyc'
 
 # --- 3. Agents ------------------------------------------------------------
@@ -150,7 +158,9 @@ sync_dir planet 'graph.json'
 sync_dir companion '__pycache__' '*.pyc'
 
 # --- 7. Tests --------------------------------------------------------------
-sync_dir tests '__pycache__' '*.pyc'
+# EXCLUS : les tests propres au PAQUET (manifeste de plugin, anglais seul).
+# Ils n'ont pas d'équivalent dans le Brain vivant ; --delete les emporterait.
+sync_dir tests 'plugin_manifest.py' 'english_only.py' '__pycache__' '*.pyc'
 
 # --- 8. Statusline (vit dans ~/.claude, pas dans le tronc) ----------------
 sync_file "$CLAUDE_DIR/statusline.py" "statusline.py"

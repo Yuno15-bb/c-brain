@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# C Brain — Copyright (c) 2026 Dylan Peellaert.
+# Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
 # install.sh — installe C Brain. Point d'entrée UNIQUE.
 #
 # Trois promesses, tenues par construction :
@@ -10,7 +12,7 @@
 #   ~/.c-brain/engine  → lien vers CE dépôt (le MOTEUR : du code, rien d'autre)
 #   ~/.c-brain/trunk     → TON tronc (tes fiches). Jamais écrasé, jamais mis à jour.
 #
-# Usage : ./install.sh [--no-launchd] [--no-capsule] [--dry-run]
+# Usage : ./install.sh [--no-launchd] [--no-capsule] [--no-shortcut] [--dry-run]
 set -euo pipefail
 
 ENGINE="$(cd "$(dirname "$0")" && pwd -P)"
@@ -20,11 +22,12 @@ TS="$(date +%Y%m%d-%H%M%S)"
 BACKUPS="$CB/backups/$TS"
 MANIFEST="$CB/manifest.txt"
 
-DO_LAUNCHD=1; DO_CAPSULE=1; DRY=0
+DO_LAUNCHD=1; DO_CAPSULE=1; DO_SHORTCUT=1; DRY=0
 for a in "$@"; do
   case "$a" in
     --no-launchd) DO_LAUNCHD=0 ;;
     --no-capsule) DO_CAPSULE=0 ;;
+    --no-shortcut) DO_SHORTCUT=0 ;;
     --dry-run)    DRY=1 ;;
     *) echo "Option inconnue : $a"; exit 1 ;;
   esac
@@ -220,7 +223,40 @@ else
   warn "  $TRUNK/planet/launch.sh"
 fi
 
-# ─── 10. Vérification ─────────────────────────────────────────────────────
+# ─── 10. Rendre la mémoire trouvable ──────────────────────────────────────
+# Le tronc vit dans ~/.c-brain/trunk. Le point le CACHE dans le Finder : un
+# nouvel utilisateur reçoit une mémoire qu'il ne peut pas voir, et rien ne lui
+# dit où elle est passée. On pose donc une porte visible dessus.
+#
+# PAS la barre latérale du Finder : elle vit dans un plist binaire .sfl4 sans
+# API supportée, et le seul chemin est un binaire tiers. Ajouter une dépendance
+# pour poser une icône n'est pas un échange rentable — glisser le dossier dans
+# les Favoris prend deux secondes à l'utilisateur, et on le lui dit plus bas.
+step "Rendre ta mémoire trouvable"
+SHORTCUT="$HOME/C Brain"
+if [ "$DO_SHORTCUT" = "0" ]; then say "(sauté — --no-shortcut)"
+elif [ "$DRY" = "1" ]; then say "(dry-run) créerait $SHORTCUT et taguerait le tronc"
+else
+  if [ -L "$SHORTCUT" ] && [ "$(readlink "$SHORTCUT")" = "$TRUNK" ]; then
+    say "= $SHORTCUT (déjà là)"
+  elif [ -e "$SHORTCUT" ]; then
+    warn "$SHORTCUT existe et n'est pas notre raccourci — laissé tel quel"
+  else
+    ln -s "$TRUNK" "$SHORTCUT"
+    note shortcut "$SHORTCUT"
+    say "+ $SHORTCUT → tes fiches, visibles dans le Finder"
+  fi
+  # Un tag Finder, pour que le dossier soit reconnaissable au coup d'œil parmi trente autres.
+  python3 - "$TRUNK" <<'PY' 2>/dev/null || true
+import plistlib, subprocess, sys
+blob = plistlib.dumps(["C Brain\n6"], fmt=plistlib.FMT_BINARY)   # 6 = rouge
+subprocess.run(["xattr", "-w", "-x", "com.apple.metadata:_kMDItemUserTags",
+                blob.hex(), sys.argv[1]], check=True)
+PY
+  say "  Astuce : glisse-le une fois dans la barre latérale du Finder — il y reste."
+fi
+
+# ─── 11. Vérification ─────────────────────────────────────────────────────
 step "Vérification"
 if [ "$DRY" = "1" ]; then say "(dry-run) lancerait le selftest"
 else
