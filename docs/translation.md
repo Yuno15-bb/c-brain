@@ -67,10 +67,23 @@ Read the diff before translating. Most syncs move a handful of lines; a blind
 | `main` | `v1.2.0` | everyone, by default |
 | `fr` | `v1.2.0-fr` | French speakers who ask for it |
 
-`update.sh` sorts tags with `sort -V` and takes the newest. A `-fr` suffix sorts
-**after** the bare version, so a French install stays French and an English one
-stays English **only as long as each clone tracks its own branch** — which is the
-case, since `git checkout <tag>` never changes branch.
+⚠ **This used to be stated the wrong way round, and it was a real bug.** The
+earlier text claimed each install stayed in its own language "as long as each
+clone tracks its own branch". That reasoning does not hold: `update.sh` never
+looked at a branch. It ran `git tag -l 'v*' | sort -V | tail -1`, and **tags are
+not scoped to a branch** — so it saw both families at once. Since `sort -V`
+places `v1.18.0-fr` **after** `v1.18.0`, the global maximum was the French tag,
+and an English installation would have moved onto the French tree the moment
+`fr` caught up. No error: the tag exists, the checkout succeeds, the tool just
+starts speaking another language.
+
+It stayed invisible only because `fr` lagged eight versions behind. Bringing it
+level is what armed it.
+
+`update.sh` now reads the family off what is installed — the suffix of the
+checked-out tag, or the tracked branch when there is none — and filters the tag
+list to that family before sorting. `tests/update_tag_family.sh` builds a
+throwaway repository with both branches and holds it down in CI.
 
 ## What is not translated, on purpose
 

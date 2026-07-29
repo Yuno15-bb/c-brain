@@ -55,6 +55,13 @@ jobs:
         with: { python-version: '3.12' }
       - run: python3 tests/plugin_manifest.py
 
+  update:
+    name: the update path keeps its language
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tests/update_tag_family.sh
+
   install:
     name: install · selftest · uninstall
     runs-on: macos-latest

@@ -44,9 +44,48 @@ git -C "$ENGINE" rev-parse --git-dir >/dev/null 2>&1 || {
 
 current() { git -C "$ENGINE" describe --tags --exact-match 2>/dev/null || git -C "$ENGINE" rev-parse --short HEAD; }
 
-# The newest tag by version order, not alphabetical order:
-# without `-V`, v10 would sort before v9.
-latest_tag() { git -C "$ENGINE" tag -l 'v*' | sort -V | tail -1; }
+# Which FAMILY of tags this installation belongs to — English (`v1.2.3`) or
+# French (`v1.2.3-fr`).
+#
+# ⚠ This is not decoration, it is a language-switch bug waiting to happen.
+# Tags are not scoped to a branch, so `git tag -l 'v*'` hands back both
+# families at once — and `sort -V` places `v1.18.0-fr` AFTER `v1.18.0`.
+# Taking the global maximum therefore moved an ENGLISH installation onto the
+# FRENCH tree the moment the French branch caught up, with no error at all:
+# the tag exists, the checkout succeeds, and the user simply finds their tool
+# speaking another language. It stayed hidden only while `fr` lagged behind.
+#
+# So: read the family off what is installed, and never leave it.
+#
+# The one case this cannot resolve is a bare tag and an `-fr` tag on the SAME
+# commit, where `--exact-match` picks one arbitrarily. That cannot happen here:
+# the two branches diverge by construction, `main` being a translation of `fr`.
+# If they ever converge, this needs a recorded family instead of a derived one.
+family() {
+  local tag branch
+  tag="$(git -C "$ENGINE" describe --tags --exact-match 2>/dev/null || true)"
+  case "$tag" in
+    *-fr) echo "-fr"; return ;;
+    v*)   echo "";    return ;;
+  esac
+  # Not sitting on a tag (a fresh clone, or a detached checkout): fall back to
+  # the branch the clone tracks.
+  branch="$(git -C "$ENGINE" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  [ "$branch" = "fr" ] && echo "-fr" || echo ""
+}
+
+# The newest tag of THIS installation's family, by version order rather than
+# alphabetical order: without `-V`, v10 would sort before v9.
+latest_tag() {
+  local suffix rx
+  suffix="$(family)"
+  if [ -n "$suffix" ]; then rx='^v[0-9]+\.[0-9]+\.[0-9]+-fr$'
+  else                      rx='^v[0-9]+\.[0-9]+\.[0-9]+$'; fi
+  # `|| true`: with no matching tag `grep` exits 1, and under `set -e` +
+  # `pipefail` that would kill the script one line before the empty-result
+  # check that already handles it properly.
+  git -C "$ENGINE" tag -l 'v*' | grep -E "$rx" | sort -V | tail -1 || true
+}
 
 # ─── Rollback ───────────────────────────────────────────────────────
 if [ "$MODE" = "rollback" ]; then
