@@ -173,7 +173,8 @@ sync_dir companion '__pycache__' '*.pyc'
 # --- 7. Tests --------------------------------------------------------------
 # EXCLUDED: the tests that belong to the PACKAGE (plugin manifests, English
 # only). They have no counterpart in the living Brain; --delete would take them.
-sync_dir tests 'plugin_manifest.py' 'english_only.py' '__pycache__' '*.pyc'
+sync_dir tests 'plugin_manifest.py' 'english_only.py' 'update_tag_family.sh' \
+  '__pycache__' '*.pyc'
 
 # --- 8. Status line (lives in ~/.claude, not in the trunk) ----------------
 sync_file "$CLAUDE_DIR/statusline.py" "statusline.py"
