@@ -1,7 +1,7 @@
 {
   "name": "c-brain",
   "description": "A memory that grows. Your agent is brilliant within a session and amnesic between two — this gives it a persistent knowledge trunk on your machine: what you work out once is distilled into a note, filed, linked, and surfaced automatically next time, from any project. Nothing leaves the machine.",
-  "version": "1.20.0",
+  "version": "1.21.0",
   "author": { "name": "Dylan Peellaert" },
   "homepage": "https://github.com/Yuno15-bb/c-brain",
   "repository": "https://github.com/Yuno15-bb/c-brain",
