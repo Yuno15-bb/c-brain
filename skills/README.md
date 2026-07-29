@@ -1,6 +1,15 @@
-# `skills/` — deliberately empty
+# `skills/` — three that drive the tool, none that carry knowledge
 
-C Brain ships **no skills**, by explicit decision.
+There are two kinds of skill here, and conflating them is what this file exists
+to prevent.
+
+**Skills that drive C Brain** — `recall`, `distill`, `doctor` — ship with it.
+They are the product's surface, the same category as the `brain` command: they
+operate the tool and know nothing about you. Without them, installing the plugin
+gives a user hooks they cannot see and no command they can type.
+
+**Skills that carry a way of working** ship with nothing, by explicit decision.
+That is what the rest of this file is about.
 
 A skill encodes a way of working: it names your clients, your projects, your
 context, your calibration examples. That is exactly what makes it good for its

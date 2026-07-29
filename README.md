@@ -63,8 +63,9 @@ for trust it has not earned. The CI enforces these numbers as thresholds.
 /plugin install c-brain@c-brain
 ```
 
-That gives you the whole memory: the trunk, automatic recall, the eight agents
-and the `brain` command. It creates `~/.c-brain/trunk` on your first session and
+That gives you the whole memory: the trunk, automatic recall, the eight agents,
+the `brain` command, and three commands you can type — `/c-brain:recall`,
+`/c-brain:distill`, `/c-brain:doctor`. It creates `~/.c-brain/trunk` on your first session and
 tells you so. It does **not** set up the capsule, the planet or the scheduled
 jobs — a plugin cannot install a background service, and pretending otherwise
 would leave you with a window that never opens.
@@ -112,9 +113,9 @@ part that is yours is the one part you can see.
 - **It does not read your notes**, except to hand them back to you.
 - **It installs nothing on its own.** A new version is *announced*; you run
   `brain update` whenever suits you.
-- **It ships no content.** Your tree starts empty — see
-  [`skills/README.md`](skills/README.md) for the reasoning: we pass on the
-  method, not somebody else's lived experience.
+- **It ships no knowledge.** Your tree starts empty, and the three skills it
+  does ship only drive the tool. See [`skills/README.md`](skills/README.md) for
+  the reasoning: we pass on the method, not somebody else's lived experience.
 
 ## The extensions
 
@@ -145,6 +146,16 @@ double-click away from the note itself.
 <p align="center"><sub>A demo trunk of 57 notes and 178 links. Yours starts empty.</sub></p>
 
 ## Commands
+
+Inside your agent, once the plugin is installed:
+
+```
+/c-brain:recall <subject>   what the trunk already knows about it
+/c-brain:distill            turn what was just worked out into a note
+/c-brain:doctor             check the wiring and the trunk
+```
+
+And in any shell:
 
 <p align="center">
   <img src="docs/media/recall.png" alt="Terminal: brain demo places three notes, brain recall ranks them by relevance, brain demo --remove takes them away" width="820">

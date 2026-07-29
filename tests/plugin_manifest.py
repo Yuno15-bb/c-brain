@@ -84,6 +84,21 @@ def main():
         if not (ROOT / rel).exists():
             errors += fail(f"hooks.json points at a file that does not exist: {rel}")
 
+    # Every skill must declare a description. Claude Code decides whether to
+    # invoke a skill from that line alone: without it the skill loads, appears
+    # nowhere useful, and simply never fires — no error, the same silent no-op
+    # this project keeps running into.
+    skills = sorted((ROOT / "skills").glob("*/SKILL.md"))
+    for s in skills:
+        head = s.read_text(encoding="utf-8")[:800]
+        fm = re.match(r"^---\n(.*?)\n---", head, re.S)
+        desc = re.search(r"^description:\s*(\S.*)$", fm.group(1), re.M) if fm else None
+        if not desc:
+            errors += fail(f"{s.relative_to(ROOT)} has no description — it would never trigger")
+        elif len(desc.group(1)) < 40:
+            errors += fail(f"{s.relative_to(ROOT)} description is too thin to route on: "
+                           f"{desc.group(1)!r}")
+
     names = [p.get("name") for p in market.get("plugins", [])]
     if plugin.get("name") not in names:
         errors += fail(f"marketplace.json does not list the plugin {plugin.get('name')!r} "
@@ -105,7 +120,8 @@ def main():
     if errors:
         return 1
     print(f"✅ plugin manifests consistent — c-brain {plugin.get('version')}, "
-          f"{len(set(PATH_RE.findall(HOOKS.read_text(encoding='utf-8'))))} hook script(s) present")
+          f"{len(set(PATH_RE.findall(HOOKS.read_text(encoding='utf-8'))))} hook script(s), "
+          f"{len(skills)} skill(s) that can trigger")
     return 0
 
 
