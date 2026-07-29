@@ -13,7 +13,7 @@ Usage :
   brain_recall.py -k 8 "billing AI costs"
   brain_recall.py --json "..."                              → sortie machine
 """
-import os, re, sys, json, math, glob, unicodedata
+import os, re, sys, json, math, glob, hashlib, unicodedata
 from collections import Counter
 
 BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
@@ -56,12 +56,83 @@ def strip_md(text):
     return text
 
 
-def load_corpus():
-    docs = []
+def _indexable():
+    """The .md files recall considers, sorted — the input to the fingerprint."""
+    out = []
     for p in glob.glob(os.path.join(BRAIN, "**", "*.md"), recursive=True):
         rel = os.path.relpath(p, BRAIN)
-        if _skip(rel):
+        if not _skip(rel):
+            out.append((rel, p))
+    out.sort()
+    return out
+
+
+def _fingerprint(files):
+    """Identity of the trunk's indexable content: path, mtime and size.
+
+    A stat() per file, a few milliseconds — against the ~200 ms it takes to
+    read and tokenize them. Content hashing would mean reading everything,
+    which is the cost we are avoiding.
+    """
+    h = hashlib.sha256()
+    for rel, p in files:
+        try:
+            st = os.stat(p)
+        except OSError:
             continue
+        h.update(f"{rel}\0{st.st_mtime_ns}\0{st.st_size}\0".encode())
+    return h.hexdigest()
+
+
+def load_corpus():
+    """Tokenized notes, from a cache when the trunk has not changed.
+
+    WHY THIS IS CACHED. This runs on EVERY prompt, through the recall hook.
+    Uncached it re-read and re-tokenized the whole trunk each time: 214 ms on a
+    241-note trunk, and it grows linearly — about 1.6 s at 5000 notes. The user
+    paid that on every single message, and nothing would ever have reported it,
+    because recall stayed perfectly correct. It just got slower every week.
+    Measured by tests/recall_benchmark.py, which now gates the build time.
+
+    JSON rather than pickle: the cache is a file on disk, and a format that can
+    execute code on load is not worth a few milliseconds.
+    """
+    files = _indexable()
+    fp = _fingerprint(files)
+    cache = os.path.join(BRAIN, "state", "recall-index.json")
+
+    try:
+        with open(cache, encoding="utf-8") as f:
+            blob = json.load(f)
+        if blob.get("fingerprint") == fp and blob.get("version") == _CACHE_VERSION:
+            return blob["docs"]
+    except Exception:
+        pass        # absent, unreadable, truncated: rebuild, never fail
+
+    docs = _read_corpus(files)
+
+    try:
+        os.makedirs(os.path.dirname(cache), exist_ok=True)
+        # Atomic: a hook killed mid-write must not leave a half-file that the
+        # next run reads as authoritative.
+        tmp = f"{cache}.{os.getpid()}.tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"version": _CACHE_VERSION, "fingerprint": fp, "docs": docs}, f)
+        os.replace(tmp, cache)
+    except Exception:
+        pass        # read-only trunk, full disk: recall still works, just slower
+
+    return docs
+
+
+# Bumped whenever tokenisation or the document shape changes, so an old cache
+# is discarded instead of silently serving notes scored under the previous rules.
+_CACHE_VERSION = 1
+
+
+def _read_corpus(files):
+    docs = []
+    for rel, p in files:
         try:
             raw = open(p, encoding="utf-8").read()
         except Exception:

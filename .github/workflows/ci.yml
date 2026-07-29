@@ -55,6 +55,21 @@ jobs:
         with: { python-version: '3.12' }
       - run: python3 tests/plugin_manifest.py
 
+  recall:
+    name: recall quality · cache freshness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      # A stale index is worse than a slow one: recall would keep answering,
+      # confidently, out of date. This runs first.
+      - run: python3 tests/recall_cache.py
+      # And the thing the product is FOR: does the right note come back?
+      # Gates are set below what the engine scores today, to catch a
+      # regression rather than freeze a number.
+      - run: python3 tests/recall_benchmark.py --check
+
   update:
     name: the update path keeps its language
     runs-on: ubuntu-latest
