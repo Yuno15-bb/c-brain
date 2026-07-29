@@ -138,6 +138,13 @@ jobs:
           [ "$before" = "$after" ] || { echo "❌ MEMORY.md differs after a demo round trip"; exit 1; }
           echo "✅ MEMORY.md byte-identical"
 
+      - name: update, then roll back, without touching a note
+        run: |
+          set -euo pipefail
+          # Its own HOME: this one installs an OLD version from a local fake
+          # upstream, so it must not share state with the install above.
+          bash tests/update_rollback.sh
+
       - name: uninstall gives the settings back, and keeps the trunk
         run: |
           set -euo pipefail

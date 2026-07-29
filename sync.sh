@@ -174,7 +174,7 @@ sync_dir companion '__pycache__' '*.pyc'
 # EXCLUDED: the tests that belong to the PACKAGE (plugin manifests, English
 # only). They have no counterpart in the living Brain; --delete would take them.
 sync_dir tests 'plugin_manifest.py' 'english_only.py' 'update_tag_family.sh' \
-  'recall_benchmark.py' 'recall_cache.py' \
+  'recall_benchmark.py' 'recall_cache.py' 'update_rollback.sh' \
   '__pycache__' '*.pyc'
 
 # --- 8. Status line (lives in ~/.claude, not in the trunk) ----------------
