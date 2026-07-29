@@ -28,6 +28,20 @@ would catch it: no test reads prose. Only a reader would notice, much later.
 
 `CBRAIN_ALLOW_SYNC_ON_MAIN=1` forces it, for the rare case where you know why.
 
+## What the sync does NOT take
+
+Three files live **only in the package** and are excluded from the sync, because
+`rsync --delete` would wipe them on the first pass:
+
+| File | Why it is not in the living Brain |
+|---|---|
+| `hooks/hooks.json` | the Claude Code plugin's hook manifest |
+| `tests/plugin_manifest.py` | checks the package's own manifests |
+| `tests/english_only.py` | watches the translation, on `main` only |
+
+This is the worst failure mode available here: an erased `hooks.json` does not
+crash — the plugin simply **stops recording**.
+
 ## Workflow when the Brain evolves
 
 ```bash

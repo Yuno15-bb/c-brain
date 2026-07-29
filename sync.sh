@@ -141,10 +141,16 @@ sync_file "$SRC/brain" "brain"
 # EXCLUDED: desktop_sync.py + its plist (backs up the author's Desktop to THEIR
 # own GitHub — personal, and destructive on someone else's machine), and the
 # non-template .plist carrying a hardcoded home (only the .template ships).
+#
+# ALSO EXCLUDED: hooks.json. It exists ONLY in the package — it is the Claude
+# Code plugin's hook manifest, not a file of the living Brain. rsync runs with
+# --delete: without this exclusion the very next sync would erase it, and the
+# plugin would stop recording ANYTHING without a single error.
 sync_dir hooks \
   'desktop_sync.py' \
   'com.dylan.desktop-sync.plist.template' \
   'com.claudebrain.resume.plist' \
+  'hooks.json' \
   '__pycache__' '*.pyc'
 
 # --- 3. Agents ------------------------------------------------------------
@@ -165,7 +171,9 @@ sync_dir planet 'graph.json'
 sync_dir companion '__pycache__' '*.pyc'
 
 # --- 7. Tests --------------------------------------------------------------
-sync_dir tests '__pycache__' '*.pyc'
+# EXCLUDED: the tests that belong to the PACKAGE (plugin manifests, English
+# only). They have no counterpart in the living Brain; --delete would take them.
+sync_dir tests 'plugin_manifest.py' 'english_only.py' '__pycache__' '*.pyc'
 
 # --- 8. Status line (lives in ~/.claude, not in the trunk) ----------------
 sync_file "$CLAUDE_DIR/statusline.py" "statusline.py"

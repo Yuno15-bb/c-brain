@@ -34,15 +34,29 @@ def fail(msg):
     return 1
 
 
+def _branch():
+    try:
+        return subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--abbrev-ref", "HEAD"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return ""
+
+
 def latest_tag():
-    """The newest vX.Y.Z on this branch, French tags excluded."""
+    """The newest tag of THIS branch's family.
+
+    Tags are not scoped to a branch: `git tag` hands back all of them. Comparing
+    the French version against the latest English tag would fail `fr` forever,
+    for a reason that has nothing to do with a defect.
+    """
+    pattern = r"v\d+\.\d+\.\d+-fr" if _branch() == "fr" else r"v\d+\.\d+\.\d+"
     try:
         out = subprocess.run(["git", "-C", str(ROOT), "tag", "--sort=-creatordate"],
                              capture_output=True, text=True, check=True).stdout
     except (subprocess.CalledProcessError, FileNotFoundError):
         return None
     for t in out.split():
-        if re.fullmatch(r"v\d+\.\d+\.\d+", t):
+        if re.fullmatch(pattern, t):
             return t
     return None
 
