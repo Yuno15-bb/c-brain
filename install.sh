@@ -12,7 +12,11 @@
 #   ~/.c-brain/engine  → link to THIS repo (the ENGINE: code, nothing else)
 #   ~/.c-brain/trunk     → YOUR trunk (your notes). Never overwritten, never updated.
 #
-# Usage: ./install.sh [--no-launchd] [--no-capsule] [--no-shortcut] [--dry-run]
+# Usage: ./install.sh [--core-only] [--no-launchd] [--no-capsule]
+#                     [--no-planet] [--no-shortcut] [--dry-run]
+#
+#   --core-only  the memory alone: trunk, recall, agents, hooks, `brain`.
+#                No capsule, no planet launcher, no scheduled jobs.
 set -euo pipefail
 
 ENGINE="$(cd "$(dirname "$0")" && pwd -P)"
@@ -22,12 +26,18 @@ TS="$(date +%Y%m%d-%H%M%S)"
 BACKUPS="$CB/backups/$TS"
 MANIFEST="$CB/manifest.txt"
 
-DO_LAUNCHD=1; DO_CAPSULE=1; DO_SHORTCUT=1; DRY=0
+DO_LAUNCHD=1; DO_CAPSULE=1; DO_SHORTCUT=1; DO_PLANET=1; DRY=0
 for a in "$@"; do
   case "$a" in
     --no-launchd) DO_LAUNCHD=0 ;;
     --no-capsule) DO_CAPSULE=0 ;;
     --no-shortcut) DO_SHORTCUT=0 ;;
+    # The memory, and nothing else: trunk, recall, agents, hooks, `brain`.
+    # No Electron window, no 3D globe, no background job. Named as one option
+    # because "install it without the ornaments" is a thing people want to ask
+    # for in one go, and three flags they have to discover is not an answer.
+    --core-only)  DO_LAUNCHD=0; DO_CAPSULE=0; DO_PLANET=0 ;;
+    --no-planet)  DO_PLANET=0 ;;
     --dry-run)    DRY=1 ;;
     *) echo "Unknown option: $a"; exit 1 ;;
   esac
@@ -212,7 +222,8 @@ fi
 # ─── 9. Planet launcher ─────────────────────────────────────────────
 step "Planet launcher (Desktop)"
 CMD="$HOME/Desktop/Planete-C-Brain.command"
-if [ "$DRY" = "1" ]; then say "(dry-run) would create $CMD"
+if [ "$DO_PLANET" = "0" ]; then say "(skipped — --core-only)"
+elif [ "$DRY" = "1" ]; then say "(dry-run) would create $CMD"
 elif [ -d "$HOME/Desktop" ]; then
   printf '#!/bin/bash\nexport PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"\nexec "%s/planet/launch.sh"\n' "$TRUNK" > "$CMD"
   chmod +x "$CMD"

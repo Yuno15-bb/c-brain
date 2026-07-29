@@ -10,8 +10,15 @@ as-is.
 
 What travels is not the skill. It is **the standard that produces it**.
 
-This folder is yours. Forge your skills here: Claude Code reads
-`~/.claude/skills/`, and the installer wires this folder in.
+**Forge your skills in `~/.claude/skills/`** — that is the directory Claude Code
+reads, and it belongs to you rather than to any tool.
+
+> ⚠ An earlier version of this file said "the installer wires this folder in".
+> It does not, and never did: `install.sh` contains no reference to `skills/` at
+> all. Anyone who followed that sentence wrote skills into the engine, where
+> nothing reads them — no error, no warning, just a skill that never triggers.
+> The instruction is corrected above rather than deleted, because a silent
+> no-op is the failure mode this project keeps having to name.
 
 ---
 

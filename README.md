@@ -5,24 +5,22 @@
 [![Licence](https://img.shields.io/github/license/Yuno15-bb/c-brain?color=8a8f98)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS-8a8f98)](#compatibility)
 
-**A memory that grows** for command-line agents.
+**C Brain turns each session with your CLI agent into memory it can reuse —
+distilled into a note, filed, linked, and handed back automatically the next
+time it matters. From any project, and without leaving your machine.**
 
-Your CLI agent is brilliant within a session, and amnesic between two. C Brain
-gives it a persistent knowledge trunk: what you figure out once gets distilled
-into a note, filed, linked — and **surfaced automatically** next time, from any
-project.
+Your agent is brilliant within a session and amnesic between two. Solve
+something on Monday, explain it again on Thursday. C Brain is the part that
+remembers.
 
-The more work piles up, the more useful the tree gets. That is the opposite of a
+The more work piles up, the more useful the tree gets — the opposite of a
 conversation history, which only gets longer.
-
-<p align="center">
-  <img src="docs/media/capsule.webp" alt="The capsule: a small window cycling through every agent state — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing, then back to idle" width="190">
-</p>
-<p align="center"><sub>The capsule, at its real size — all eleven states it can show you, then idle.</sub></p>
 
 ---
 
 ## What it actually does
+
+**The memory itself** — this is the product, and it is all you need:
 
 | | |
 |---|---|
@@ -30,9 +28,31 @@ conversation history, which only gets longer.
 | 🔎 **Automatic recall** | relevant notes are injected into context on every prompt |
 | 🤖 **8 agents** | they distill, file, link, challenge, synthesize, prune, repair, and watch the machine |
 | 🔁 **A closed loop** | session ends → archive → distill → file, without being asked |
-| 🥚 **A capsule** | a small window showing the agents at work, live |
-| 🪐 **A planet** | your knowledge as a navigable 3D globe, rebuilt on every launch |
 | ⬆️ **Updates** | the engine updates itself; **your notes are never touched** |
+
+**And two ways to look at it**, which are extensions and install separately —
+`./install.sh --core-only` leaves both out:
+
+| | |
+|---|---|
+| 🥚 **A capsule** | a small Electron window showing the agents at work, live |
+| 🪐 **A planet** | your knowledge as a navigable 3D globe, rebuilt on every launch |
+
+### How good is the recall?
+
+Measured, not asserted — `tests/recall_benchmark.py`, on a synthetic corpus
+where finding the answer means picking one note out of ~120 that share its
+subject and most of its vocabulary:
+
+| notes | P@1 | P@3 | MRR | off-topic in what it injects | per prompt |
+|---|---|---|---|---|---|
+| 100 | 0.94 | 0.98 | 0.96 | 35% | 5 ms |
+| 1000 | 0.79 | 0.93 | 0.86 | 24% | 47 ms |
+| 5000 | 0.46 | 0.83 | 0.64 | 39% | — |
+
+It holds to about a thousand notes and degrades sharply past that. Published
+here because a memory tool that will not say how well it remembers is asking
+for trust it has not earned. The CI enforces these numbers as thresholds.
 
 ## Install
 
@@ -58,6 +78,13 @@ then run ./install.sh and show me the final verification output.
 ```
 
 Or by hand: `git clone … && cd c-brain && ./install.sh`
+
+**The memory and nothing else** — no Electron window, no 3D globe, no
+background job:
+
+```bash
+./install.sh --core-only
+```
 
 Details, prerequisites and uninstall: **[INSTALL.md](INSTALL.md)**.
 
@@ -89,7 +116,20 @@ part that is yours is the one part you can see.
   [`skills/README.md`](skills/README.md) for the reasoning: we pass on the
   method, not somebody else's lived experience.
 
-## The planet
+## The extensions
+
+Neither of the two below is the product. They are how you *watch* it — pleasant,
+optional, and skipped entirely by `./install.sh --core-only`. The plugin install
+never sets them up at all, because a plugin cannot install a background service.
+
+### The capsule
+
+<p align="center">
+  <img src="docs/media/capsule.webp" alt="The capsule: a small window cycling through every agent state — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing, then back to idle" width="190">
+</p>
+<p align="center"><sub>At its real size — all eleven states it can show you, then idle.</sub></p>
+
+### The planet
 
 Every note is a dot, every `[[link]]` an arc. The globe is rebuilt from your
 trunk on each launch — projects become cities, cross-cutting lessons become
@@ -130,6 +170,19 @@ archiving, autonomous maintenance, status line). With another CLI agent, C Brain
 installs and works **on demand** — trunk, agents, `brain`, planet, capsule — but
 without the closed loop. The installer detects this and says so, rather than
 pretending otherwise.
+
+**Linux is not supported yet, and the gap is smaller than it looks.** Reading
+the code rather than guessing: macOS is assumed in exactly four places — the
+platform check in `install.sh`, the `launchd` job templates, the `.command`
+Desktop launcher, and the Finder `xattr` tag. Claude Code is assumed in one
+file, `merge_settings.py`. Everything else — the trunk, recall, the agents, the
+`brain` CLI, the hooks themselves — is portable Python and shell already.
+
+So this is a portable core with two thin adapters, not a macOS product. The
+order it will be done in: **`systemd` units in place of `launchd`, a `.desktop`
+entry in place of the `.command` file, no Finder tag, and `--core-only` as the
+default shape on Linux.** No date attached to that; saying which four places
+have to change is more use than a promise.
 
 ## Language
 
