@@ -19,6 +19,7 @@ someone's files, and the two layouts must not be silently merged), and always
 exits 0. A memory tool that breaks the session it is trying to help is worse
 than no memory at all.
 """
+import json
 import os
 import shutil
 import sys
@@ -65,12 +66,31 @@ def main():
         if os.path.isdir(src):
             relink(src, os.path.join(TRUNK, d))
 
+    # The version a plugin install can actually report. Without this file,
+    # `brain version` answers "(unknown version)" to everyone who arrived
+    # through the marketplace — and version is the first thing anyone is asked
+    # for when something goes wrong. install.sh writes it; nothing else did.
+    try:
+        manifest = os.path.join(ROOT, ".claude-plugin", "plugin.json")
+        with open(manifest, encoding="utf-8") as f:
+            version = json.load(f).get("version")
+        if version:
+            with open(os.path.join(CB, "VERSION"), "w", encoding="utf-8") as f:
+                f.write(f"{version} (plugin)\n")
+    except Exception:
+        pass                       # never worth failing a session over
+
     if fresh:
         # Said once, on the session where the trunk appears — and said where a
         # first-time user is actually looking, not in a README they have not
         # opened. An empty trunk that explains nothing is where people give up.
-        print("🧠 C Brain: your trunk is ready at ~/.c-brain/trunk (a `C Brain` "
-              "shortcut in your home folder opens it).\n"
+        #
+        # ⚠ It does NOT promise the `C Brain` shortcut. That folder is created
+        # by install.sh, which a plugin install never runs — so the first
+        # sentence a marketplace user ever read pointed at something that was
+        # not there. The path is given instead, because it is true.
+        print("🧠 C Brain: your trunk is ready at ~/.c-brain/trunk — plain "
+              "markdown files, yours.\n"
               "   Try: brain demo · brain recall cache · brain demo --remove")
 
 
