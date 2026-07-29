@@ -46,7 +46,50 @@ current() { git -C "$ENGINE" describe --tags --exact-match 2>/dev/null || git -C
 
 # Le tag le plus récent au sens des versions, pas au sens alphabétique :
 # sans `-V`, v10 passerait avant v9.
-latest_tag() { git -C "$ENGINE" tag -l 'v*' | sort -V | tail -1; }
+# À quelle FAMILLE de tags appartient cette installation — anglaise (`v1.2.3`)
+# ou française (`v1.2.3-fr`).
+#
+# ⚠ Ce n'est pas de la décoration, c'est un bug de bascule de langue.
+# Les tags ne sont pas rangés par branche, donc `git tag -l 'v*'` rend les deux
+# familles d'un coup — et `sort -V` place `v1.18.0-fr` APRÈS `v1.18.0`. Prendre
+# le maximum global faisait donc basculer une installation ANGLAISE sur l'arbre
+# FRANÇAIS dès que la branche fr rattrapait son retard, sans la moindre erreur :
+# le tag existe, le checkout réussit, et l'utilisateur trouve simplement son
+# outil en train de parler une autre langue. Ça n'est resté caché que tant que
+# `fr` traînait derrière.
+#
+# Donc : lire la famille sur ce qui est installé, et ne jamais en sortir.
+#
+# Le seul cas que ça ne peut pas trancher, c'est un tag nu et un tag `-fr` sur
+# le MÊME commit, où `--exact-match` en choisit un arbitrairement. Ça ne peut
+# pas arriver ici : les deux branches divergent par construction, `main` étant
+# la traduction de `fr`. Si elles convergeaient un jour, il faudrait une famille
+# ENREGISTRÉE au lieu d'une famille déduite.
+family() {
+  local tag branch
+  tag="$(git -C "$ENGINE" describe --tags --exact-match 2>/dev/null || true)"
+  case "$tag" in
+    *-fr) echo "-fr"; return ;;
+    v*)   echo "";    return ;;
+  esac
+  # Pas posé sur un tag (clone frais, ou checkout détaché) : on retombe sur la
+  # branche que suit le clone.
+  branch="$(git -C "$ENGINE" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  [ "$branch" = "fr" ] && echo "-fr" || echo ""
+}
+
+# Le tag le plus récent de la famille de CETTE installation, par ordre de
+# version et non alphabétique : sans `-V`, v10 passerait avant v9.
+latest_tag() {
+  local suffix rx
+  suffix="$(family)"
+  if [ -n "$suffix" ]; then rx='^v[0-9]+\.[0-9]+\.[0-9]+-fr$'
+  else                      rx='^v[0-9]+\.[0-9]+\.[0-9]+$'; fi
+  # `|| true` : sans tag correspondant, `grep` sort 1, et sous `set -e` +
+  # `pipefail` ça tuerait le script une ligne avant le contrôle de résultat
+  # vide qui, lui, gère déjà le cas proprement.
+  git -C "$ENGINE" tag -l 'v*' | grep -E "$rx" | sort -V | tail -1 || true
+}
 
 # ─── Retour arrière ───────────────────────────────────────────────────────
 if [ "$MODE" = "rollback" ]; then

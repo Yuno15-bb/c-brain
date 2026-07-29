@@ -160,7 +160,8 @@ sync_dir companion '__pycache__' '*.pyc'
 # --- 7. Tests --------------------------------------------------------------
 # EXCLUS : les tests propres au PAQUET (manifeste de plugin, anglais seul).
 # Ils n'ont pas d'équivalent dans le Brain vivant ; --delete les emporterait.
-sync_dir tests 'plugin_manifest.py' 'english_only.py' '__pycache__' '*.pyc'
+sync_dir tests 'plugin_manifest.py' 'english_only.py' 'update_tag_family.sh' \
+  '__pycache__' '*.pyc'
 
 # --- 8. Statusline (vit dans ~/.claude, pas dans le tronc) ----------------
 sync_file "$CLAUDE_DIR/statusline.py" "statusline.py"
