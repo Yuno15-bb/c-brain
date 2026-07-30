@@ -10,7 +10,12 @@
     "",
     "expect = nombre MINIMAL d'occurrences attendues. Un compteur tombé à 0 est un signal",
     "d'alerte (la source a changé de formulation, la règle ne mord plus), pas une bonne",
-    "nouvelle : generalize.py échoue."
+    "nouvelle : generalize.py échoue.",
+    "",
+    "_regles_gelees : règles qui ciblent un fichier GELÉ (exclu de sync.sh). Elles ne",
+    "sont lues par personne — generalize.py ne lit que `blocks` et `replacements`. Elles",
+    "restent ici pour que la correction se retrouve le jour où le fichier revient dans le",
+    "sync, au lieu de disparaître avec la ligne qu'on aurait supprimée."
   ],
   "blocks": [
     {
@@ -26,20 +31,6 @@
       "pattern": "BRAIN = os\\.path\\.realpath\\(os\\.path\\.join\\(os\\.path\\.dirname\\(os\\.path\\.abspath\\(__file__\\)\\), \"\\.\\.\"\\)\\)\\nsys\\.path\\.insert\\(0, os\\.path\\.join\\(BRAIN, \"hooks\"\\)\\)\\n",
       "why": "Une seule racine servait à la fois au CODE et aux DONNÉES. Avec la séparation moteur/tronc, elle pointait dans le moteur : le test écrivait state/coherence.json dans le dépôt installé (échec, et corruption à la mise à jour). Trouvé par le selftest en HOME isolé, pas par relecture.",
       "replace": "# Deux racines DISTINCTES, et c'est volontaire :\n#  · CODE  — d'où viennent les hooks à importer. Suit le fichier, car le moteur\n#    peut vivre ailleurs que le tronc (installation par symlinks).\n#  · BRAIN — le tronc de l'utilisateur, d'où viennent les DONNÉES (state/).\n#    Toujours dérivé de $HOME : écrire dans le moteur casserait l'installation\n#    et serait écrasé à la première mise à jour.\nCODE = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), \"..\"))\nBRAIN = os.path.expanduser(\"~/claude-brain\")\nsys.path.insert(0, os.path.join(CODE, \"hooks\"))\n"
-    },
-    {
-      "id": "capsule-watcher-vise-le-tronc",
-      "file": "capsule/main.js",
-      "pattern": "const fs = require\\('fs'\\);\\nconst path = require\\('path'\\);",
-      "why": "main.js visait state/status.json via __dirname → sous symlink, il surveillait le state du MOTEUR, jamais celui de l'utilisateur. La capsule se serait animée (index.html, lui, dérivait bien de homedir) mais ne se serait JAMAIS re-montrée quand un agent se réveille. Incohérence interne au même composant.",
-      "replace": "const fs = require('fs');\nconst path = require('path');\nconst os = require('os');"
-    },
-    {
-      "id": "capsule-watcher-chemin",
-      "file": "capsule/main.js",
-      "pattern": "const STATUS = path\\.join\\(__dirname, '\\.\\.', 'state', 'status\\.json'\\);",
-      "why": "Même correction, côté chemin : le tronc dérive de $HOME, exactement comme le fait déjà index.html.",
-      "replace": "// DÉRIVÉ DE $HOME, jamais de __dirname : le moteur peut vivre ailleurs que le\n// tronc (installation par symlinks), et c'est le state de l'UTILISATEUR qu'on\n// surveille. Même chemin que celui utilisé par index.html.\nconst STATUS = path.join(os.homedir(), 'claude-brain', 'state', 'status.json');"
     },
     {
       "id": "capsule-test-anim-chemin",
@@ -128,8 +119,8 @@
       ],
       "pattern": "os\\.homedir\\(\\),\\s*'claude-brain'",
       "replace": "os.homedir(), '.c-brain', 'trunk'",
-      "expect": 3,
-      "why": "Côté capsule, le tronc est dérivé de homedir() en segments. C'est ce chemin qui décide si la capsule surveille le state de l'UTILISATEUR ou celui du moteur."
+      "expect": 2,
+      "why": "Côté capsule, le tronc est dérivé de homedir() en segments. C'est ce chemin qui décide si la capsule surveille le state de l'UTILISATEUR ou celui du moteur. — expect passé de 3 à 2 le 2026-07-30 : la 3ᵉ occurrence vivait dans capsule/main.js, GELÉ hors sync tant que la refonte V2 est en chantier (voir sync.sh §4 et _regles_gelees). Le fichier du paquet porte déjà le bon chemin en dur. À remonter à 3 quand main.js repasse dans le sync."
     },
     {
       "id": "tronc-chemin-shell",
@@ -402,6 +393,28 @@
       "replace": "\"extraction <projet>\"",
       "expect": 1,
       "why": "Exemple de ligne de commande dans le README de la capsule."
+    }
+  ],
+  "_regles_gelees": [
+    {
+      "id": "capsule-watcher-vise-le-tronc",
+      "file": "capsule/main.js",
+      "pattern": "const fs = require\\('fs'\\);\\nconst path = require\\('path'\\);",
+      "why": "main.js visait state/status.json via __dirname → sous symlink, il surveillait le state du MOTEUR, jamais celui de l'utilisateur. La capsule se serait animée (index.html, lui, dérivait bien de homedir) mais ne se serait JAMAIS re-montrée quand un agent se réveille. Incohérence interne au même composant.",
+      "replace": "const fs = require('fs');\nconst path = require('path');\nconst os = require('os');",
+      "_gelee_le": "2026-07-30",
+      "_gelee_pourquoi": "capsule/main.js est EXCLU de sync.sh tant que la refonte V2 (avatar Lottie) est en chantier dans le Brain vivant. Le fichier du paquet porte donc DÉJÀ le résultat de cette règle, en dur. La laisser active la rejouait sur un fichier déjà généralisé : elle réinsérait `const os = require('os');` une SECONDE fois — doublon de `const` = SyntaxError, la capsule V1 du paquet ne démarrait plus. Vérifié par exécution.",
+      "_a_reactiver_quand": "la V2 est portée et main.js repasse dans sync.sh (voir sync.sh §4)"
+    },
+    {
+      "id": "capsule-watcher-chemin",
+      "file": "capsule/main.js",
+      "pattern": "const STATUS = path\\.join\\(__dirname, '\\.\\.', 'state', 'status\\.json'\\);",
+      "why": "Même correction, côté chemin : le tronc dérive de $HOME, exactement comme le fait déjà index.html.",
+      "replace": "// DÉRIVÉ DE $HOME, jamais de __dirname : le moteur peut vivre ailleurs que le\n// tronc (installation par symlinks), et c'est le state de l'UTILISATEUR qu'on\n// surveille. Même chemin que celui utilisé par index.html.\nconst STATUS = path.join(os.homedir(), 'claude-brain', 'state', 'status.json');",
+      "_gelee_le": "2026-07-30",
+      "_gelee_pourquoi": "capsule/main.js est EXCLU de sync.sh tant que la refonte V2 (avatar Lottie) est en chantier dans le Brain vivant. Le fichier du paquet porte donc DÉJÀ le résultat de cette règle, en dur. La laisser active la rejouait sur un fichier déjà généralisé : elle réinsérait `const os = require('os');` une SECONDE fois — doublon de `const` = SyntaxError, la capsule V1 du paquet ne démarrait plus. Vérifié par exécution.",
+      "_a_reactiver_quand": "la V2 est portée et main.js repasse dans sync.sh (voir sync.sh §4)"
     }
   ]
 }

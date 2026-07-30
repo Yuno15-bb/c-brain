@@ -35,6 +35,11 @@ RSYNC_FLAGS=(-a --delete --itemize-changes)
 #
 # La bonne question est « la SOURCE a-t-elle bougé depuis la dernière copie ? ».
 # On y répond avec une empreinte des fichiers sources au moment du sync.
+#
+# ⚠ TOUTE exclusion posée sur un `sync_dir` plus bas DOIT être répétée ici.
+# Sinon le fichier n'est jamais copié mais compte quand même dans l'empreinte :
+# la source reste « changée » pour toujours et publish.sh refuse de tagger,
+# sans jamais dire quoi corriger.
 MANIFEST="$DEST/.sync-manifest"
 
 empreinte_source() {
@@ -46,7 +51,9 @@ empreinte_source() {
          ! -name "graph.json" ! -name "desktop_sync.py" \
          ! -name "com.dylan.desktop-sync.plist.template" \
          ! -name "com.claudebrain.resume.plist" \
-         ! -path "*/capsule/assets/*" 2>/dev/null \
+         ! -path "*/capsule/assets/*" \
+         ! -path "*/capsule/lottie/*" ! -name "index-v2.html" \
+         ! -path "*/capsule/main.js" 2>/dev/null \
       | sort | xargs shasum -a 256 2>/dev/null
   } | sed "s|$SRC/||; s|$CLAUDE_DIR/||" | sort -k2
 }
@@ -147,7 +154,15 @@ sync_dir agents
 # EXCLUS : node_modules (282 Mo, réinstallé par install.sh) et assets/ (7,4 Mo
 # de poids MORT — vérifié le 2026-07-26 : le sprite est inline dans index.html,
 # aucun fichier de assets/ n'est référencé par le code).
-sync_dir capsule 'node_modules' 'assets'
+# EXCLUS : lottie/, index-v2.html ET main.js — la refonte V2 de la capsule
+# (avatar Lottie) est un CHANTIER dans le Brain vivant, pas une fonctionnalité
+# livrable. main.js y est DÉJÀ passé en V2 (il lance index-v2.html et cache la
+# fenêtre au repos), donc le synchroniser publierait la V2 par la bande, sans
+# les fichiers qu'elle charge. Le paquet garde la V1, qui marche.
+# ⚠ Gèle aussi toute correction NON-V2 de main.js : la lever demande de porter
+# la V2 en entier, pas de retirer une ligne.
+# À retirer le jour où la V2 remplace vraiment index.html.
+sync_dir capsule 'node_modules' 'assets' 'lottie' 'index-v2.html' 'main.js'
 
 # --- 5. Planète -----------------------------------------------------------
 # EXCLU : graph.json — 1,4 Mo contenant le TEXTE INTÉGRAL des fiches, noms de
