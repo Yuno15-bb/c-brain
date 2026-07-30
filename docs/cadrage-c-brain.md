@@ -241,7 +241,7 @@ c-brain/
 |---|---|---|
 | **L0** ✅ | `sync.sh` (liste blanche) + `leakcheck.py` + `.gitignore` + `skills/` | outils livrés et **exécutés** : `sync --check` prouvé sur 3 divergences simultanées, leakcheck rouge à 50 (= il voit) |
 | **L1** ✅ | `generalize.py` + `rules.json` (20 règles) + `skeleton/` | **leakcheck vert** (50 → 0) ; `selftest` + `doctor` + `recall` + `graph_export` **verts en HOME isolé** |
-| **L2** ✅ | `install.sh` + `uninstall.sh` + `merge_settings.py` + `INSTALL.md` | cycle complet prouvé en HOME isolé : 2ᵉ passe = 0 changement ; `settings.json` revient **à l'identique** après désinstallation ; fiche utilisateur intacte |
+| **L2** ✅ | `install.sh` + `uninstall.sh` + `merge_settings.py` + `INSTALL.md` | cycle complet prouvé en HOME isolé : 2ᵉ passe = 0 changement ; `settings.json` revient **sémantiquement identique** après désinstallation — toutes tes clés reviennent, aucune des nôtres ne reste. Pas à l'octet près : la désinstallation réécrit le fichier via le sérialiseur JSON de Python, donc une mise en forme à la main revient reformatée (corrigé en v1.13.0) ; fiche utilisateur intacte |
 | **L3** ✅ | Capsule + statusline | capture d'écran : `DISTILLING` puis `IDLE` sur changement de `status.json` ; 3 composants alignés sur le même chemin |
 | **L4** ✅ | Planète + `.command` Bureau | `launch.sh` → `200` sur index/graph/glb ; capture headless du globe + légende |
 | **L5** ✅ | Companion | hooks pre/post rejoués : `+3 −1` agrégé, statusline à **2 lignes** |

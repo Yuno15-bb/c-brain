@@ -128,6 +128,21 @@ if [ "$CUR" = "$NEW" ] && [ "$MODE" != "force" ]; then
 fi
 
 echo "  nouvelle version disponible : $NEW"
+
+# D'OÙ VIENT LE CODE. Une mise à jour remplace le moteur — elle fera tourner du
+# code sur cette machine à la session suivante. Nommer une version, ce n'est pas
+# nommer une source : un remote peut être changé par quiconque peut écrire dans
+# la config git du moteur, et un tag peut être déplacé. Donc l'URL d'origine et
+# le commit exact sont affichés AVANT d'appliquer quoi que ce soit, parce que
+# c'est ce qu'une personne aurait besoin de vérifier.
+#
+# C'est de la divulgation, pas de la vérification. Les tags ne sont pas signés
+# (voir SECURITY.md) ; ce qui suit te permet de regarder, pas à la machine de
+# refuser.
+REMOTE_URL="$(git -C "$ENGINE" remote get-url origin 2>/dev/null || echo "inconnu")"
+TARGET_SHA="$(git -C "$ENGINE" rev-parse --short "$NEW" 2>/dev/null || echo "inconnu")"
+echo "  depuis : $REMOTE_URL"
+echo "  commit : $TARGET_SHA"
 if [ "$MODE" = "check" ]; then
   echo "  → \`brain update\` pour l'installer."
   exit 10   # 10 = « une mise à jour existe », lisible par un script

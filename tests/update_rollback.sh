@@ -84,6 +84,15 @@ grep -q "v9.9.1" "$H/check.log"; check $? "--check nomme la nouvelle version" "$
 [ "$rc" = "10" ]; check $? "--check sort en 10 (une mise à jour existe)" "obtenu $rc"
 [ ! -f "$H/.c-brain/engine/UPDATE_MARKER" ]; check $? "--check n'a rien appliqué"
 
+# D'OÙ, exactement. Une mise à jour fait tourner du code sur cette machine ;
+# nommer une version n'est pas nommer une source. Les deux lignes sont vérifiées
+# parce qu'une divulgation que personne ne contrôle est une divulgation qu'un
+# remaniement supprime en silence — elle ne casse rien en partant.
+grep -q "depuis :.*upstream" "$H/check.log"
+check $? "--check dit de quel remote viendrait le code" "$(tail -4 "$H/check.log")"
+grep -qE "commit : [0-9a-f]{7,}" "$H/check.log"
+check $? "--check nomme le commit exact vers lequel il irait" "$(tail -4 "$H/check.log")"
+
 echo "▸ brain update déplace le moteur"
 brain update >"$H/update.log" 2>&1 || { echo "❌ mise à jour échouée :"; tail -20 "$H/update.log"; FAILS=$((FAILS+1)); }
 [ -f "$H/.c-brain/engine/UPDATE_MARKER" ]; check $? "la nouvelle version est vraiment sur le disque" "$(tail -3 "$H/update.log")"

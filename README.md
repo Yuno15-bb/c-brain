@@ -117,8 +117,13 @@ touche jamais (`--no-shortcut` si tu n'en veux pas).
 
 ## Ce que ça ne fait pas
 
-- **Ça n'envoie rien.** Aucune télémétrie, aucun appel réseau hors `git pull`.
-- **Ça ne lit pas tes fiches**, sauf pour te les rendre.
+- **Ça ne fait aucune requête de son côté.** Aucune télémétrie, aucun appel
+  réseau hors `git pull`. Ce qui voyage, c'est ce que tes prompts emportent
+  déjà : le hook de rappel ajoute le nom, la description et le chemin de deux ou
+  trois fiches à un prompt que tu envoyais de toute façon, et les agents que tu
+  lances lisent des fiches entières. Les deux partent chez ton fournisseur de
+  modèle, comme le reste de ton message. [`SECURITY.md`](SECURITY.md) dit
+  précisément où passe la ligne.
 - **Ça n'installe rien tout seul.** Une nouvelle version est *signalée* ; tu
   lances `brain update` quand ça t'arrange.
 - **Ça ne livre aucun contenu.** Ton arbre démarre vide — voir

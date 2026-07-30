@@ -18,8 +18,22 @@ risque :
 - **Il ne fait aucun appel réseau à part `git pull`.** Zéro télémétrie, zéro
   analytics, zéro rapport de plantage, zéro appel maison à l'installation.
   `brain update` est annoncé, jamais automatique.
-- **Il n'envoie tes fiches nulle part.** Ce sont des fichiers markdown dans un
-  dossier qui t'appartient. Rien ne les lit sinon pour te les rendre.
+- **Il lit tes fiches en local, et c'est comme ça qu'il marche.** Le rappel,
+  l'index, le graphe et les agents ouvrent tous les fichiers — on ne peut pas
+  retrouver une fiche sans en lire une. Ça se passe sur ta machine, et rien ne
+  nous revient.
+- **Ce qui quitte ta machine, c'est ce que ton prompt emporte.** Le hook de
+  rappel ajoute le **nom, la description d'une ligne et le chemin** des deux ou
+  trois fiches les plus pertinentes au prompt que tu t'apprêtes à envoyer — pas
+  le corps des fichiers. Ce prompt part chez ton fournisseur de modèle, comme le
+  reste de ton message. C Brain ne fait aucune requête de son côté, mais il
+  serait faux de dire que rien de ton tronc ne voyage : ce qu'il met dans un
+  prompt voyage avec le prompt. `brain doctor` montre ce que le hook injecterait ;
+  retirer le hook `UserPromptSubmit` de `settings.json` l'arrête complètement.
+- **Les agents sont le cas bruyant.** Quand tu lances `distillateur`,
+  `jardinier` ou un autre, il lit des fiches entières et les envoie au
+  fournisseur — c'est ce que tu lui as demandé de faire. Rien d'automatique
+  là-dedans : c'est toi qui les démarres.
 
 ## Versions suivies
 

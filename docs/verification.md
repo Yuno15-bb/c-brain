@@ -52,8 +52,12 @@ echo "fiche test" > $T/.c-brain/trunk/lessons/test.md
 HOME=$T bash $T/dev-c-brain/uninstall.sh --yes
 ```
 
-**Attendu** : la fiche existe encore, `settings.json` est **identique à son état
-d'origine**, les liens du moteur ont disparu.
+**Attendu** : la fiche existe encore, `settings.json` retrouve **toutes tes clés
+et aucune des nôtres**, les liens du moteur ont disparu.
+
+⚠ Compare le JSON **analysé**, pas les octets : la désinstallation réécrit le
+fichier via le sérialiseur JSON de Python, donc une mise en forme à la main
+revient reformatée. C'est l'invariant que tient la CI depuis v1.13.0.
 
 ## 4. Capsule
 
