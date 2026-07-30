@@ -24,6 +24,7 @@ dispositions ne doivent pas fusionner en silence), et sort toujours 0. Un outil
 de mémoire qui casse la session qu'il est censé aider est pire que pas de
 mémoire du tout.
 """
+import json
 import os
 import shutil
 import sys
@@ -71,12 +72,33 @@ def main():
         if os.path.isdir(src):
             relier(src, os.path.join(TRUNK, d))
 
+    # La version qu'une installation en plugin peut réellement annoncer. Sans
+    # ce fichier, `brain version` répond « (version inconnue) » à tous ceux qui
+    # sont arrivés par la marketplace — et la version est la première chose
+    # qu'on demande quand quelque chose ne va pas. install.sh l'écrit ; rien
+    # d'autre ne le faisait.
+    try:
+        manifeste = os.path.join(ROOT, ".claude-plugin", "plugin.json")
+        with open(manifeste, encoding="utf-8") as f:
+            version = json.load(f).get("version")
+        if version:
+            with open(os.path.join(CB, "VERSION"), "w", encoding="utf-8") as f:
+                f.write(f"{version} (plugin)\n")
+    except Exception:
+        pass                       # jamais de quoi casser une session
+
     if neuf:
         # Dit une seule fois, la session où le tronc apparaît — et dit là où un
         # nouvel utilisateur regarde vraiment, pas dans un README qu'il n'a pas
         # ouvert. Un tronc vide qui n'explique rien, c'est là qu'on abandonne.
-        print("🧠 C Brain : ton tronc est prêt dans ~/.c-brain/trunk (un raccourci "
-              "`C Brain` dans ton dossier personnel l'ouvre).\n"
+        #
+        # ⚠ Il ne PROMET PAS le raccourci `C Brain`. Ce dossier est créé par
+        # install.sh, qu'une installation en plugin ne lance jamais — donc la
+        # première phrase lue par un utilisateur de la marketplace pointait
+        # vers quelque chose qui n'existait pas. On donne le chemin à la
+        # place, parce que le chemin, lui, est vrai.
+        print("🧠 C Brain : ton tronc est prêt dans ~/.c-brain/trunk — de simples "
+              "fichiers markdown, les tiens.\n"
               "   Essaie : brain demo · brain recall cache · brain demo --remove")
 
 
