@@ -124,6 +124,20 @@ if [ "$CUR" = "$NEW" ] && [ "$MODE" != "force" ]; then
 fi
 
 echo "  new version available: $NEW"
+
+# WHERE THE CODE COMES FROM. An update replaces the engine — it runs code on
+# this machine at the next session. Naming a version is not naming a source: a
+# remote can be changed by anyone who can write to the engine's git config, and
+# a tag can be moved. So the origin URL and the exact commit are shown BEFORE
+# anything is applied, because that is what a person would need to check.
+#
+# This is disclosure, not verification. Tags are unsigned (see SECURITY.md);
+# what follows lets you look, not the machine refuse.
+REMOTE_URL="$(git -C "$ENGINE" remote get-url origin 2>/dev/null || echo "unknown")"
+TARGET_SHA="$(git -C "$ENGINE" rev-parse --short "$NEW" 2>/dev/null || echo "unknown")"
+echo "  from:   $REMOTE_URL"
+echo "  commit: $TARGET_SHA"
+
 if [ "$MODE" = "check" ]; then
   echo "  → \`brain update\` to install it."
   exit 10   # 10 = "an update exists", readable by a script

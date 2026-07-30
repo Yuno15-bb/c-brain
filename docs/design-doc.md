@@ -202,13 +202,15 @@ c-brain/
 |---|---|---|
 | **L0** ✅ | `sync.sh` (allowlist) + `leakcheck.py` + `.gitignore` + `skills/` | tools shipped and **executed**: `sync --check` proven on three simultaneous divergences, leakcheck red at 50 (it sees) |
 | **L1** ✅ | `generalize.py` + `rules.json` + `skeleton/` | **leakcheck green** (50 → 0); `selftest` + `doctor` + `recall` + `graph_export` green in an isolated HOME |
-| **L2** ✅ | `install.sh` + `uninstall.sh` + `merge_settings.py` + `INSTALL.md` | full cycle proven in an isolated HOME: second pass = zero change; `settings.json` returns **byte-identical** after uninstall; the user's note intact |
+| **L2** ✅ | `install.sh` + `uninstall.sh` + `merge_settings.py` + `INSTALL.md` | full cycle proven in an isolated HOME: second pass = zero change; `settings.json` returns **semantically identical** after uninstall — every key of
+yours back, none of ours left. Not byte-identical: uninstall rewrites the file through
+Python's JSON serializer, so hand-formatting comes back reformatted (corrected v1.13.0); the user's note intact |
 | **L3** ✅ | Capsule + status line | screenshots: `DISTILLING` then `IDLE` on a `status.json` change; three components aligned on the same path |
 | **L4** ✅ | Planet + Desktop `.command` | `launch.sh` → `200` on index/graph/glb; headless capture of the globe and its legend |
 | **L5** ✅ | Companion | pre/post hooks replayed: `+3 −1` aggregated, status line at **two lines** |
 | **L6** ✅ | `brain update` + `check_update.py` + `migrations/` + `VERSION` | a fake remote with two tags: update, migration run exactly once, rollback, note intact at every step |
 | **L7** ✅ | README + verification recipe + `publish.sh` + the repo online | clone from GitHub → `install.sh` → selftest and doctor **green** |
-| **L8** ✅ | English translation, `main` / `fr` split | every file, every CLI output and every interface string in English; `fr` keeps the original and stays the sync branch |
+| **L8** ✅ | English translation, `main` / `fr` split | every **user-visible** string in English, held by `tests/english_only.py` in CI; **hook comments are still French** and say so in the README; `fr` keeps the original and stays the sync branch |
 
 Critical path: **L0 → L1 → L2 → L6**. L3/L4/L5 parallelize after L2.
 

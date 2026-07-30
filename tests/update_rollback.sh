@@ -84,6 +84,14 @@ grep -q "v9.9.1" "$H/check.log"; check $? "--check names the new version" "$(tai
 [ "$rc" = "10" ]; check $? "--check exits 10 (an update exists)" "got $rc"
 [ ! -f "$H/.c-brain/engine/UPDATE_MARKER" ]; check $? "--check applied nothing"
 
+# WHERE FROM, exactly. An update runs code on this machine; naming a version is
+# not naming a source. Both lines are asserted because a disclosure nobody
+# checks is one a refactor deletes in silence — it breaks nothing when it goes.
+grep -q "from:.*upstream" "$H/check.log"
+check $? "--check says which remote the code would come from" "$(tail -4 "$H/check.log")"
+grep -qE "commit: [0-9a-f]{7,}" "$H/check.log"
+check $? "--check names the exact commit it would move to" "$(tail -4 "$H/check.log")"
+
 echo "▸ brain update moves the engine"
 brain update >"$H/update.log" 2>&1 || { echo "❌ update failed:"; tail -20 "$H/update.log"; FAILS=$((FAILS+1)); }
 [ -f "$H/.c-brain/engine/UPDATE_MARKER" ]; check $? "the new version is really on disk" "$(tail -3 "$H/update.log")"

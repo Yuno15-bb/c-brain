@@ -109,8 +109,12 @@ part that is yours is the one part you can see.
 
 ## What it does not do
 
-- **It sends nothing.** No telemetry, no network call beyond `git pull`.
-- **It does not read your notes**, except to hand them back to you.
+- **It makes no request of its own.** No telemetry, no network call beyond
+  `git pull`. What travels is what your prompts already carry: the recall hook
+  adds the name, description and path of two or three notes to a prompt you
+  were sending anyway, and agents you start read whole notes. Both go to your
+  model provider, like the rest of your message. [`SECURITY.md`](SECURITY.md)
+  spells out where the line is.
 - **It installs nothing on its own.** A new version is *announced*; you run
   `brain update` whenever suits you.
 - **It ships no knowledge.** Your tree starts empty, and the three skills it

@@ -15,8 +15,21 @@ Worth stating plainly, because it is the honest basis for judging risk:
 - **It makes no network call except `git pull`.** No telemetry, no analytics, no
   crash reporting, no phone-home on install. `brain update` is announced, never
   automatic.
-- **It never sends your notes anywhere.** They are markdown files in a directory
-  you own. Nothing reads them except to hand them back to you.
+- **It reads your notes locally, and that is how it works.** Recall, the index,
+  the graph and the agents all open the files — there is no way to find a note
+  without reading one. It happens on your machine, and nothing is written back
+  to us.
+- **What leaves your machine is what any prompt carries.** The recall hook adds
+  the **name, one-line description and path** of the two or three most relevant
+  notes to the prompt you are about to send — not the file bodies. That prompt
+  goes to your model provider, exactly like the rest of your message. C Brain
+  makes no request of its own, but it is not true that nothing of your trunk
+  ever travels: what it puts in a prompt travels with the prompt.
+  `brain doctor` shows what the hook would inject; remove the
+  `UserPromptSubmit` hook from `settings.json` to stop it entirely.
+- **Agents are the loud case.** When you run `distiller`, `gardener` or any
+  other agent, it reads whole notes and sends them to the provider — that is
+  what you asked it to do. Nothing is automatic about it: you start them.
 
 ## Supported versions
 
