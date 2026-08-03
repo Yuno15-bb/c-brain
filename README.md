@@ -147,7 +147,7 @@ pas installer un service d'arrière-plan.
 <p align="center">
   <img src="docs/media/capsule.webp" alt="La capsule : une petite fenêtre qui parcourt tous les états des agents — distillation, jardinage, rangement, correction, cartographie, architecture, contestation, archivage, synthèse, audit, commit, puis retour au repos" width="190">
 </p>
-<p align="center"><sub>À sa taille réelle — les onze états qu'elle peut te montrer, puis le repos.</sub></p>
+<p align="center"><sub>À sa taille réelle, un état par famille — puis le retour au repos.</sub></p>
 
 ### La planète
 
