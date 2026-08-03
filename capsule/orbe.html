@@ -354,10 +354,13 @@ for (let k = 0; k < FENTES; k++) {
 let defilement = 0;
 function tournerPave() {
   if (!occupe || !lignes.length || !vu || document.hidden) return;
-  // ~2.2 lines/s. The first setting (0.6 line/s) was meant for READING the
-  // code; but at 5.5 px nobody reads, they watch material at work. Too slow and
-  // it stops saying that anything is being written.
-  if (!REDUIT) defilement += 0.13;
+  // ⚠ SET THREE TIMES, and the first two overshot in both directions — 0.055
+  //   (0.6 line/s): the orb looked frozen; 0.13 (2.2 lines/s): the text fled,
+  //   unreadable even out of the corner of an eye.
+  //   The right speed is neither "readable" nor "alive", it is FOLLOWABLE: the
+  //   eye must be able to catch a line and lose it without effort.
+  //   0.075 ≈ 1.25 line/s.
+  if (!REDUIT) defilement += 0.075;
   const base = Math.floor(defilement), frac = defilement - base;
   for (let k = 0; k < FENTES; k++) {
     const d = fentes[k];
