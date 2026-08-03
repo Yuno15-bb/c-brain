@@ -155,7 +155,7 @@ grab it there and drop it wherever you like.
 <p align="center">
   <img src="docs/media/capsule.webp" alt="The capsule: a glass orb in the corner of the screen, cycling through every agent state — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing, then back to idle" width="190">
 </p>
-<p align="center"><sub>At its real size — all eleven states it can show you, then idle.</sub></p>
+<p align="center"><sub>At its real size, one state per family — then back to rest.</sub></p>
 
 Rest costs about 5 % of one core, work about 9 %. The cost follows the frame
 rate, almost not the geometry — so the rate drops at rest and rises only during
