@@ -150,15 +150,14 @@ window.__orbe = orbe;
 orbe.setVerre(0.55);
 
 /* ── CADENCE : on paie la fluidité là où elle se voit ───────────────────────
-   Mesuré sur cette machine, orbe de 150 px : 60 i/s ≈ 12 %, 12 i/s ≈ 5,4 %,
-   2 i/s ≈ 0,6 %. Un compagnon permanent ne peut pas tenir 12 % à vie.
-   Au repos il respire à 4 i/s ; dès qu'un agent travaille il monte à 30 ;
-   pendant un fondu de mécanique il passe à 60, sinon le morphing crénelle. */
-/* ⚠ REPOS À 12, PAS À 4. À 4 i/s il y a 250 ms entre deux images : la
-   respiration du repos y avançait par crans visibles — « repos saccade ».
-   Le coût est connu et mesuré : 4 i/s → 2,2 % · 12 i/s → 5,4 % · 60 → 12 %.
-   Le repos est l'état le plus longtemps affiché ; il mérite ses 3 points de
-   CPU pour ne pas donner l'impression d'un objet cassé. */
+   Mesuré, orbe de 150 px : 60 i/s ≈ 12 %, 12 i/s ≈ 5,4 %, 2 i/s ≈ 0,6 %. Un
+   compagnon permanent ne peut pas tenir 12 % à vie.
+   ⚠ REPOS À 12, PAS À 4. À 4 i/s il y a 250 ms entre deux images, et la
+     respiration du repos y avançait par crans visibles. Le repos est de loin
+     l'état le plus longtemps affiché ; il mérite ses quelques points de CPU
+     plutôt que de donner l'impression d'un objet cassé.
+   Un fondu de mécanique tourne à 60 — en dessous, le morphing avance par crans
+   et se lit comme une saccade. */
 const CADENCE = { repos: 12, travail: 30, transition: 60 };
 let occupe = false;
 function majCadence() {
@@ -304,10 +303,6 @@ function lireFlux(etat) {
   return true;
 }
 
-/* Le rouleau monte en continu : une passe complète met ~1 s par ligne, assez
-   lent pour qu'on distingue le code, assez vivant pour dire « ça écrit ».
-   ⚠ Il est animé par `transform`, jamais par `top` : `top` refait la mise en
-     page à chaque image et fait travailler tout le compositeur pour 124 px. */
 /* ── LE PAVÉ COURBÉ ─────────────────────────────────────────────────────────
    `FENTES` lignes fixes dans le DOM, réutilisées à chaque tour : on ne
    reconstruit rien, on ne fait que déplacer. Reconstruire 30 nœuds toutes les
@@ -316,7 +311,9 @@ function lireFlux(etat) {
      y  = R·sin θ        → les latitudes se tassent vers les pôles
      sx = cos θ          → la ligne se resserre comme la corde d'un cercle
    Le défilement fait glisser les latitudes, pas le bloc : le texte remonte le
-   long de la sphère au lieu de traverser un rectangle. */
+   long de la sphère au lieu de traverser un rectangle.
+   ⚠ Animé par `transform`, jamais par `top` : `top` refait la mise en page à
+     chaque image et fait travailler tout le compositeur pour 96 px. */
 const FENTES = 30, RAYON_TXT = 45;
 const fentes = [];
 for (let k = 0; k < FENTES; k++) {
@@ -373,7 +370,7 @@ function lire() {
   else { pave.classList.remove('vu'); }
   if (etat === dernier) return;
   dernier = etat;
-  // porte l'état sur le body : c'est lui qui arme le souffle CSS du repos
+  // l'état est porté sur le body : utile au style, et lisible au débogage
   document.body.dataset.etat = etat;
   cible = reglage(etat);
   if (!REDUIT) orbe.setMecanique(cible.meca);
