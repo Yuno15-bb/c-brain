@@ -358,10 +358,13 @@ for (let k = 0; k < FENTES; k++) {
 let defilement = 0;
 function tournerPave() {
   if (!occupe || !lignes.length || !vu || document.hidden) return;
-  // ~2,2 lignes/s. Le premier réglage (0,055 → 0,6 ligne/s) était pensé pour
-  // qu'on puisse LIRE le code ; mais à 5,5 px on ne lit pas, on regarde une
-  // matière qui travaille. Trop lent, ça ne dit plus que ça écrit.
-  if (!REDUIT) defilement += 0.13;
+  // ⚠ RÉGLÉ EN TROIS FOIS, et les deux premiers essais ont dépassé la cible dans
+  //   les deux sens — 0,055 (0,6 ligne/s) : on croyait l'orbe figée ; 0,13
+  //   (2,2 lignes/s) : le texte fuyait, illisible même du coin de l'œil.
+  //   La bonne vitesse n'est pas « lisible » ni « vivante », c'est SUIVABLE :
+  //   l'œil doit pouvoir accrocher une ligne et la perdre sans effort.
+  //   0,075 ≈ 1,25 ligne/s.
+  if (!REDUIT) defilement += 0.075;
   const base = Math.floor(defilement), frac = defilement - base;
   for (let k = 0; k < FENTES; k++) {
     const d = fentes[k];
