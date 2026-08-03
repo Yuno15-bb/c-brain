@@ -50,7 +50,16 @@
      n'employer qu'une ombre PORTÉE VERS LE BAS. Une ombre directionnelle se lit
      comme du relief ; un contour se lit comme un détourage. C'est la seule
      différence entre « gravé » et « collé ». */
-  #dit { position:absolute; left:50%; top:97px; transform:translateX(-50%);
+  /* ⚠ 97 px ÉTAIT TROP HAUT — c'est ce qu'on voit quand on se demande
+     pourquoi le libellé chevauche l'orbe. Le bas du mesh se situe entre 117 et
+     127 px selon la mécanique ; un libellé posé à 97 tombe donc en PLEIN CORPS,
+     à peu près aux trois quarts de la hauteur, pas sur le bord. « Gravé dans le
+     verre » ne veut pas dire « au milieu du verre » : une gravure se lit sur
+     une ARÊTE, là où la matière s'amincit. Le libellé descend sur le bourrelet
+     bas, à cheval sur le bord — une partie dans la matière, une partie qui en
+     sort. C'est ce chevauchement PARTIEL qui le fait appartenir à l'objet sans
+     le recouvrir. Moyenne mesurée du bas : ~119 px. */
+  #dit { position:absolute; left:50%; top:110px; transform:translateX(-50%);
          white-space:nowrap; color:rgba(255,255,255,.94);
          font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
          /* interlettrage resserré : le libellé doit tenir DANS le dépoli, qui
@@ -72,7 +81,7 @@
      refaisait exactement la tache d'incrustation qu'on voulait supprimer. Une
      zone censée appartenir à l'objet doit se terminer AVANT le bord de l'objet. */
   #dit::before { content:''; position:absolute; left:50%; top:50%;
-                 width:96px; height:22px; transform:translate(-50%,-50%);
+                 width:88px; height:18px; transform:translate(-50%,-50%);
                  border-radius:50%; z-index:-1;
                  background:radial-gradient(ellipse at 50% 50%,
                             rgba(4,7,12,.58) 0%, rgba(4,7,12,.34) 42%,
