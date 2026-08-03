@@ -54,6 +54,8 @@ empreinte_source() {
          ! -path "*/capsule/assets/*" \
          ! -path "*/capsule/lottie/*" ! -name "index-v2.html" \
          ! -path "*/capsule/hand/*" \
+         ! -name "index.html" ! -name "dock-geometry.js" \
+         ! -name "test_dock_geometry.js" \
          ! -path "*/capsule/main.js" 2>/dev/null \
       | sort | xargs shasum -a 256 2>/dev/null
   } | sed "s|$SRC/||; s|$CLAUDE_DIR/||" | sort -k2
@@ -172,7 +174,13 @@ sync_dir agents
 # ⚠ Posée DES DEUX CÔTÉS — ici pour la copie, et dans `source_fingerprint` pour
 # l'empreinte. Un fichier exclu d'un seul côté ne bouge jamais mais compte comme
 # « modifié » : le contrôle de dérive resterait rouge pour toujours.
-sync_dir capsule 'node_modules' 'assets' 'lottie' 'index-v2.html' 'main.js' 'hand'
+# ⚠ `index.html`, `dock-geometry.js` et son test EXCLUS depuis le 2026-08-03 :
+# la capsule du paquet, c'est l'ORBE (`orbe.html`). L'ancienne créature en pixels
+# et la géométrie du Dock qui la faisait s'asseoir dessus ne sont plus chargées
+# par personne ici — les garder, c'était publier du code mort, et le traduire à
+# chaque version. Elles restent vivantes dans le tronc de l'auteur.
+sync_dir capsule 'node_modules' 'assets' 'lottie' 'index-v2.html' 'main.js' 'hand' \
+                 'index.html' 'dock-geometry.js' 'test_dock_geometry.js'
 
 # --- 5. Planète -----------------------------------------------------------
 # EXCLU : graph.json — 1,4 Mo contenant le TEXTE INTÉGRAL des fiches, noms de

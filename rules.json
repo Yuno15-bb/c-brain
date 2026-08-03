@@ -181,13 +181,13 @@
         "agents/*.md"
       ],
       "pattern": "(?:LES 7 AGENTS|Guide des 7 agents du système \\(distillateur, jardinier, architecte, challenger, synthétiseur, archiviste, mécanicien\\))",
-      "_note": "Vu sur une capture de la capsule en fonctionnement. Le machiniste a été ajouté sans que le compte affiché suive — le genre de détail qu'aucun test ne rattrape.",
+      "_note": "Vu sur une capture de la capsule en fonctionnement. Le machiniste a été ajouté sans que le compte affiché suive — le genre de détail qu'aucun test ne rattrape. Passé de 2 à 1 le 2026-08-03 : capsule/index.html est sorti du sync, seul agents/*.md porte encore le compte.",
       "why": "La capsule affichait « LES 7 AGENTS » et le guide en listait 7, alors que le dossier en contient 8. Faux dès le premier écran vu par un nouvel utilisateur.",
       "replace_map": {
         "LES 7 AGENTS": "LES 8 AGENTS",
         "Guide des 7 agents du système (distillateur, jardinier, architecte, challenger, synthétiseur, archiviste, mécanicien)": "Guide des 8 agents du système (distillateur, jardinier, architecte, challenger, synthétiseur, archiviste, mécanicien, machiniste)"
       },
-      "expect": 2
+      "expect": 1
     },
     {
       "id": "home-ancien-compte",
@@ -289,16 +289,6 @@
       },
       "expect": 6,
       "why": "Le machiniste et les plists décrivent qui arbitre : c'est un RÔLE (l'utilisateur), pas une personne."
-    },
-    {
-      "id": "decisions-de-design",
-      "files": [
-        "capsule/*.html"
-      ],
-      "pattern": "(directive|demande) Dylan",
-      "replace": "\\1 de l'auteur",
-      "expect": 5,
-      "why": "Historique des décisions de design de la créature : la traçabilité compte, le nom non."
     },
     {
       "id": "portfolio-possessif",
@@ -403,7 +393,7 @@
         "hooks/*.py"
       ],
       "pattern": "(?:Signalé par Dylan|signalé par Dylan|Décision de Dylan|que Dylan a rejetée|compte pour Dylan|et Dylan se retrouvait|Dylan : )",
-      "_note": "Alternation de littéraux COMPLETS. Les commentaires du tronc citent la personne qui a fait le retour — dans le paquet c'est un RÔLE. Forme longue d'abord (« que Dylan a rejetée » avant toute forme courte), sinon la courte mange la longue et laisse un résidu. ⚠ Pas d'ancre `^` : les motifs ne sont pas compilés en multiligne, une ancre ne mordrait qu'au tout premier caractère du fichier.",
+      "_note": "Alternation de littéraux COMPLETS. Les commentaires du tronc citent la personne qui a fait le retour — dans le paquet c'est un RÔLE. Forme longue d'abord (« que Dylan a rejetée » avant toute forme courte), sinon la courte mange la longue et laisse un résidu. ⚠ Pas d'ancre `^` : les motifs ne sont pas compilés en multiligne, une ancre ne mordrait qu'au tout premier caractère du fichier. Passé de 7 à 3 le 2026-08-03 : index.html, dock-geometry.js et son test sont sortis du sync ; restent orbe.js, orbe.html et brain_battement.py.",
       "replace_map": {
         "Signalé par Dylan": "Signalé par l'utilisateur",
         "signalé par Dylan": "signalé par l'utilisateur",
@@ -413,7 +403,7 @@
         "et Dylan se retrouvait": "et l'utilisateur se retrouvait",
         "Dylan : ": "L'utilisateur : "
       },
-      "expect": 7,
+      "expect": 3,
       "why": "Les commentaires de la capsule et de l'orbe créditent nommément l'auteur des retours (« Signalé par Dylan le … »). C'est juste dans le tronc privé, hors sujet dans un paquet public : ce qui compte est qu'un UTILISATEUR ait signalé le défaut, pas lequel. Règle ajoutée le 2026-08-03 avec l'arrivée de l'orbe, qui apporte quatre fichiers de plus portant ce genre de crédit."
     }
   ],
@@ -437,6 +427,18 @@
       "_gelee_le": "2026-07-30",
       "_gelee_pourquoi": "capsule/main.js est EXCLU de sync.sh tant que la refonte V2 (avatar Lottie) est en chantier dans le Brain vivant. Le fichier du paquet porte donc DÉJÀ le résultat de cette règle, en dur. La laisser active la rejouait sur un fichier déjà généralisé : elle réinsérait `const os = require('os');` une SECONDE fois — doublon de `const` = SyntaxError, la capsule V1 du paquet ne démarrait plus. Vérifié par exécution.",
       "_a_reactiver_quand": "la V2 est portée et main.js repasse dans sync.sh (voir sync.sh §4)"
+    },
+    {
+      "id": "decisions-de-design",
+      "files": [
+        "capsule/*.html"
+      ],
+      "pattern": "(directive|demande) Dylan",
+      "replace": "\\1 de l'auteur",
+      "expect": 5,
+      "why": "Historique des décisions de design de la créature : la traçabilité compte, le nom non.",
+      "_gelee_le": "2026-08-03",
+      "_gelee_pourquoi": "capsule/index.html est sorti du sync : la capsule du paquet est désormais l'ORBE. La règle ne mord plus sur rien. Gelée plutôt que supprimée — si la créature revenait un jour dans le paquet, la correction serait à réécrire de zéro."
     }
   ]
 }
