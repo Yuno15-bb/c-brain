@@ -8,6 +8,11 @@
 > 🇫🇷 Ceci est la **branche française**. La version anglaise, celle que tout le
 > monde installe par défaut, est sur [`main`](https://github.com/Yuno15-bb/c-brain).
 
+<p align="center">
+  <img src="docs/media/capsule.webp" alt="La capsule : une orbe de verre posée sur le bureau, dont la matière et la teinte changent au travail de chaque agent — distillation, jardinage, classement, correction, cartographie, architecture, contestation, archivage, synthèse, audit, sauvegarde — avec le code en train d'être écrit qui défile à l'intérieur" width="168">
+</p>
+<p align="center"><sub>Tes agents, au travail. En direct, dans le coin de ton écran.</sub></p>
+
 **C Brain transforme chaque session avec ton agent CLI en mémoire réutilisable —
 distillée en fiche, rangée, reliée, et rendue automatiquement la fois où ça
 compte. Depuis n'importe quel projet, et sans quitter ta machine.**
