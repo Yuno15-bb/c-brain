@@ -1,0 +1,438 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Capsule — orb</title>
+<!--
+  THE DESKTOP COMPANION: THE ORB.
+
+  A pane of living glass. Its fluid mechanic says what kind of work is going on,
+  its speed the intensity, its hue the agent family — and the code actually
+  being written scrolls inside it.
+
+  The reusable shell lives in `orbe/`: it knows nothing about the capsule or the
+  Brain. Only this page maps states to meanings.
+-->
+<style>
+  html, body { margin:0; height:100%; background:transparent; overflow:hidden;
+               -webkit-user-select:none; }
+  #scene { position:absolute; inset:0; }
+  /* ⚠ WITHOUT THIS RULE the canvas lays out at its BUFFER size (300 px on a
+     retina screen) inside a 150 px window: the orb spills out bottom-right and
+     everything else — pad, label, which are centred on the WINDOW — looks
+     shifted to one side. Nothing crashes; the render simply goes off-centre.
+     It was once deleted by a block removal that bit past its target, and the
+     defect was only visible on a real desktop. */
+  canvas { width:100%; height:100%; display:block; }
+
+  /* ⚠ NO CSS BREATHING. Tried, MEASURED, then removed: a CSS animation on a
+     transparent always-on-top window forces the window server to recomposite at
+     display rate, even while the WebGL render itself sleeps. Cost at rest:
+     17 % CPU against 2.2 %. "The compositor is free" holds in an ordinary web
+     page, not for a HUD sitting on the desktop. Smoothness at rest is therefore
+     paid in FRAME RATE, which is measurable and bounded. */
+
+  /* ⚠ PLACED BY MEASUREMENT, NOT BY EYE. Silhouette read state by state off the
+     alpha channel: the mesh occupies `y 25 → 128` in the 150 px window. That
+     leaves 25 px free at the top and 22 at the bottom — but the TOP carries the
+     specular highlight, the one detail that makes it read as glass. So the
+     label goes under the orb, where it reads as a caption.
+
+     ⚠ NO BLACK PILL. An opaque rounded rectangle reads as a UI component glued
+     onto an object that is not one — it was the only part of the orb that
+     looked borrowed from another application. The label became text ENGRAVED IN
+     LIGHT: no box, a light weight, wide letter-spacing, and a soft dark halo
+     that keeps it legible on any background — including a near-white desktop,
+     where plain light text would vanish. The halo replaces the box: it hugs the
+     letterforms instead of drawing a rectangle. */
+  #dit { position:absolute; left:50%; bottom:4px; transform:translateX(-50%);
+         white-space:nowrap; color:#f4f2ee;
+         font:500 8px/1.2 ui-sans-serif,-apple-system,sans-serif;
+         letter-spacing:2.1px; text-indent:2.1px;   /* offsets the trailing gap */
+         text-shadow:0 0 3px rgba(8,10,14,.95), 0 0 7px rgba(8,10,14,.85),
+                     0 1px 2px rgba(8,10,14,.9);
+         opacity:0; transition:opacity .28s ease; pointer-events:none; }
+  #dit.vu { opacity:1; }
+  /* The three dots say it is STILL GOING — an agent pass runs for minutes, and
+     the label itself never changes during it. */
+  #dit .pt { opacity:.25; animation:pt 1.35s ease-in-out infinite; }
+  #dit .pt:nth-child(2) { animation-delay:.18s; }
+  #dit .pt:nth-child(3) { animation-delay:.36s; }
+  @keyframes pt { 0%,70%,100% { opacity:.25 } 35% { opacity:1 } }
+  @media (prefers-reduced-motion: reduce) { #dit .pt { animation:none; opacity:.6 } }
+
+  /* ── THE PAD — the lines actually being written, INSIDE the orb ────────────
+     The old capsule scrolled a FROZEN agent file behind its creature, and cut
+     that off entirely in free mode: "on the desktop it is a slab covering what
+     the user is reading". Both objections are answered here — these are the
+     real lines being written, and being locked inside the orb's disc, the slab
+     no longer covers anything.
+     It sits ON TOP of the render, not inside it: the `orbe/` shader is a shared,
+     project-agnostic engine and a block of text has no business in it. The
+     `screen` blend plus a radial mask do the rest — the light of the text mixes
+     with the light of the material and dies out at the edges, as on a sphere. */
+  /* ⚠ 124 px OVERFLOWED. The disc must match the MESH, not the WINDOW: the mesh
+     is deformed by its mechanic and only fills about 100 px. A pad wider than
+     the material reads over the desktop rather than inside the orb — exactly
+     the defect that had the old version switched off. */
+  #pave { position:absolute; left:50%; top:50%; width:96px; height:96px;
+          transform:translate(-50%,-50%); border-radius:50%; overflow:hidden;
+          opacity:0; transition:opacity .5s ease; pointer-events:none;
+          mix-blend-mode:screen;
+          /* the text fades towards the edge: without this it is cut dead on the
+             circle and the pad reads as a sticker, not as an inside */
+          -webkit-mask-image:radial-gradient(circle at 50% 46%,
+                             #000 8%, rgba(0,0,0,.55) 34%, transparent 62%); }
+  /* `screen` drowns the text on bright crests: without this gain the green
+     disappears wherever the material shines. */
+  #pave.vu { opacity:.88; }
+  /* ── THE CURVE ────────────────────────────────────────────────────────────
+     Lines are no longer stacked: each one SITS on a latitude of the sphere.
+     Two effects, and the second is the one that matters:
+       · it narrows horizontally away from the equator (the chord of a circle),
+         which gives the volume;
+       · latitudes BUNCH UP towards the poles, so far more lines fit in the same
+         height than with regular stacking.
+     Each line is absolutely positioned and transformed: the roll itself never
+     moves at all. */
+  #pave .rouleau { position:absolute; inset:0;
+                   font:5.5px/7px ui-monospace,SFMono-Regular,Menlo,monospace;
+                   white-space:pre; letter-spacing:-.1px; }
+  /* ⚠ THE WRITING IS ALWAYS GREEN, never tinted by the family. The pad does not
+     say WHO is working — the body colour and the label already do. It says that
+     code is being written, and terminal green says so at a glance on any
+     background. A hue that changed with the agent would add a third colour
+     signal carrying zero information. */
+  #pave .l { position:absolute; left:0; width:100%; text-align:center;
+             color:#5ee08a; opacity:.72;
+             will-change:transform; overflow:hidden; text-overflow:clip; }
+  /* Still green: only BRIGHTNESS separates added, removed and header. Plain red
+     would fight the hue of the orb. */
+  #pave .l.plus  { color:#8ef0b4; opacity:.98; }
+  #pave .l.moins { color:#3d8a5c; opacity:.55; }
+  #pave .l.tete  { color:#d8ffe8; opacity:.92; }
+  @media (prefers-reduced-motion: reduce) { #pave .rouleau { transition:none } }
+
+</style>
+
+<div id="scene"><canvas id="c"></canvas></div>
+<div id="dit"></div>
+<div id="pave"><div class="rouleau"></div></div>
+
+<script type="module">
+const { ipcRenderer } = require('electron');
+const fs = require('fs'), os = require('os'), path = require('path');
+
+const THREE    = await import('./orbe/vendor/three.module.js');
+const { creerOrbe } = await import('./orbe/orbe.js');
+const { reglage }   = await import('./orbe/palettes.js');
+
+const STATUT = path.join(os.homedir(), '.c-brain', 'trunk', 'state', 'status.json');
+const snoise = await fetch('./orbe/snoise.glsl').then(r => r.text());
+
+const REDUIT = window.matchMedia &&
+               window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const depart = reglage('idle');
+const orbe = creerOrbe(document.getElementById('c'), depart.meca, snoise, depart);
+let cible = depart, vu = true;
+// Exposed for the verification bench: we judge the render of THIS page, not of
+// a demo whose layout shrinks the orb to 69 px.
+window.__orbe = orbe;
+
+/* ── HOW MUCH GLASS ─────────────────────────────────────────────────────────
+   0 = solid material · 1 = full glass. Set to 0.55 on a comparison sheet, the
+   three values laid over one and the same fake desktop.
+   ⚠ 1.0 looks better standing still but COSTS THE "WHO" CHANNEL: a transparent
+     object takes the colour of whatever is behind it, and over a blue-violet
+     background the Inspection and Transformation families turned back into two
+     colourless bubbles. Transparency is paid in legibility, not in beauty. */
+orbe.setVerre(0.55);
+
+/* ── FRAME RATE: pay for smoothness where it shows ──────────────────────────
+   Measured, 150 px orb: 60 fps ≈ 12 %, 12 fps ≈ 5.4 %, 2 fps ≈ 0.6 %. A
+   permanent companion cannot hold 12 % forever.
+   ⚠ REST AT 12, NOT AT 4. At 4 fps there are 250 ms between frames, and the
+     breathing of the rest state advanced in visible steps. Rest is the state
+     displayed by far the longest; it deserves its few points of CPU rather than
+     looking like a broken object.
+   A mechanic cross-fade runs at 60 — below that the morph steps and reads as a
+   stutter. */
+const CADENCE = { repos: 12, travail: 30, transition: 60 };
+let occupe = false;
+function majCadence() {
+  if (!vu || document.hidden) return orbe.setCadence(1);
+  if (orbe.enTransition()) return orbe.setCadence(CADENCE.transition);
+  orbe.setCadence(occupe ? CADENCE.travail : CADENCE.repos);
+}
+setInterval(majCadence, 200);
+
+/* Colours travel continuously; the mechanic cross-fades over 1.4 s.
+   ⚠ anti-NaN net: one non-finite value would contaminate the geometry for the
+     whole session, without a single console error. */
+const lerp = (a, b, k) => a + (b - a) * k;
+setInterval(() => {
+  if (!vu || document.hidden) return;
+  const U = orbe._u, k = 0.045;
+  const sur = (a, b) => Number.isFinite(a) && Number.isFinite(b) ? lerp(a, b, k) : b;
+  U.uC1.value.lerp(new THREE.Color(cible.c1), k);
+  U.uC2.value.lerp(new THREE.Color(cible.c2), k);
+  U.uC3.value.lerp(new THREE.Color(cible.c3), k);
+  U.uRim.value.lerp(new THREE.Color(cible.rim), k);
+  U.uDisp.value  = sur(U.uDisp.value,  cible.disp);
+  U.uFreq.value  = sur(U.uFreq.value,  cible.freq);
+  U.uSpeed.value = sur(U.uSpeed.value, cible.speed);
+  U.uRimI.value  = sur(U.uRimI.value,  cible.rimI);
+}, 1000 / 30);
+
+/* ── THE STATE ──────────────────────────────────────────────────────────────
+   ⚠ FRESHNESS GUARD. `status.json` can stay on "busy" with a stale timestamp:
+     past 30 s without a heartbeat we consider that nothing is working any more.
+     The heartbeat is written by hooks/brain_battement.py on every tool call.
+   ⚠ ONE SYSTEM ONLY. An earlier set mixed ROLES (GARDENER, ARCHIVIST) with
+     ACTIONS (FIXING, SAVING): less systematic than the rest of the object, and
+     wrong on top of it — the gardener alone carries four activities, so a role
+     name does not say what is happening. The orb says WHAT IS BEING DONE, so
+     every label is an -ING action, exactly the state names. */
+const NOMS = { mapping:'MAPPING', auditing:'AUDITING', architecting:'ARCHITECTING',
+  challenging:'CHALLENGING', filing:'FILING', archiving:'ARCHIVING',
+  gardening:'GARDENING', correcting:'CORRECTING', working:'WORKING',
+  distilling:'DISTILLING', synthesizing:'SYNTHESIZING', committing:'COMMITTING' };
+
+const dit  = document.getElementById('dit');
+const pave = document.getElementById('pave');
+const rouleau = pave.querySelector('.rouleau');
+let dernier = null;
+
+/* ── THE REAL WRITING FEED ──────────────────────────────────────────────────
+   `~/.claude/companion/sessions/<id>.jsonl`: one line per writing tool, with
+   the unified diff actually applied. Same source as the companion's live panel
+   — not a frozen agent file.
+   ⚠ We take the MOST RECENTLY WRITTEN file, not the most recently created:
+     several sessions can be open, only the one doing work counts. */
+const FLUX = path.join(os.homedir(), '.claude', 'companion', 'sessions');
+const LARGEUR = 26;    // characters that fit in 96 px at a 5.5 px font
+const GARDE   = 90;    // lines kept: beyond that we pay for invisible DOM
+let fluxFichier = null, fluxTaille = 0, lignes = [];
+
+function fichierActif() {
+  try {
+    let best = null, bestTs = 0;
+    for (const f of fs.readdirSync(FLUX)) {
+      if (!f.endsWith('.jsonl')) continue;
+      const st = fs.statSync(path.join(FLUX, f));
+      if (st.mtimeMs > bestTs) { bestTs = st.mtimeMs; best = path.join(FLUX, f); }
+    }
+    // A feed that has not moved for 3 min no longer describes the present.
+    return (best && Date.now() - bestTs < 180000) ? best : null;
+  } catch (e) { return null; }
+}
+
+function classe(l) {
+  if (l.startsWith('@@')) return 'tete';
+  if (l.startsWith('+'))  return 'plus';
+  if (l.startsWith('-'))  return 'moins';
+  return '';
+}
+
+/* ── THE FALLBACK ───────────────────────────────────────────────────────────
+   With no diff for 3 min the pad emptied and the orb went mute WHILE AN AGENT
+   WAS WORKING — which is exactly when someone looks at it. An agent spends long
+   minutes reading and thinking without writing a line: "nothing was written"
+   does not mean "nothing is happening".
+   So we fall back to the file THAT agent runs. A net, never the main source. */
+const SOURCE_AGENT = {
+  distilling:'agents/distillateur.md', gardening:'agents/jardinier.md',
+  filing:'agents/jardinier.md', correcting:'agents/jardinier.md',
+  mapping:'agents/jardinier.md', architecting:'agents/architecte.md',
+  challenging:'agents/challenger.md', archiving:'agents/archiviste.md',
+  synthesizing:'agents/synthetiseur.md', auditing:'hooks/brain_upkeep.py',
+  committing:'hooks/auto_maintain.py', working:'hooks/auto_maintain.py' };
+const cacheAgent = {};
+function lignesAgent(etat) {
+  const rel = SOURCE_AGENT[etat];
+  if (!rel) return [];
+  if (cacheAgent[rel]) return cacheAgent[rel];
+  try {
+    const brut = fs.readFileSync(path.join(os.homedir(), '.c-brain', 'trunk', rel), 'utf8');
+    return cacheAgent[rel] = brut.split('\n')
+      .map(l => l.replace(/\t/g, '  ').trim())
+      // ⚠ Agent notes are Markdown: without this filter one slot in four shows
+      //   a rule, a fence or a table row. The pad has to look like work, not
+      //   like punctuation scrolling by.
+      .filter(l => l.length > 2 && !/^[-`#*_|>=:\s]+$/.test(l))
+      .slice(0, 400)
+      .map(l => ({ t: l.slice(0, LARGEUR), c: '' }));
+  } catch (e) { return cacheAgent[rel] = []; }
+}
+
+function lireFlux(etat) {
+  const f = fichierActif();
+  if (!f) {
+    const repli = lignesAgent(etat);
+    // ⚠ only return `true` when the content CHANGES: otherwise the pad is
+    //   repainted on every pass of `lire()` and the scroll restarts endlessly.
+    if (lignes === repli) return false;
+    lignes = repli; fluxFichier = null; fluxTaille = 0;
+    return true;
+  }
+  let taille = 0;
+  try { taille = fs.statSync(f).size; } catch (e) { return false; }
+  // ⚠ Re-read ONLY if the file grew. Without this guard we re-split a 100 KB
+  //   file every 1.5 s for nothing, and the pad is rebuilt whole — so it
+  //   flickers while nothing at all has been written.
+  if (f === fluxFichier && taille === fluxTaille) return false;
+  fluxFichier = f; fluxTaille = taille;
+  let brut = '';
+  try { brut = fs.readFileSync(f, 'utf8'); } catch (e) { return false; }
+  const out = [];
+  for (const ligne of brut.split('\n').slice(-40)) {
+    if (!ligne.trim()) continue;
+    let j; try { j = JSON.parse(ligne); } catch (e) { continue; }
+    if (j.type !== 'diff' || !Array.isArray(j.diff)) continue;
+    out.push({ t: '── ' + (j.rel || j.file || '?'), c: 'tete' });
+    for (const d of j.diff) {
+      const t = d.replace(/\t/g, '  ').replace(/\s+$/, '');
+      if (!t) continue;
+      out.push({ t: t.slice(0, LARGEUR), c: classe(t) });
+    }
+  }
+  lignes = out.slice(-GARDE);
+  return true;
+}
+
+/* ── THE CURVED PAD ─────────────────────────────────────────────────────────
+   `FENTES` fixed lines in the DOM, reused on every turn: nothing is rebuilt,
+   things only move. Rebuilding 30 nodes every 60 ms would recompute layout
+   continuously for a 96 px-wide box.
+   Each slot k occupies a latitude θ ∈ ]−90°, +90°[ :
+     y  = R·sin θ        → latitudes bunch up towards the poles
+     sx = cos θ          → the line narrows like the chord of a circle
+   Scrolling slides the latitudes, not the block: the text climbs along the
+   sphere instead of crossing a rectangle.
+   ⚠ Animated through `transform`, never through `top`: `top` redoes layout on
+     every frame and puts the whole compositor to work for 96 px. */
+const FENTES = 30, RAYON_TXT = 45;
+const fentes = [];
+for (let k = 0; k < FENTES; k++) {
+  const d = document.createElement('div');
+  d.className = 'l';
+  rouleau.appendChild(d);
+  fentes.push(d);
+}
+
+let defilement = 0;
+function tournerPave() {
+  if (!occupe || !lignes.length || !vu || document.hidden) return;
+  // ~2.2 lines/s. The first setting (0.6 line/s) was meant for READING the
+  // code; but at 5.5 px nobody reads, they watch material at work. Too slow and
+  // it stops saying that anything is being written.
+  if (!REDUIT) defilement += 0.13;
+  const base = Math.floor(defilement), frac = defilement - base;
+  for (let k = 0; k < FENTES; k++) {
+    const d = fentes[k];
+    // 0.97 rather than 1: exactly at the pole cos θ is 0 and the line collapses
+    // into a stroke — we stop just short of it.
+    const th = (((k - frac) / (FENTES - 1)) - 0.5) * Math.PI * 0.97;
+    const y  = RAYON_TXT * Math.sin(th);
+    const sx = Math.cos(th);
+    const l  = lignes[(base + k) % lignes.length];
+    if (d._t !== l.t) { d.textContent = l.t; d._t = l.t; }
+    if (d._c !== l.c) { d.className = 'l' + (l.c ? ' ' + l.c : ''); d._c = l.c; }
+    d.style.transform = `translate(0, ${(45 + y).toFixed(1)}px) scaleX(${sx.toFixed(3)})`;
+    // the material is thicker seen edge-on: the text drowns in it
+    d.style.opacity = (0.30 + 0.70 * Math.pow(sx, 0.9)).toFixed(2);
+  }
+}
+// 60 ms rather than 90: at the current speed a 90 ms step is visibly notched
+// along the latitudes.
+setInterval(tournerPave, 60);
+
+/* The slots are permanent: painting only opens or closes the pad, the content
+   is laid down by `tournerPave` on every turn. */
+function peindrePave() {
+  if (!lignes.length) { pave.classList.remove('vu'); return; }
+  if (occupe) { pave.classList.add('vu'); tournerPave(); }
+}
+
+function lire() {
+  let st = { state:'idle' };
+  try { st = JSON.parse(fs.readFileSync(STATUT, 'utf8')); } catch (e) {}
+  const frais = (Date.now()/1000 - (st.ts || 0)) < 30;
+  const etat = (st.state === 'busy' && frais) ? (st.activity || 'working') : 'idle';
+  // ⚠ The feed grows WITHOUT the state changing: one agent writes dozens of
+  //   times in a row. Keeping this outside the `etat === dernier` guard is the
+  //   only way to see anything past each agent's first diff.
+  occupe = etat !== 'idle';
+  if (occupe) { if (lireFlux(etat)) peindrePave(); }
+  else { pave.classList.remove('vu'); }
+  if (etat === dernier) return;
+  dernier = etat;
+  document.body.dataset.etat = etat;
+  cible = reglage(etat);
+  if (!REDUIT) orbe.setMecanique(cible.meca);
+  if (occupe) {
+    // textContent would wipe the dots: lay the label down first, then the three
+    // spans, each carrying its own animation delay.
+    dit.replaceChildren(document.createTextNode(NOMS[etat] || etat.toUpperCase()));
+    for (let i = 0; i < 3; i++) {
+      const pt = document.createElement('span');
+      pt.className = 'pt'; pt.textContent = '.';
+      dit.appendChild(pt);
+    }
+    dit.classList.add('vu');
+  }
+  else dit.classList.remove('vu');
+  majCadence();
+}
+setInterval(lire, 700);
+lire();
+
+/* ── GRABBING THE ORB ───────────────────────────────────────────────────────
+   The window lets clicks through, otherwise it would swallow a whole 150 px
+   square of desktop. `forward: true` still delivers mouse moves: we use them to
+   know when the cursor is ON the orb, and only then hand control back to the
+   window.
+   ⚠ We test a DISC, not the window rectangle: in the corners the pixel is
+     transparent — blocking the click there would kill a patch of desktop where
+     the user sees nothing at all. */
+const RAYON = 62;   // px; the orb spans ~124 px inside a 150 px window
+let surOrbe = false, attrape = false;
+
+function dansOrbe(e) {
+  const dx = e.clientX - window.innerWidth  / 2;
+  const dy = e.clientY - window.innerHeight / 2;
+  return dx * dx + dy * dy <= RAYON * RAYON;
+}
+
+window.addEventListener('mousemove', (e) => {
+  if (attrape) return;                 // during a drag the window keeps control
+  const dedans = dansOrbe(e);
+  if (dedans === surOrbe) return;      // only send on TRANSITIONS
+  surOrbe = dedans;
+  document.body.style.cursor = dedans ? 'grab' : 'default';
+  ipcRenderer.send('cap-interactive', dedans);
+});
+
+window.addEventListener('mousedown', (e) => {
+  if (e.button !== 0 || !dansOrbe(e)) return;
+  attrape = true;
+  document.body.style.cursor = 'grabbing';
+  // ⚠ Cursor tracking happens IN THE MAIN PROCESS, not here. On a fast drag the
+  //   cursor leaves the window: the renderer stops receiving moves and the orb
+  //   would lag behind the gesture.
+  ipcRenderer.send('cap-drag-begin', { x: e.clientX, y: e.clientY });
+});
+
+const lacher = () => {
+  if (!attrape) return;
+  attrape = false;
+  document.body.style.cursor = surOrbe ? 'grab' : 'default';
+  ipcRenderer.send('cap-drag-end');
+};
+window.addEventListener('mouseup', lacher);
+window.addEventListener('blur', lacher);   // net: released outside the window
+
+/* The animation stops when nobody is looking: window hidden, screen off.
+   Without this it paints for no one and makes the desktop recomposite. */
+ipcRenderer.on('cap-visible', (_e, v) => { vu = v; majCadence(); });
+document.addEventListener('visibilitychange', majCadence);
+</script>

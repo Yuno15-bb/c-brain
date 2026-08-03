@@ -35,7 +35,7 @@ conversation history, which only gets longer.
 
 | | |
 |---|---|
-| 🥚 **A capsule** | a small Electron window showing the agents at work, live |
+| 🔮 **A capsule** | a glass orb on your desktop showing the agents at work, live |
 | 🪐 **A planet** | your knowledge as a navigable 3D globe, rebuilt on every launch |
 
 ### How good is the recall?
@@ -129,10 +129,32 @@ never sets them up at all, because a plugin cannot install a background service.
 
 ### The capsule
 
+A pane of living glass in the corner of your screen. It does not decorate: it
+carries three separate channels, and the first two read **without colour**.
+
+| Channel | What it says |
+|---|---|
+| **Fluid mechanic** | the nature of the work — swell, sweep, vortex, shards |
+| **Speed and amplitude** | how intense that step is |
+| **Hue** | the family of agent — four, not thirteen |
+
+Inside the sphere, the lines your agents are **actually writing** scroll by, bent
+around the curve. When nothing has been written for a while it falls back to the
+file the running agent executes — because an agent spends long minutes reading
+without writing, and that is exactly when you look at it.
+
+It clears itself off the desktop a minute after the work ends, and comes back on
+the first agent. Clicks pass straight through it, except on the sphere itself:
+grab it there and drop it wherever you like.
+
 <p align="center">
-  <img src="docs/media/capsule.webp" alt="The capsule: a small window cycling through every agent state — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing, then back to idle" width="190">
+  <img src="docs/media/capsule.webp" alt="The capsule: a glass orb in the corner of the screen, cycling through every agent state — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing, then back to idle" width="190">
 </p>
 <p align="center"><sub>At its real size — all eleven states it can show you, then idle.</sub></p>
+
+Rest costs about 5 % of one core, work about 9 %. The cost follows the frame
+rate, almost not the geometry — so the rate drops at rest and rises only during
+transitions, where a dropped frame would read as a stutter.
 
 ### The planet
 
