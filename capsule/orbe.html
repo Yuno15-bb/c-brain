@@ -50,42 +50,37 @@
      n'employer qu'une ombre PORTÉE VERS LE BAS. Une ombre directionnelle se lit
      comme du relief ; un contour se lit comme un détourage. C'est la seule
      différence entre « gravé » et « collé ». */
-  /* ⚠ 97 px ÉTAIT TROP HAUT — c'est ce qu'on voit quand on se demande
-     pourquoi le libellé chevauche l'orbe. Le bas du mesh se situe entre 117 et
-     127 px selon la mécanique ; un libellé posé à 97 tombe donc en PLEIN CORPS,
-     à peu près aux trois quarts de la hauteur, pas sur le bord. « Gravé dans le
-     verre » ne veut pas dire « au milieu du verre » : une gravure se lit sur
-     une ARÊTE, là où la matière s'amincit. Le libellé descend sur le bourrelet
-     bas, à cheval sur le bord — une partie dans la matière, une partie qui en
-     sort. C'est ce chevauchement PARTIEL qui le fait appartenir à l'objet sans
-     le recouvrir. Moyenne mesurée du bas : ~119 px. */
-  #dit { position:absolute; left:50%; top:110px; transform:translateX(-50%);
-         white-space:nowrap; color:rgba(255,255,255,.94);
+  /* ── LE LIBELLÉ, POSÉ DANS L'OMBRE DE L'ORBE ──────────────────────────────
+     ⚠ QUATRIÈME PLACEMENT, et les trois précédents ont chacun échoué pour une
+       raison différente — c'est la trace qui compte :
+       1. pilule noire sous l'orbe → un composant d'interface collé sur l'objet ;
+       2. halo sombre sous l'orbe → détourage « incrustation de jeu », sale dès
+          qu'il croise du texte de bureau ;
+       3. SUR la sphère → il appartenait enfin à l'objet… mais le mesh change de
+          forme ET de clarté à chaque mécanique. Sur `committing`, dont le bas
+          est bosselé et brillant, la moitié des lettres se faisait manger. On
+          ne pose pas un texte fixe sur une surface qui bouge.
+     Ce qui tient : le libellé retourne SOUS l'orbe — là, la géométrie est
+     stable quelle que soit la mécanique — mais il n'y flotte pas seul : il est
+     posé dans l'OMBRE PORTÉE de la sphère. L'ombre appartient à la scène, pas à
+     une interface ; elle épouse l'objet, elle ne le détoure pas. Et elle donne
+     le contraste que le texte ne peut pas se donner à lui-même, sur un bureau
+     clair comme sur un bureau sombre. */
+  #dit { position:absolute; left:50%; bottom:3px; transform:translateX(-50%);
+         white-space:nowrap; color:rgba(255,255,255,.95);
          font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
-         /* interlettrage resserré : le libellé doit tenir DANS le dépoli, qui
-            lui-même doit tenir dans le mesh. SYNTHESIZING est le plus long. */
-         letter-spacing:1.3px; text-indent:1.3px;
-         /* une seule ombre, vers le bas : le relief, jamais le contour */
-         text-shadow:0 1px 1.5px rgba(6,10,16,.55);
+         letter-spacing:1.4px; text-indent:1.4px;
+         /* une seule ombre vers le bas : du relief, jamais un contour */
+         text-shadow:0 1px 1.5px rgba(4,7,12,.7);
          opacity:0; transition:opacity .28s ease; pointer-events:none; }
-  /* ⚠ IL MANQUAIT ENCORE UNE CHOSE, vue sur la planche à fond clair : du blanc
-     sur du verre pâle au-dessus d'un bureau blanc ne se lit pas, quelle que
-     soit l'ombre. Le contraste ne peut pas venir du texte — il doit venir de
-     l'OBJET. On dépolit donc une zone du verre, juste sous l'équateur, comme
-     un dépoli de sablage : une tache sombre très douce, sans bord, qui fait
-     partie de la matière. Le libellé y devient lisible sur n'importe quel
-     bureau, et il reste GRAVÉ DANS L'ORBE au lieu d'être posé devant.
-     Pas de rectangle, pas de contour : une ellipse qui se dissout. */
-  /* ⚠ 132 px DÉBORDAIENT DU MESH — relevé au banc : la sphère ne fait qu'environ
-     103 px de large. Le dépoli bavait donc sur le bureau de chaque côté, et
-     refaisait exactement la tache d'incrustation qu'on voulait supprimer. Une
-     zone censée appartenir à l'objet doit se terminer AVANT le bord de l'objet. */
+  /* L'ombre portée : large, très douce, sans bord. Elle se lit comme le contact
+     de l'orbe avec le bureau — donc comme une partie de la scène. */
   #dit::before { content:''; position:absolute; left:50%; top:50%;
-                 width:88px; height:18px; transform:translate(-50%,-50%);
+                 width:126px; height:20px; transform:translate(-50%,-50%);
                  border-radius:50%; z-index:-1;
                  background:radial-gradient(ellipse at 50% 50%,
-                            rgba(4,7,12,.58) 0%, rgba(4,7,12,.34) 42%,
-                            rgba(4,7,12,0) 70%); }
+                            rgba(3,6,11,.62) 0%, rgba(3,6,11,.34) 40%,
+                            rgba(3,6,11,0) 72%); }
   #dit.vu { opacity:1; }
   /* Les trois points disent que ça CONTINUE — une passe d'agent dure des
      minutes pendant lesquelles le libellé, lui, ne change jamais. */
@@ -107,11 +102,14 @@
      partagé avec le projet du Bureau, et un pavé de texte n'a rien à y faire.
      Le `screen` + le masque radial font le reste — la lumière du texte se mêle
      à celle de la matière, et s'éteint sur les bords comme sur une sphère. */
-  /* ⚠ 124 px DÉBORDAIENT. Le disque n'a pas la taille de la FENÊTRE mais celle
-     du MESH, qui est déformé par sa mécanique et n'occupe qu'environ 100 px.
-     Un pavé plus large que la matière se lit par-dessus le bureau, pas dedans —
-     exactement le défaut qui avait fait couper `drawCodeBg` en mode libre. */
-  #pave { position:absolute; left:50%; top:50%; width:96px; height:96px;
+  /* ⚠ DEUX FOIS TROP LARGE, DEUX FOIS. 124 px d'abord, puis 96 — et 96 débordait
+     encore. La faute était de viser une largeur MOYENNE : le mesh n'a pas la
+     même largeur selon la mécanique. Relevé au banc, cinq états : 103 px pour
+     `synthesizing`… mais 84 pour `challenging` et 85 pour `committing`. Un
+     pavé se dimensionne sur le PLUS ÉTROIT, sinon il bave sur le bureau dans
+     les états les plus fins — et c'est là qu'on le remarque, parce que le texte
+     vert flotte alors dans le vide. 78 px laisse la marge du dégradé. */
+  #pave { position:absolute; left:50%; top:50%; width:78px; height:78px;
           transform:translate(-50%,-50%); border-radius:50%; overflow:hidden;
           opacity:0; transition:opacity .5s ease; pointer-events:none;
           mix-blend-mode:screen;
@@ -246,7 +244,7 @@ let dernier = null;
    ⚠ On prend le fichier le plus RÉCEMMENT ÉCRIT, pas le plus récemment créé :
      plusieurs sessions peuvent être ouvertes, seule celle qui travaille compte. */
 const FLUX = path.join(os.homedir(), '.claude', 'companion', 'sessions');
-const LARGEUR = 26;    // caractères tenables dans 96 px à 5,5 px de fonte
+const LARGEUR = 22;    // caractères tenables dans 78 px à 5,5 px de fonte
 const GARDE   = 90;    // lignes conservées : au-delà, on paie du DOM invisible
 let fluxFichier = null, fluxTaille = 0, lignes = [];
 
@@ -348,7 +346,7 @@ function lireFlux(etat) {
    long de la sphère au lieu de traverser un rectangle.
    ⚠ Animé par `transform`, jamais par `top` : `top` refait la mise en page à
      chaque image et fait travailler tout le compositeur pour 96 px. */
-const FENTES = 30, RAYON_TXT = 45;
+const FENTES = 26, RAYON_TXT = 37;
 const fentes = [];
 for (let k = 0; k < FENTES; k++) {
   const d = document.createElement('div');
@@ -375,7 +373,7 @@ function tournerPave() {
     const l  = lignes[(base + k) % lignes.length];
     if (d._t !== l.t) { d.textContent = l.t; d._t = l.t; }
     if (d._c !== l.c) { d.className = 'l' + (l.c ? ' ' + l.c : ''); d._c = l.c; }
-    d.style.transform = `translate(0, ${(45 + y).toFixed(1)}px) scaleX(${sx.toFixed(3)})`;
+    d.style.transform = `translate(0, ${(37 + y).toFixed(1)}px) scaleX(${sx.toFixed(3)})`;
     // la matière est plus épaisse vue de biais : le texte s'y noie
     d.style.opacity = (0.30 + 0.70 * Math.pow(sx, 0.9)).toFixed(2);
   }
