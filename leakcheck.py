@@ -76,7 +76,16 @@ SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
 # les montre à qui installe, et une entrée de catalogue sans mainteneur n'a pas
 # à être publiée. Même règle : seul le nom du PROPRIÉTAIRE y est exempté ; un
 # nom de client ou une clé dans ces fichiers vire toujours au rouge.
-EXEMPT = {"personne — propriétaire": ("docs/", "LICENSE", "NOTICE", ".claude-plugin/")}
+EXEMPT = {"personne — propriétaire": ("docs/", "LICENSE", "NOTICE", ".claude-plugin/"),
+          # `.sync-manifest` n'est pas de la prose : c'est une liste de sommes
+          # SHA-256 suivies de chemins relatifs, RÉGÉNÉRÉE à chaque sync. Un
+          # hexadécimal de 64 caractères finit statistiquement par contenir une
+          # suite de chiffres qui ressemble à un numéro — c'est arrivé le
+          # 2026-08-03 et ça a bloqué une publication propre. Le danger d'une
+          # telle fausse alerte n'est pas la perte de temps : c'est qu'elle
+          # apprend à passer outre un contrôle rouge. Exemption ciblée sur le
+          # SEUL marqueur numérique ; un nom ou une clé dans ce fichier reste rouge.
+          "téléphone": (".sync-manifest",)}
 
 # Le nom de l'auteur dans l'en-tête de copyright de CE dépôt n'est pas une fuite :
 # c'est une signature volontaire, et depuis le passage en Apache 2.0 il figure de

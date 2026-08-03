@@ -393,6 +393,28 @@
       "replace": "\"extraction <projet>\"",
       "expect": 1,
       "why": "Exemple de ligne de commande dans le README de la capsule."
+    },
+    {
+      "id": "retour-utilisateur-nomme",
+      "files": [
+        "capsule/*.js",
+        "capsule/*.html",
+        "capsule/orbe/*.js",
+        "hooks/*.py"
+      ],
+      "pattern": "(?:Signalé par Dylan|signalé par Dylan|Décision de Dylan|que Dylan a rejetée|compte pour Dylan|et Dylan se retrouvait|Dylan : )",
+      "_note": "Alternation de littéraux COMPLETS. Les commentaires du tronc citent la personne qui a fait le retour — dans le paquet c'est un RÔLE. Forme longue d'abord (« que Dylan a rejetée » avant toute forme courte), sinon la courte mange la longue et laisse un résidu. ⚠ Pas d'ancre `^` : les motifs ne sont pas compilés en multiligne, une ancre ne mordrait qu'au tout premier caractère du fichier.",
+      "replace_map": {
+        "Signalé par Dylan": "Signalé par l'utilisateur",
+        "signalé par Dylan": "signalé par l'utilisateur",
+        "Décision de Dylan": "Décision de l'utilisateur",
+        "que Dylan a rejetée": "que l'utilisateur a rejetée",
+        "compte pour Dylan": "compte pour l'utilisateur",
+        "et Dylan se retrouvait": "et l'utilisateur se retrouvait",
+        "Dylan : ": "L'utilisateur : "
+      },
+      "expect": 7,
+      "why": "Les commentaires de la capsule et de l'orbe créditent nommément l'auteur des retours (« Signalé par Dylan le … »). C'est juste dans le tronc privé, hors sujet dans un paquet public : ce qui compte est qu'un UTILISATEUR ait signalé le défaut, pas lequel. Règle ajoutée le 2026-08-03 avec l'arrivée de l'orbe, qui apporte quatre fichiers de plus portant ce genre de crédit."
     }
   ],
   "_regles_gelees": [

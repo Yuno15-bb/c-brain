@@ -53,6 +53,7 @@ empreinte_source() {
          ! -name "com.claudebrain.resume.plist" \
          ! -path "*/capsule/assets/*" \
          ! -path "*/capsule/lottie/*" ! -name "index-v2.html" \
+         ! -path "*/capsule/hand/*" \
          ! -path "*/capsule/main.js" 2>/dev/null \
       | sort | xargs shasum -a 256 2>/dev/null
   } | sed "s|$SRC/||; s|$CLAUDE_DIR/||" | sort -k2
@@ -162,7 +163,16 @@ sync_dir agents
 # ⚠ Gèle aussi toute correction NON-V2 de main.js : la lever demande de porter
 # la V2 en entier, pas de retirer une ligne.
 # À retirer le jour où la V2 remplace vraiment index.html.
-sync_dir capsule 'node_modules' 'assets' 'lottie' 'index-v2.html' 'main.js'
+# ⚠ `hand` EXCLU — 40 Mo de MediaPipe (WASM + modèle) vendorisés pour le module
+# XR expérimental. Le dossier vit sur le disque de l'auteur même quand la branche
+# qui l'utilise n'est pas sortie, et rsync copie le SYSTÈME DE FICHIERS, pas ce
+# que git suit : un .gitignore côté source ne protège rien ici. Sans cette
+# exclusion, chaque publication embarquerait 40 Mo de binaires tiers dans un
+# dépôt fait pour être cloné.
+# ⚠ Posée DES DEUX CÔTÉS — ici pour la copie, et dans `source_fingerprint` pour
+# l'empreinte. Un fichier exclu d'un seul côté ne bouge jamais mais compte comme
+# « modifié » : le contrôle de dérive resterait rouge pour toujours.
+sync_dir capsule 'node_modules' 'assets' 'lottie' 'index-v2.html' 'main.js' 'hand'
 
 # --- 5. Planète -----------------------------------------------------------
 # EXCLU : graph.json — 1,4 Mo contenant le TEXTE INTÉGRAL des fiches, noms de

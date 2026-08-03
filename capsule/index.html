@@ -118,13 +118,237 @@
     50%{ box-shadow:0 8px 32px rgba(0,0,0,.46), 0 0 30px var(--led,var(--claude))99, inset 0 1px 0 rgba(255,255,255,0.24); } }
   @keyframes slide { from{ background-position:220% 0 } to{ background-position:-220% 0 } }
   @keyframes indet { 0%{ left:-42% } 100%{ left:100% } }
+
+  /* ── MODE LIBRE (CAPSULE_SOLO=1) — la créature seule, posée sur le Dock ────
+     Premier test de compagnon de bureau : on ne supprime RIEN, on neutralise.
+     La capsule complète reste le mode par défaut, à un drapeau près — un
+     prototype ne se paie pas en démontant ce qui marche. */
+  body[data-solo="1"] #capsule{
+    /* ⚠ La fenêtre est plus haute que le dessin (elle réserve la course de la
+       vague). #screen se cale sur son BAS — encore faut-il que le conteneur
+       ait une hauteur. En `height:auto` avec des enfants absolus, #capsule
+       s'effondrait à zéro et le dessin remontait tout en haut : personnage
+       invisible, aucune erreur. */
+    position:absolute; inset:0;
+    width:auto; height:auto; padding:0; background:none; border:none;
+    box-shadow:none; border-radius:0; backdrop-filter:none; -webkit-backdrop-filter:none;
+    animation:none;
+  }
+  /* le halo « busy » repeignait une plaque : il est neutralisé aussi, sinon
+     la créature retrouve un cadre dès qu'un agent démarre. */
+  body[data-solo="1"][data-state="busy"] #capsule{
+    background:none; border-color:transparent; animation:none;
+    backdrop-filter:none; -webkit-backdrop-filter:none;
+  }
+  /* l'écran CRT est un MEUBLE : cadre, fond, coins, scanlines. Tout part. */
+  body[data-solo="1"] #screen{
+    margin:0; background:none; border:none; border-radius:0; box-shadow:none;
+    /* La fenêtre du mode libre est HAUTE (120 × 208) : elle réserve au-dessus
+       du dessin la course que le compagnon parcourt quand la vague du Dock
+       passe. Le dessin, lui, tient dans 120×112 collés EN BAS.
+       C'est cette couche-là qu'on décale — jamais la fenêtre. */
+    /* `bottom:40px` = la réserve laissée SOUS la ligne de sol pour les jambes
+       qui pendent en position assise (SOLO_ASSIS dans main.js). Debout, le
+       dessin est au-dessus ; assis, il descend dedans. */
+    position:absolute; left:0; bottom:34px; width:120px; height:112px;
+    /* translateZ force une couche à part : le compositeur n'a plus qu'à la
+       déplacer, sans redessiner ce qu'il y a autour. */
+    will-change:transform; transform:translate3d(0,0,0);
+  }
+  /* ── L'OMBRE RESTE AU SOL ─────────────────────────────────────────────────
+     Elle fait partie du personnage dans le fichier Lottie : elle montait donc
+     AVEC lui pendant le saut. Une ombre qui vole annule le saut — c'est elle
+     qui dit où est le sol. On l'efface le temps du vol ; elle revient à la
+     réception, là où il touche vraiment.
+     (`OMBRE_SOL` est posé par states.py : lottie-web n'écrit un `id` dans le
+      DOM que s'il trouve un champ `ln`, il ne recopie jamais `nm`.)
+
+     ⚠ `!important` OBLIGATOIRE. Lottie réécrit l'opacité de ses calques en
+     style INLINE à chaque image. Une règle CSS ordinaire l'emporte sur un
+     attribut de présentation — mais JAMAIS sur du inline. Sans `!important`
+     la règle est correcte, appliquée… et sans aucun effet visible. */
+  body[data-solo="1"][data-vol="1"] #avatar #OMBRE_SOL{ opacity:0 !important; }
+  body[data-solo="1"] #crt{ display:none; }
+  /* tout le texte et l'instrumentation autour : ce sont des informations de
+     panneau, pas le personnage. Elles reviendront au survol ou au clic. */
+  body[data-solo="1"] #label,
+  body[data-solo="1"] #detail,
+  body[data-solo="1"] #progress,
+  body[data-solo="1"] #steplabels,
+  body[data-solo="1"] #role,
+  body[data-solo="1"] #btns,
+  body[data-solo="1"] #dot{ display:none; }
+
+
+  /* ── LE PERSONNAGE (mode libre) ────────────────────────────────────────────
+     Un Lottie vectoriel dérivé de « Love is blind » remplace la créature
+     pixel dessinée au canvas. Il ne sort QUE en mode libre : dans la boîte,
+     la V1 garde sa créature — un prototype ne démonte pas ce qui marche.
+     UNE seule identité désormais : le rectangle. C'est la COULEUR qui dit
+     l'état, et elle se déplace progressivement — le personnage ne disparaît
+     jamais. Un seul fichier au lieu de treize (11 Mo → 0,8 Mo).
+     Recadrage MESURÉ sur les 58 images : x 778→1559, y 485→1510.
+     ⚠ À REMESURER dès que les bras bougent : ce sont eux qui fixent la
+     largeur, pas le corps.
+     ⚠ En CSS les transformations se lisent de DROITE à GAUCHE : le translate
+     agit en unités Lottie, AVANT la mise à l'échelle. */
+  #avatar{ display:none; position:absolute; inset:0; }
+  /* DEUX animations superposées : la marche et le repos. On FOND de l'une à
+     l'autre — le personnage n'est jamais absent, même une image.
+     Pourquoi deux fichiers et pas deux plages du même : Lottie n'honore que
+     les images clés d'ORIGINE d'une propriété ; celles qu'on ajoute derrière
+     sont écrites, vérifiables, et jamais jouées. Vérifié par expérience. */
+  /* ⚠ PAS DE `transition:opacity` ICI — c'était le défaut P0 (audit du
+     2026-07-31, reproduit au harnais sur le vrai code) : un fondu de 320 ms
+     entre DEUX RIGS dont les poses ne correspondent pas montre, à mi-course,
+     deux corps, deux paires de jambes et deux ombres. Vu à 81 ms.
+
+     La contrainte « le personnage ne doit jamais être absent » avait été lue
+     comme « les deux doivent être visibles ensemble ». C'est le mauvais
+     invariant. Le bon : UNE SILHOUETTE LISIBLE À CHAQUE IMAGE. L'échange est
+     donc instantané, et c'est la CHORÉGRAPHIE ci-dessous qui le masque — on
+     échange au moment où le corps est le plus compact, là où l'œil ne lit
+     plus le détail des membres. */
+  /* ⚠ IL REGARDE À DROITE (demande de l'auteur, 2026-07-31). Le fichier d'origine
+     le fait marcher vers la GAUCHE ; on le retourne par le recadrage lui-même,
+     pas par une transformation ajoutée — celle-ci écraserait le recadrage, ou
+     mangerait le seul emplacement libre qui sert au pont.
+     Le miroir se fait autour du MILIEU DE LA SILHOUETTE, sinon il sort du
+     cadre. Silhouette mesurée : x 778→1559, donc milieu 1168,5 ;
+     la translation passe de -759 à -(2×1168,5 − 759) = -1578.
+     Vérification : x_écran = (1578 − x_lottie) × .1054 → 778 donne 84,3 et
+     1559 donne 2,0. Même emprise qu'avant, retournée. */
+  /* ⚠ IL REGARDE À GAUCHE — et c'est le sens D'ORIGINE du fichier.
+     Il avait été retourné (scaleX(-1)) pour le design « assis au bord du Dock,
+     tourné vers le coin ». Depuis qu'il vit DANS le coin, dos à la limite de
+     l'écran, il regarde vers l'intérieur du bureau : le miroir n'a plus lieu
+     d'être et on revient au recadrage nu. Une transformation en moins, un
+     piège en moins. */
+  #avatar>div{ position:absolute; width:1920px; height:1920px;
+               transform-origin:0 0;
+               transform:scale(.1054) translate(-759px,-466px);
+               opacity:0; }
+  /* Le retournement reste disponible si une famille de comportements en a
+     besoin. Le miroir change AUSSI la translation (bascule autour du milieu de
+     silhouette 1168,5, pas autour de l'origine) : d'où deux transformations
+     écrites en toutes lettres plutôt qu'un facteur variable. */
+  body[data-sens="droite"] #avatar>div{
+    transform:scale(.1054) scaleX(-1) translate(-1578px,-466px); }
+  #avatar>div.vu{ opacity:1; }
+
+  /* ── LE PONT repos ⇄ marche ────────────────────────────────────────────────
+     Anticipation → compression → échange → détente → follow-through.
+     ⚠ Il s'applique à #avatar, PAS à #avatar>div : ce dernier porte déjà le
+     recadrage, et une animation CSS sur `transform` ÉCRASE le `transform` posé
+     sur le MÊME élément — c'est le piège qui avait envoyé le personnage à
+     1920 px hors cadre. #avatar est le seul emplacement de transformation
+     encore libre : le SVG porte la respiration, #screen porte la vague. */
+  @keyframes bascule {
+    0%   { transform:translateY(0)      scaleY(1)    scaleX(1);    }
+    18%  { transform:translateY(2.5px)  scaleY(.995) scaleX(1.004); }  /* anticipation : il se ramasse */
+    38%  { transform:translateY(3px)    scaleY(.97)  scaleX(1.015); }  /* compression — L'ÉCHANGE A LIEU ICI */
+    80%  { transform:translateY(-1.5px) scaleY(1.008) scaleX(.996); }  /* détente, léger dépassement */
+    100% { transform:translateY(0)      scaleY(1)    scaleX(1);    }
+  }
+  body[data-solo="1"] #avatar.bascule{
+    animation:bascule 500ms cubic-bezier(.34,.06,.2,1);
+    transform-origin:50% 98%;   /* le poids passe par les pieds, pas par le centre */
+  }
+  @media (prefers-reduced-motion: reduce){
+    /* mouvement réduit : une COUPE nette sur une pose stable, jamais de pont. */
+    body[data-solo="1"] #avatar.bascule{ animation:none; }
+  }
+  body[data-solo="1"] #avatar{ display:block; }
+  /* P0 — LE REPOS NE DOIT RIEN COÛTER. Mesuré : la même image, repeinte 24
+     fois par seconde par Lottie, coûtait 17 % de processeur. Or au repos seule
+     la RESPIRATION bouge. On met donc l'animation en PAUSE sur une image fixe
+     et on respire en CSS : le compositeur déforme une couche déjà rendue, sans
+     réveiller le processus. */
+  @keyframes respire { 0%,100%{ transform:scaleY(1) } 50%{ transform:scaleY(.982) scaleX(1.009) } }
+  /* ⚠ La respiration s'applique au SVG, PAS au div. Le div porte déjà un
+     `transform` — le recadrage — et une animation CSS sur `transform`
+     l'ÉCRASE : le personnage était rendu à 1920 px, hors cadre, et on le
+     croyait disparu. Deux transformations sur le même élément, l'une gagne. */
+  /* ⚠ LA RESPIRATION EN CONTINU COÛTE 12 % DE PROCESSEUR. Mesuré : un repos
+     totalement figé tient à 0,4 % ; la même image avec une respiration CSS
+     permanente monte à 12 %, parce qu'animer une transformation sur une
+     fenêtre transparente toujours-au-dessus fait recomposer tout l'écran à
+     chaque image. `will-change` n'y change rien.
+     On souffle donc par INTERMITTENCE — 2,4 s toutes les 20 s, déclenché en
+     JS. Amorti, ça revient à ~1,4 % pour un signe de vie qui suffit
+     largement : personne ne regarde un compagnon respirer en continu. */
+  body[data-solo="1"][data-allure="repos"] #avatar>div.vu>svg.souffle{
+    animation:respire 2.4s ease-in-out;
+    transform-origin:50% 92%;
+  }
+  body[data-solo="1"][data-allure="repos"] #avatar>div.vu>svg{
+    animation:none;
+    /* promouvoir en couche propre : sans ça, chaque image de la respiration
+       fait recomposer toute la fenêtre transparente, et le repos coûte autant
+       qu'une animation complète. */
+    will-change:transform;
+    transform-origin:50% 92%;   /* le poids repose en bas : on s'écrase vers les pieds */
+  }
+  @media (prefers-reduced-motion: reduce){
+    /* ⚠ LA RESPIRATION EN CONTINU COÛTE 12 % DE PROCESSEUR. Mesuré : un repos
+     totalement figé tient à 0,4 % ; la même image avec une respiration CSS
+     permanente monte à 12 %, parce qu'animer une transformation sur une
+     fenêtre transparente toujours-au-dessus fait recomposer tout l'écran à
+     chaque image. `will-change` n'y change rien.
+     On souffle donc par INTERMITTENCE — 2,4 s toutes les 20 s, déclenché en
+     JS. Amorti, ça revient à ~1,4 % pour un signe de vie qui suffit
+     largement : personne ne regarde un compagnon respirer en continu. */
+  body[data-solo="1"][data-allure="repos"] #avatar>div.vu>svg.souffle{
+    animation:respire 2.4s ease-in-out;
+    transform-origin:50% 92%;
+  }
+  body[data-solo="1"][data-allure="repos"] #avatar>div.vu>svg{ animation:none }
+  }
+  body[data-solo="1"] #scr{ display:none; }
+
+  /* ── LA PASTILLE (mode libre) ─────────────────────────────────────────────
+     Le nom de l'agent, au-dessus du compagnon. Elle n'est PAS permanente : un
+     libellé toujours affiché devient du mobilier et cesse d'être lu au bout de
+     deux jours. Elle sort quand l'activité CHANGE — le seul moment où on a
+     besoin de la lire — puis s'efface, et revient au survol.
+     La couleur seule ne peut pas porter treize agents : on en retient trois ou
+     quatre, pas treize. */
+  /* ⚠ `bottom` MESURÉ, pas choisi : à 112 px l'étiquette coupait le haut du
+     crâne et couvrait les lunettes (audit du 2026-07-31, vu à 188 ms). Elle
+     ne doit jamais servir à cacher le raccord d'animation — c'est le pont qui
+     s'en charge. Remontée au-dessus de la silhouette, vérifiée en capture. */
+  /* MESURÉ, pas choisi. À 112 px elle coupait le crâne ; à 152 elle mordait
+     encore de 18 pt — vérifié sur fond uni dans les DEUX poses (assis : haut du
+     crâne 155, bas de pastille 173 · debout : 169 et 188). Les deux poses
+     partagent la même translation, donc une seule constante les règle.
+     180 px laisse ~9 pt de jour au-dessus de la tête dans les deux cas. */
+  #dit{ display:none; position:absolute; left:50%; bottom:180px;
+        padding:2px 7px; border-radius:6px; white-space:nowrap;
+        background:rgba(18,21,27,.94); color:#fff;
+        font:600 9px/1.4 ui-sans-serif,-apple-system,sans-serif; letter-spacing:.5px;
+        box-shadow:0 2px 8px rgba(0,0,0,.5);
+        opacity:0; transition:opacity .28s ease; pointer-events:none;
+        transform:translate(-50%,0); }
+  /* ⚠ PAS `left:50%` en mode libre. Depuis que la fenêtre couvre les DEUX
+     places (assise sur le Dock, debout dans le coin), sa moitié n'est plus le
+     milieu du personnage : l'étiquette partait se coller au bord droit et se
+     faisait couper par l'écran. On vise le MILIEU DU CORPS dans sa case —
+     43 pt, déduit du recadrage (silhouette 2→84,3) — et le bond la déplace
+     ensuite avec lui. */
+  body[data-solo="1"] #dit{ display:block; left:43px; }
+  #dit.vu{ opacity:1; }
+  /* le petit bec, pour que la pastille désigne le compagnon */
+  #dit::after{ content:''; position:absolute; left:50%; top:100%;
+        margin-left:-4px; border:4px solid transparent;
+        border-top-color:rgba(18,21,27,.94); }
 </style>
 </head>
 <body data-state="idle" data-activity="idle" data-source="you">
   <div id="capsule">
     <div id="dot"></div>
     <div id="btns"><div id="reduce" class="btn" title="Réduire (⌘⇧B)">_</div><div id="del" class="btn" title="Fermer">x</div></div>
-    <div id="screen"><canvas id="scr"></canvas><div id="crt"></div></div>
+    <div id="screen"><canvas id="scr"></canvas><div id="avatar"><div></div><div></div></div><div id="crt"></div></div>
+    <div id="dit"></div>
     <div id="label">IDLE</div>
     <div id="detail"><span class="dot"></span><span class="txt"></span></div>
     <div id="progress"><div class="seg"><span class="fill"></span></div><div class="seg"><span class="fill"></span></div><div class="seg"><span class="fill"></span></div><div id="indet"><span></span></div></div>
@@ -244,7 +468,18 @@
       renderProgress(state==='busy', cur.activity);
       trackSteps(state==='busy', cur.activity);
       if(state==='busy'){ lastBusy=now; ipcRenderer.send('cap-show'); hiddenByIdle=false; }
-      else if(!hiddenByIdle && lastBusy && (now-lastBusy)>12){ ipcRenderer.send('cap-hide'); hiddenByIdle=true; }
+      /* ⚠ EN MODE LIBRE, IL NE DISPARAÎT JAMAIS.
+         L'effacement automatique vient du mode PANNEAU : un HUD qui n'affiche
+         plus rien occupe l'écran pour rien, donc il s'efface. Le compagnon,
+         lui, n'est pas un panneau — c'est un habitant du bureau. Le voir assis
+         sur le Dock EST l'information « le Brain est vivant, rien ne tourne ».
+         Le délai avait déjà été repoussé de 12 à 45 s pour cette raison ;
+         c'était traiter le symptôme. À 45 s il s'évaporait après chaque passe
+         d'agent et l'utilisateur se retrouvait devant un Dock vide sans savoir si la
+         capsule avait planté.
+         ⌘⇧B le cache toujours à la demande — c'est une DÉCISION, pas un
+         minuteur. */
+      else if(!SOLO && !hiddenByIdle && lastBusy && (now-lastBusy)>12){ ipcRenderer.send('cap-hide'); hiddenByIdle=true; }
     });
   }
 
@@ -279,6 +514,10 @@
     PAL[14]=_hsl2hex(h,    Math.min(1,s+0.02),       Math.max(0.10,l-0.02));  // corps : mid (≈ accent)
     PAL[15]=_hsl2hex(h+20, Math.min(1,s+0.10),       Math.min(0.92,l+0.24));  // rim : chaude, saturée, claire
   }
+  // MODE LIBRE : lu ici, AVANT setupCanvas qui s'en sert pour aligner l'art en
+  // bas. Le renderer a nodeIntegration, donc pas de query string à faire suivre.
+  const SOLO = (typeof process!=='undefined' && process.env.CAPSULE_SOLO==='1');
+  if(SOLO) document.body.dataset.solo='1';
   const W=100, H=94;
   const scr=document.getElementById('scr');
   const g=scr.getContext('2d');
@@ -291,7 +530,13 @@
     const dw=Math.max(W,Math.round(cssW*dpr)), dh=Math.max(H,Math.round(cssH*dpr));
     scr.width=dw; scr.height=dh;
     const s=Math.max(1,Math.floor(Math.min(dw/W,dh/H)));        // facteur ENTIER → pas de pixels bavés
-    DEV={w:dw,h:dh,s,ox:Math.floor((dw-W*s)/2),oy:Math.floor((dh-H*s)/2)};
+    // MODE LIBRE : l'art est collé en BAS, pas centré. Centré, la créature
+    // flotte au milieu de la fenêtre — et comme c'est le bord bas de la fenêtre
+    // qui touche le Dock, elle se retrouve suspendue au-dessus du vide. C'est le
+    // contact avec le sol qui fait croire au poids ; sans lui, ça reste un
+    // sticker posé sur l'écran.
+    const oy = SOLO ? (dh - H*s) : Math.floor((dh-H*s)/2);
+    DEV={w:dw,h:dh,s,ox:Math.floor((dw-W*s)/2),oy};
     g.setTransform(s,0,0,s,DEV.ox,DEV.oy);
     g.imageSmoothingEnabled=false;
   }
@@ -300,7 +545,12 @@
   const r=(x,y,w,h,p)=>{ g.fillStyle=PAL[p]; g.fillRect(flr(x),flr(y),Math.max(1,flr(w)),Math.max(1,flr(h))); };
   const px=(x,y,p)=>{ g.fillStyle=PAL[p]; g.fillRect(flr(x),flr(y),1,1); };
   const cls=p=>{ g.save(); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,DEV.w,DEV.h);
-    g.fillStyle='rgba(18,16,15,0.5)'; g.fillRect(0,0,DEV.w,DEV.h); g.restore(); };  // écran légèrement transparent
+    // En mode libre, l'effacement doit rendre le canvas VRAIMENT transparent.
+    // Le voile 'rgba(18,16,15,0.5)' est le verre de l'écran CRT : sans plaque
+    // derrière, il devient un rectangle gris posé sur le bureau — exactement
+    // le cadre qu'on cherche à faire disparaître.
+    if(!SOLO){ g.fillStyle='rgba(18,16,15,0.5)'; g.fillRect(0,0,DEV.w,DEV.h); }
+    g.restore(); };
   // gerbe de particules (fin d'étape)
   let parts=[];
   function burst(cx,cy){ for(let i=0;i<14;i++){ const a=Math.random()*6.283, sp=18+Math.random()*36;
@@ -508,12 +758,20 @@
     g.fillStyle=gr; g.fillRect(x-rad,y-rad,rad*2,rad*2); }
   // ENVIRONNEMENT de scène : profondeur sans aucune arête nette (lumière ambiante + vignette + sol en dégradé)
   function stage(){
-    let amb=g.createLinearGradient(0,0,W,H);                    // lumière douce haut-gauche → coins sombres
-    amb.addColorStop(0,'rgba(86,77,67,0.28)'); amb.addColorStop(0.5,'rgba(0,0,0,0)'); amb.addColorStop(1,'rgba(0,0,0,0.38)'); // P1 : coins moins noirs → props ne coulent plus
-    g.fillStyle=amb; g.fillRect(0,0,W,H);
-    let flo=g.createLinearGradient(0,H*0.5,0,H);                // sol : pénombre montante, bord flou (jamais une ligne)
-    flo.addColorStop(0,'rgba(0,0,0,0)'); flo.addColorStop(1,'rgba(28,25,22,0.62)');
-    g.fillStyle=flo; g.fillRect(0,H*0.5,W,H*0.5);
+    // MODE LIBRE : l'ambiance et le sol en dégradé sont le DÉCOR DE LA BOÎTE —
+    // une lumière de coin et une pénombre montante n'ont de sens que dans un
+    // caisson. Sur le bureau ils deviennent un rectangle grisâtre posé sur ce
+    // que l'utilisateur regarde : exactement le cadre qu'on démonte.
+    // La flaque, elle, RESTE : c'est la lumière au sol sous les pattes, et
+    // c'est elle qui fait que la créature est posée et non collée.
+    if(!SOLO){
+      let amb=g.createLinearGradient(0,0,W,H);                  // lumière douce haut-gauche → coins sombres
+      amb.addColorStop(0,'rgba(86,77,67,0.28)'); amb.addColorStop(0.5,'rgba(0,0,0,0)'); amb.addColorStop(1,'rgba(0,0,0,0.38)'); // P1 : coins moins noirs → props ne coulent plus
+      g.fillStyle=amb; g.fillRect(0,0,W,H);
+      let flo=g.createLinearGradient(0,H*0.5,0,H);              // sol : pénombre montante, bord flou (jamais une ligne)
+      flo.addColorStop(0,'rgba(0,0,0,0)'); flo.addColorStop(1,'rgba(28,25,22,0.62)');
+      g.fillStyle=flo; g.fillRect(0,H*0.5,W,H*0.5);
+    }
     let pool=g.createRadialGradient(50,62,2,50,62,30);          // V19 : key-light recentré sous l'avatar (zone d'animation)
     pool.addColorStop(0,'rgba(168,150,128,0.50)'); pool.addColorStop(0.5,'rgba(150,132,112,0.20)'); pool.addColorStop(1,'rgba(0,0,0,0)');
     g.fillStyle=pool; g.fillRect(0,0,W,H);
@@ -732,11 +990,30 @@
     const a = cur.state==='busy' ? cur.activity : 'idle';
     if(a!==_prevA){ _transAt=now; _prevA=a; loadCode(a); }   // P3d : changement d'activité → recharge le code de fond
     stage();                                    // environnement (profondeur) sous la scène
-    if(cur.state==='busy') drawCodeBg(t, ACCENT[a]||ACCENT.idle); // VRAI code de l'agent, faible, derrière la créature
+    // Le code de fond est un RECTANGLE DE TEXTE derrière la créature : dans la
+    // boîte c'est une profondeur, sur le bureau c'est un pavé qui recouvre ce
+    // que l'utilisateur lit. Il ne sort pas en mode libre.
+    if(cur.state==='busy' && !SOLO) drawCodeBg(t, ACCENT[a]||ACCENT.idle); // VRAI code de l'agent, faible, derrière la créature
     _expr = EXPR[a] || 'happy';                  // P2b : l'humeur suit l'agent actif
     // V19 — COMPOSITION VERTICALE (demande de l'auteur) : avatar CENTRÉ en haut · animation TOUJOURS en dessous.
     if(a==='idle'){
       SCENES.idle(t);                            // repos : la scène idle dessine déjà la créature centrée (x=50)
+    } else if(SOLO){
+      // MODE LIBRE — la créature garde sa place au SOL, quel que soit l'agent.
+      //
+      // MESURÉ : en busy, la composition de la boîte remonte la créature à y=26
+      // et pose ses props dans la bande basse (y≈64). Sur le bureau, le résultat
+      // est exactement ce qu'on voit — la créature décolle du Dock et ses objets
+      // s'enfoncent dedans. La scène a été composée POUR un écran de 160×150 :
+      // ses props sont placés en absolu dans le champ, ils ne savent pas se
+      // ranger autour d'un personnage posé sur autre chose.
+      //
+      // Pour ce premier test, on garde ce que le personnage porte lui-même :
+      // sa couleur d'agent, son humeur, et son accessoire de rôle. Ce qui
+      // change, c'est LUI — pas un décor derrière lui. Les objets manipulés
+      // reviendront quand ils seront dessinés sur la même ligne de sol.
+      const bob=rnd(sin(t*2)*1.6);
+      critter(50, 42+bob, 5, t, {look:rnd(sin(t*0.6)*1.2), looky:rnd(sin(t*0.9)*0.6), acc:ACC_OF[a]});
     } else {
       // la scène ne dessine que ses PROPS (créature supprimée via _compose) → on les recentre/réduit dans la
       //   bande basse, puis on dessine la créature centrée qui regarde son travail en dessous.
@@ -753,10 +1030,401 @@
     if(left>0){ const inT=1500-left; let w=inT<280?inT/280:(left<360?left/360:1); drawCheck(Math.max(0,Math.min(1,w))); }
     // P3d — TRANSITION : voile sombre qui se dissipe (240 ms) à chaque changement de scène → plus de coupure sèche.
     const tr=now-_transAt;
-    if(!REDUCE && tr<240){ const k=(1-tr/240)*0.6; g.save(); g.setTransform(1,0,0,1,0,0);
+    if(!REDUCE && !SOLO && tr<240){ const k=(1-tr/240)*0.6; g.save(); g.setTransform(1,0,0,1,0,0);
       g.fillStyle='rgba(18,16,15,'+k+')'; g.fillRect(0,0,DEV.w,DEV.h); g.restore(); }
   }
-  setInterval(readStatus, 1000); readStatus(); render();   // V22 : 400→1000 ms, un agent ne change pas d'état 2,5×/s
+  setInterval(readStatus, 1000); readStatus();
+
+  // ── LE PERSONNAGE (mode libre) ─────────────────────────────────────────────
+  // En mode libre le canvas ne dessine plus rien : on ne LANCE PAS render(),
+  // plutôt que de le laisser tourner sous un canvas caché. Une boucle qui
+  // peint pour personne, sur une fenêtre transparente toujours au-dessus,
+  // fait recomposer WindowServer à chaque image — c'est exactement le coût
+  // que la V22 avait supprimé.
+  /* ── LA VAGUE DU DOCK, ET S'ASSEOIR ───────────────────────────────────────
+     Le processus principal envoie la HAUTEUR dont le Dock est gonflé sous le
+     compagnon ; on l'amortit ici, image par image. Faire ça côté fenêtre
+     (setBounds à 60 Hz) donnait un mouvement par crans : la position d'une
+     fenêtre est un entier de points, et chaque déplacement fait recomposer
+     tout ce qui est dessous. Ici on ne bouge qu'une couche déjà rendue.
+
+     ⚠ Ce bloc a d'abord atterri DANS LE <style>, avant l'ouverture du script :
+     du texte mort, jamais exécuté. Rien ne le signalait — pas d'erreur, juste
+     un compagnon qui ne surfait pas. Une ancre de remplacement qui existe en
+     double (ici un commentaire présent en CSS ET en JS) tape sur la première
+     occurrence, et ce n'est pas forcément la bonne. */
+  const ASSIS = 0;   // plus de pose assise : il ne fait que marcher                // doit valoir SOLO_ASSIS de main.js
+  let assisCible = 0, assisVu = 0;
+  let vagueCible = 0, vagueVue = 0, vagueRAF = null;
+  const ecran = document.getElementById('screen');
+  const dit   = document.getElementById('dit');
+
+  /* ── LE BOND : deux places ────────────────────────────────────────────────
+     Assis sur le bout du Dock au repos ; debout dans le coin bas droit dès
+     qu'un agent travaille. La course vient du processus principal, qui seul
+     connaît la géométrie du Dock — on ne la recalcule pas ici. */
+  let BOND_DX = 0, BOND_DY = 0;
+  /* ── UN VRAI SAUT, PAS UN GLISSEMENT ──────────────────────────────────────
+     Première version : une seule interpolation adoucie aux deux bouts, arc de
+     34 pt. Résultat — il GLISSAIT d'une place à l'autre. Deux raisons, et il
+     fallait corriger les deux :
+      · l'horizontale était ralentie au départ ET à l'arrivée. Un corps en l'air
+        n'est plus poussé : sa vitesse horizontale est CONSTANTE. C'est ce
+        détail qui fait lire « saut » plutôt que « déplacement » ;
+      · il n'y avait ni élan ni réception, donc aucun poids.
+     Maintenant quatre temps nets, que l'œil peut suivre. */
+  /* Cinq temps. Les deux premiers manquaient : il fléchissait en position
+     ASSISE, ce qui ne peut pas se lire — on ne plie pas des genoux déjà pliés.
+     Il se RELÈVE d'abord, puis il fléchit, puis il part. */
+  const BOND_LEVER   = 180;        // il quitte l'assise et se met debout
+  const BOND_FLEX    = 130;        // il fléchit les genoux — l'élan
+  const BOND_VOL     = 420;        // en l'air : horizontale LINÉAIRE, verticale parabolique
+  const BOND_IMPACT  = 240;        // réception : il encaisse, genoux fléchis
+  const BOND_REPRISE = 160;        // il se redresse
+  const BOND_ANTI    = BOND_LEVER + BOND_FLEX;          // tout ce qui précède le décollage
+  const BOND_TOTAL   = BOND_ANTI + BOND_VOL + BOND_IMPACT + BOND_REPRISE;
+  /* ── POURQUOI ÇA ACCROCHAIT ────────────────────────────────────────────────
+     Verrouiller l'échelle pendant le vol supprimait bien la re-rastérisation…
+     mais créait DEUX RUPTURES : au décollage elle sautait de 0,80 à 1,07 en
+     une image, à la réception de 1,07 à 0,78. Deux à-coups, exactement aux
+     deux instants qu'on regarde. Un mouvement n'est pas fluide parce qu'il
+     coûte peu : il est fluide parce qu'il est CONTINU.
+     Maintenant l'écrasement est une seule courbe continue d'un bout à l'autre,
+     et la largeur en découle par CONSERVATION DU VOLUME (sx = 1/√sy) — c'est
+     ce qui donne l'élasticité de l'animation d'origine, où rien ne gonfle
+     jamais sans se rétrécir ailleurs. */
+  const volume = (sy) => 1 / Math.sqrt(sy);
+  const BOND_FLEX_SY = 0.82;       // accroupi, fin d'élan
+  const BOND_IMP_SY  = 0.84;       // écrasement maximal à la réception
+  // Sommet de la trajectoire. Il doit passer NETTEMENT au-dessus du point de
+  // départ, sinon la parabole se confond avec la descente vers le sol : la
+  // place debout est déjà ~49 pt plus bas que l'assise.
+  // 96 → 74 : à 96 pt pour 104 pt de course il flottait, la trajectoire tirait
+  // à la verticale. Un saut se lit à sa forme, pas à sa hauteur.
+  const BOND_APEX = 64;
+  let bondCible = 0, bondVu = 0, bondDe = 0, bondT0 = 0, bondActif = false;
+  let bondArc = 0, bondSx = 1, bondSy = 1;
+
+  function lancerBond(vers){
+    bondDe = bondVu; bondCible = vers;
+    bondT0 = performance.now(); bondActif = true;
+    /* un saut relancé avant la fin du précédent repart les pieds au sol :
+       sinon l'ombre resterait effacée pour toujours. */
+    document.body.dataset.vol = '0';
+  }
+
+  /* Écrase / étire autour des PIEDS : un corps se comprime vers le sol, pas
+     vers son centre. 43 pt = milieu du corps, 110 pt = la plante. */
+  ecran.style.transformOrigin = '43px 110px';
+
+  // Rend la progression spatiale 0→1 et pose l'écrasement de l'image.
+  function phaseBond(e){
+    if (e < BOND_LEVER) {                                 // 1. IL SE RELÈVE
+      // rien à écraser : c'est `assisVu` qui le remet debout, tout seul.
+      bondSy = 1; bondArc = 0;
+      bondSx = volume(bondSy); return 0;
+    }
+    if (e < BOND_ANTI) {                                  // 2. IL FLÉCHIT
+      const k = (e - BOND_LEVER) / BOND_FLEX;
+      bondSy = 1 - (1 - BOND_FLEX_SY) * (k * k);          // il se ramasse en accélérant
+      bondSx = volume(bondSy); bondArc = 0; return 0;
+    }
+    if (e < BOND_ANTI + BOND_VOL) {                       // 3. VOL
+      const f = (e - BOND_ANTI) / BOND_VOL;
+      /* Une seule courbe, qui PART exactement de l'accroupi (continuité au
+         décollage), s'étire, redevient neutre au sommet, puis se réétire à la
+         chute. |2f−1| vaut 1 aux deux bouts et 0 au sommet. */
+      const detente = Math.min(1, f / 0.28);              // extension des jambes
+      bondSy = BOND_FLEX_SY + (0.18 + 0.12 * Math.abs(2 * f - 1)) * detente;
+      bondSx = volume(bondSy);
+      bondArc = BOND_APEX * 4 * f * (1 - f);              // parabole
+      if (document.body.dataset.vol !== '1') document.body.dataset.vol = '1';
+      return f;                                           // ⚠ LINÉAIRE : c'est ça, le saut
+    }
+    document.body.dataset.vol = '0';                      // il a retrouvé le sol
+    if (e < BOND_ANTI + BOND_VOL + BOND_IMPACT) {         // 4. IL ENCAISSE
+      const k = (e - BOND_ANTI - BOND_VOL) / BOND_IMPACT;
+      /* il ARRIVE étiré (1,12) : on repart de là, on écrase, puis on remonte.
+         Repartir de l'écrasement maximal aurait fait le second à-coup. */
+      const ARRIVEE = BOND_FLEX_SY + 0.30;
+      bondSy = k < 0.60 ? ARRIVEE - (ARRIVEE - BOND_IMP_SY) * (k / 0.60)
+                        : BOND_IMP_SY + (1 - BOND_IMP_SY) * ((k - 0.60) / 0.40);
+      bondSx = volume(bondSy); bondArc = 0; return 1;
+    }
+    const k = Math.min(1, (e - BOND_ANTI - BOND_VOL - BOND_IMPACT) / BOND_REPRISE);
+    bondSy = 1 + 0.045 * Math.sin(Math.PI * k) * (1 - k);  // dernier rebond, amorti
+    bondSx = volume(bondSy); bondArc = 0;
+    return 1;                                             // 5. il se redresse
+  }
+  ipcRenderer.on('cap-bond', (_e, b) => {
+    BOND_DX = b.dx; BOND_DY = b.dy;
+    /* la fenêtre descend jusqu'au sol : le dessin doit rester calé sur la
+       place ASSISE, donc on repousse son bas de toute la descente du bond. */
+    ecran.style.bottom = (ASSIS + b.dy) + 'px';
+  });
+
+  ipcRenderer.on('cap-vague', (_e, h) => {
+    vagueCible = h;
+    if (!vagueRAF) vagueRAF = requestAnimationFrame(suivreVague);
+  });
+  function suivreVague(){
+    const ecart = vagueCible - vagueVue;
+    // ~5 images pour rattraper : il surfe, il ne colle pas au curseur.
+    vagueVue += ecart * 0.22;
+    if (Math.abs(ecart) < 0.15) vagueVue = vagueCible;
+    // s'asseoir / se relever : plus lent que la vague, c'est un GESTE et pas
+    // un réflexe. Même boucle : deux amortissements séparés se désynchronisent
+    // et le personnage part en diagonale.
+    const e2 = assisCible - assisVu;
+    assisVu += e2 * 0.09;
+    if (Math.abs(e2) < 0.15) assisVu = assisCible;
+
+    /* Le BOND est un geste MINUTÉ, pas un amortissement : un saut a une durée
+       propre. L'amortissement exponentiel du reste ne convient pas — il
+       n'arrive jamais vraiment, et un personnage qui « fond » d'une place à
+       l'autre ne saute pas, il glisse. */
+    if (bondActif) {
+      const e = performance.now() - bondT0;
+      bondVu = bondDe + (bondCible - bondDe) * phaseBond(e);
+      if (e >= BOND_TOTAL) { bondActif = false; bondVu = bondCible;
+                             bondArc = 0; bondSx = bondSy = 1; }
+    }
+    const bx = BOND_DX * bondVu;
+    // la parabole SOUSTRAIT : elle le fait monter au-dessus de la ligne qui
+    // relie ses deux places, elle ne l'accompagne pas à plat.
+    const by = BOND_DY * bondVu - bondArc;
+
+    const ty = assisVu - vagueVue + by;
+    ecran.style.transform = 'translate3d(' + bx.toFixed(2) + 'px,' + ty.toFixed(2) + 'px,0)'
+                          + ' scale(' + bondSx.toFixed(3) + ',' + bondSy.toFixed(3) + ')';
+    // la pastille suit le compagnon : elle le DÉSIGNE, elle ne flotte pas.
+    dit.style.transform = 'translate(calc(-50% + ' + bx.toFixed(2) + 'px),' + ty.toFixed(2) + 'px)';
+    vagueRAF = (vagueVue === vagueCible && assisVu === assisCible && !bondActif)
+                 ? null : requestAnimationFrame(suivreVague);
+  }
+
+  /* ── LA PASTILLE : quand la montrer ───────────────────────────────────────
+     · au CHANGEMENT d'activité, quelques secondes — c'est là qu'on la lit ;
+     · au SURVOL, tant que le curseur est dessus.
+     Le survol l'emporte : si on la regarde, elle ne s'efface pas sous le nez. */
+  let ditMinuteur = null, ditSurvol = false, vu = true;
+  function montrerDit(texte, duree){
+    if (!texte) return;
+    dit.textContent = texte;
+    dit.classList.add('vu');
+    clearTimeout(ditMinuteur);
+    if (duree) ditMinuteur = setTimeout(() => { if (!ditSurvol) dit.classList.remove('vu'); }, duree);
+  }
+  function nomAgent(a){ return (ROLE[a] && ROLE[a][0]) || String(a).toUpperCase(); }
+
+  if(SOLO){
+    // lottie.min.js et le moteur de teinte ne se chargent qu'ici : inutiles
+    // en mode boîte, où la créature pixel reste au canvas.
+    charger(['lottie/lottie.min.js','lottie/teinte.js'], () => {
+      fetch('lottie/palette.json').then(r=>r.json()).then(palette=>{
+        const [hMarche, hRepos] = document.querySelectorAll('#avatar>div');
+
+        /* Deux animations superposées, une par allure. On FOND de l'une à
+           l'autre : le personnage n'est jamais absent, pas même une image.
+           Chacune est un fichier normal de 58 images — voir states.py pour
+           pourquoi une seconde plage dans le même fichier ne marche pas. */
+        const anims = {};
+        function monter(nom, hote, fichier, pret){
+          const a = lottie.loadAnimation({container:hote, renderer:'svg',
+            loop:true, autoplay:false, path:'lottie/' + fichier});
+          a.setSubframe(false);
+          a.addEventListener('DOMLoaded', ()=>{ anims[nom] = {a, hote,
+            teinte: new Teinte(hote.querySelector('svg'), palette)}; pret(); });
+        }
+
+        // ⚠ UNE SEULE ANIMATION. Décision de l'utilisateur, 2026-07-31 : « on ne garde
+        // que la marche ». La pose de repos, le bond, le pont de transition et
+        // la bascule de sens sont retirés — il marche sur place, tourné vers la
+        // gauche, et c'est tout. Ce qui reste pour dire l'état : la CADENCE
+        // (il marche / il est figé) et la TEINTE (quel agent).
+        let restants = 1;
+        const demarrer = ()=>{ if (--restants) return;
+          let allure = null, dernier = null;
+
+          /* Le PONT. Le corps se ramasse, on échange les deux rigs au moment
+             où il est le plus compact, puis il se détend. Rien ne fond : à
+             aucune image il n'y a deux corps.
+             190 ms = 38 % de 500 ms, c'est-à-dire le pic de compression de
+             `@keyframes bascule`. Les deux valeurs vont ENSEMBLE : bouger
+             l'une sans l'autre fait réapparaître l'échange en pleine vue. */
+          const PONT_MS = 500, ECHANGE_MS = 190;
+          let pontT = null, pontFinT = null;
+
+          /* `jouer` : on montre la pose DEBOUT sans lancer la marche. Pendant
+             un saut il ne doit pas pédaler en l'air — il tient une pose. */
+          function echanger(nom, jouer = true){
+            for (const [k, v] of Object.entries(anims)) {
+              const actif = (k === nom);
+              v.hote.classList.toggle('vu', actif);
+              /* Le REPOS reste figé sur une image : la respiration se fait en
+                 CSS. Mesuré : jouer cette image quasi immobile 24 fois par
+                 seconde coûtait 17 % de processeur ; figée + CSS, 2,8 %. */
+              if (actif && nom === 'marche' && !REDUCE && jouer) v.a.play();
+              else { v.a.pause(); if (actif) v.a.goToAndStop(REDUCE ? 26 : 0, true); }
+            }
+            souffler(nom === 'repos');
+            /* S'ASSEOIR PART AVEC L'ÉCHANGE, pas avant. Auparavant l'écran
+               remontait pendant le fondu : une troisième interpolation lancée
+               en même temps que les deux autres. Un geste, un instant. */
+            assisCible = (nom === 'repos') ? ASSIS : 0;
+            if (!vagueRAF) vagueRAF = requestAnimationFrame(suivreVague);
+          }
+
+          function allerAllure(nom){
+            if (nom === allure) return;
+            const premier = (allure === null);
+            allure = nom;
+            document.body.dataset.allure = nom;
+            /* Au tout premier montage il n'y a rien à quitter, et en mouvement
+               réduit on coupe net : dans les deux cas, pas de pont. */
+            if (premier || REDUCE) { echanger(nom); return; }
+
+            /* ── QUAND IL Y A UN SAUT, LE SAUT EST LA TRANSITION ────────────
+               Sinon deux écrasements se superposent — celui du pont et celui
+               de l'élan — et on ne lit plus ni l'un ni l'autre. Le pont ne
+               sert que lorsqu'il change d'allure SANS changer de place. */
+            const vers = (nom === 'repos') ? 0 : 1;
+            if (BOND_DX > 1) {
+              clearTimeout(pontT); clearTimeout(pontFinT);
+              document.getElementById('avatar').classList.remove('bascule');
+              /* ⚠ IL SE MET DEBOUT AVANT DE SAUTER, dans les deux sens.
+                 On ne fléchit pas des genoux déjà pliés : tant qu'il portait
+                 la pose ASSISE pendant l'élan, la détente ne pouvait pas se
+                 lire. Il prend donc la pose debout dès le premier temps —
+                 mais FIGÉE (`jouer:false`), sinon il pédale en l'air. */
+              echanger('marche', false);
+              /* ⚠ IL REGARDE OÙ IL VA. À l'aller il part vers la droite, donc
+                 rien à faire. Au RETOUR il saute vers le Dock, qui est à sa
+                 gauche : il se retourne AVANT de s'élancer — sauter à reculons
+                 ne se lit pas. */
+              lancerBond(vers);
+              /* Et il ne reprend son allure qu'à la RÉCEPTION : la marche s'il
+                 va travailler, l'assise s'il rentre se poser sur le Dock. */
+              pontT = setTimeout(() => {
+                echanger(nom);
+                /* Posé sur le Dock, il se retourne vers le coin — c'est là
+                   qu'il regarde quand il ne travaille pas. */
+              }, BOND_ANTI + BOND_VOL);
+              if (!vagueRAF) vagueRAF = requestAnimationFrame(suivreVague);
+              return;
+            }
+
+            const av = document.getElementById('avatar');
+            /* relancer une animation CSS déjà posée demande de la retirer, de
+               forcer un recalcul, puis de la remettre — sans le reflow, une
+               bascule qui suit de près la précédente ne rejoue pas. */
+            av.classList.remove('bascule'); void av.offsetWidth; av.classList.add('bascule');
+            clearTimeout(pontT); clearTimeout(pontFinT);
+            pontT    = setTimeout(() => echanger(nom), ECHANGE_MS);
+            pontFinT = setTimeout(() => av.classList.remove('bascule'), PONT_MS + 30);
+          }
+
+          /* Le souffle : 2,4 s toutes les 20 s, et rien entre les deux. Une
+             animation CSS permanente ferait recomposer l'écran à chaque
+             image, même quand le mouvement est imperceptible. */
+          let horlogeSouffle = null;
+          function souffler(actif){
+            clearInterval(horlogeSouffle); horlogeSouffle = null;
+            const svg = () => anims.repos && anims.repos.hote.querySelector('svg');
+            if (svg()) svg().classList.remove('souffle');
+            if (!actif || REDUCE) return;
+            const un = () => { const e = svg(); if (!e) return;
+              e.classList.add('souffle');
+              setTimeout(()=>e.classList.remove('souffle'), 2500); };
+            setTimeout(un, 900);
+            horlogeSouffle = setInterval(un, 20000);
+          }
+
+          function peindre(etat, ms){
+            for (const v of Object.values(anims)) v.teinte.etat(etat, ms);
+          }
+
+          (function suivre(){
+           try{
+            const a = cur.state==='busy' ? (cur.activity||'working') : 'idle';
+            allerAllure('marche');
+            /* IL MARCHE QUAND QUELQUE CHOSE TRAVAILLE, ET SEULEMENT ALORS.
+               La flânerie au repos a été retirée : elle donnait un compagnon
+               qui marchait en permanence, donc qui ne disait plus rien — et
+               au ralenti, ce qui se lisait comme une panne. Marcher est le
+               signal ; il doit coûter quelque chose pour valoir quelque chose.
+               ⚠ Encore faut-il que l'état soit RAFRAÎCHI : voir le battement
+               dans hooks/track_read.py, sans lequel il se figeait en plein
+               travail au bout de 30 s. */
+            const m = anims.marche;
+            if (m) { if (a === 'idle' || REDUCE) m.a.pause(); else m.a.play(); }
+            /* Plus personne ne travaille → l'étiquette s'en va. C'est le seul
+               endroit qui l'efface, maintenant qu'elle n'a plus de minuteur. */
+            if (a === 'idle' && !ditSurvol) {
+              clearTimeout(ditMinuteur); dit.classList.remove('vu');
+            }
+            if(a!==dernier){
+              const premier = dernier === null;
+              dernier = a;
+              /* L'étiquette entre APRÈS le geste, pas avec lui : sortie à
+                 l'instant zéro elle couvrait le raccord et volait la lecture
+                 du mouvement. 280 ms = juste après l'échange, quand la
+                 silhouette est de nouveau stable et lisible.
+                 ⚠ DURÉE 0 = elle RESTE. Elle dit quel agent travaille en ce
+                 moment : elle doit tenir tout le temps du travail, pas
+                 s'effacer au bout d'une seconde et laisser l'utilisateur
+                 devant un personnage coloré qu'il ne peut plus nommer.
+                 C'est le passage à `idle` qui la retire. */
+              /* ⚠ JAMAIS de pastille pour `idle`. Vu sur la planche du cycle :
+                 en repartant s'asseoir il annonçait « LES 8 AGENTS » — le
+                 libellé du repos. Une pastille nomme QUI TRAVAILLE ; quand
+                 personne ne travaille, il n'y a rien à nommer. */
+              if(!premier && a !== 'idle') setTimeout(() => montrerDit(nomAgent(a), 0), 280);
+              peindre(palette.etats[a]!=null ? a : 'working',
+                      premier ? 0 : 900);
+            }
+           }catch(e){
+             /* Lottie AVALE les exceptions de ses propres écouteurs : sans ce
+                filet, une erreur ici ne laisse aucune trace et on ne voit
+                qu'un personnage qui ne se peint jamais. */
+             try{ require('fs').appendFileSync('/tmp/capsule-avatar.log',
+               new Date().toISOString()+' suivre() : '+(e&&e.stack||e)+'\n'); }catch(_){}
+           }
+            setTimeout(suivre, 400);
+          })();
+        };
+
+        monter('marche', hMarche, 'avatar.json', demarrer);
+
+        /* L'animation s'arrête quand personne ne la voit : fenêtre cachée,
+           écran éteint, ou mouvement réduit demandé. */
+        const majLecture = ()=>{ for (const v of Object.values(anims))
+          if (!vu || document.hidden || REDUCE) v.a.pause(); };
+        ipcRenderer.on('cap-visible', (_e, v)=>{ vu = v; majLecture(); });
+        document.addEventListener('visibilitychange', majLecture);
+      }).catch(journal);
+    }, journal);
+  } else {
+    render();
+  }
+
+  /* Charge des scripts à la suite. L'échec ne doit JAMAIS être muet : sans
+     journal, il ne reste qu'un compagnon absent et on cherche le défaut dans
+     l'animation alors que le script n'est jamais arrivé. */
+  function charger(srcs, fini, rate){
+    const suivant = () => {
+      if(!srcs.length) return fini();
+      const s=document.createElement('script');
+      s.src=srcs.shift(); s.onload=suivant; s.onerror=()=>rate(new Error(s.src));
+      document.head.appendChild(s);
+    };
+    suivant();
+  }
+  function journal(e){
+    try{ require('fs').appendFileSync('/tmp/capsule-avatar.log',
+      new Date().toISOString()+' '+(e&&e.message||e)+'\n'); }catch(_){}
+    document.body.dataset.solo='0'; render();      // repli : la créature pixel
+  }
 </script>
 </body>
 </html>

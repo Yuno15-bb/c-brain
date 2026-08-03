@@ -100,7 +100,11 @@ def ensure_capsule():
                            capture_output=True, text=True)
         if r.stdout.strip():
             return  # déjà ouverte
-        subprocess.Popen([elec, "."], cwd=cap,
+        env = dict(os.environ)
+        # Sans ça, le lancement automatique ouvrait la V1 (la créature), pas
+        # l'ORBE : seul un lancement manuel avec CAPSULE_SOLO=1 la montrait.
+        env["CAPSULE_SOLO"] = "1"
+        subprocess.Popen([elec, "."], cwd=cap, env=env,
                          stdin=subprocess.DEVNULL,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                          start_new_session=True)

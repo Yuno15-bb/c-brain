@@ -1,0 +1,447 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Capsule — orbe</title>
+<!--
+  LE COMPAGNON DE BUREAU, VERSION ORBE (2026-08-01).
+
+  Remplace le personnage Lottie. Page SÉPARÉE d'index.html à dessein : la
+  capsule « boîte » garde sa créature canvas, et le mode libre n'a plus à
+  cohabiter avec 1 400 lignes qui ne le concernent pas.
+
+  La coquille réutilisable vit dans `orbe/` — elle ne connaît ni la capsule ni
+  le Brain. Le projet d'origine est sur le Bureau (`~/Desktop/Orbe`), avec sa
+  démo et ses leçons.
+-->
+<style>
+  html, body { margin:0; height:100%; background:transparent; overflow:hidden;
+               -webkit-user-select:none; }
+  #scene { position:absolute; inset:0; }
+  /* ⚠ SANS CETTE RÈGLE, le canvas se met en page à sa taille de TAMPON (300 px
+     sur un écran retina) dans une fenêtre de 150 : l'orbe déborde en bas à
+     droite et tout le reste — pavé, pastille, qui sont centrés sur la FENÊTRE —
+     paraît décalé sur le côté. Le rendu ne plante pas, il se décentre.
+     Elle a été effacée une fois par une suppression de bloc qui a mordu au-delà
+     de sa cible ; le défaut n'était visible que sur le vrai bureau. */
+  canvas { width:100%; height:100%; display:block; }
+
+  /* ⚠ PAS DE SOUFFLE EN CSS. Tenté puis MESURÉ, puis retiré : une animation
+     CSS sur une fenêtre transparente toujours-au-dessus force WindowServer à
+     recomposer à la cadence de l'écran, même si le rendu WebGL, lui, dort.
+     Coût relevé au repos : 17 % de CPU contre 2,2 %. « Le compositeur, c'est
+     gratuit » est vrai dans une page web ordinaire, faux pour un HUD posé sur
+     le bureau. On paie donc la fluidité du repos en CADENCE DE RENDU, ce qui
+     est mesurable et borné. Cf. [[electron-hud-backgroundthrottling-saccade]]. */
+
+  /* ⚠ PLACÉE SUR MESURE, PAS À L'ŒIL. Silhouette relevée état par état sur le
+     canal alpha : le mesh occupe `y 25 → 128` dans la fenêtre de 150. Il reste
+     25 px libres en haut et 22 en bas — mais le HAUT porte le reflet spéculaire,
+     c'est-à-dire le seul détail qui fait lire « verre ». La pastille descend
+     donc sous l'orbe, où elle se lit comme une légende. */
+  /* ⚠ PLUS DE PILULE NOIRE. Un rectangle opaque à coins arrondis se lit comme
+     un composant d'interface collé sur un objet qui n'en est pas un — c'est le
+     seul morceau de l'orbe qui avait l'air emprunté à une autre application.
+     Le libellé devient du texte GRAVÉ DANS LA LUMIÈRE : pas de boîte, une
+     graisse fine, un large interlettrage, et un halo sombre flou qui le tient
+     lisible sur n'importe quel fond — y compris un bureau presque blanc, où un
+     simple texte clair disparaîtrait. Le halo remplace la boîte : il épouse la
+     forme des lettres au lieu de dessiner un rectangle. */
+  #dit { position:absolute; left:50%; bottom:4px; transform:translateX(-50%);
+         white-space:nowrap; color:#f4f2ee;
+         font:500 8px/1.2 ui-sans-serif,-apple-system,sans-serif;
+         letter-spacing:2.1px; text-indent:2.1px;   /* compense le dernier chasse */
+         text-shadow:0 0 3px rgba(8,10,14,.95), 0 0 7px rgba(8,10,14,.85),
+                     0 1px 2px rgba(8,10,14,.9);
+         opacity:0; transition:opacity .28s ease; pointer-events:none; }
+  #dit.vu { opacity:1; }
+  /* Les trois points disent que ça CONTINUE — une passe d'agent dure des
+     minutes pendant lesquelles le libellé, lui, ne change jamais. */
+  #dit .pt { opacity:.25; animation:pt 1.35s ease-in-out infinite; }
+  #dit .pt:nth-child(2) { animation-delay:.18s; }
+  #dit .pt:nth-child(3) { animation-delay:.36s; }
+  @keyframes pt { 0%,70%,100% { opacity:.25 } 35% { opacity:1 } }
+  @media (prefers-reduced-motion: reduce) { #dit .pt { animation:none; opacity:.6 } }
+
+  /* ── LE PAVÉ — les lignes réellement écrites, DANS l'orbe ──────────────────
+     Reprise du `drawCodeBg` de l'ancienne capsule, avec les deux corrections
+     que son propre commentaire réclamait :
+       · là-bas il défilait un fichier d'agent FIGÉ ; ici ce sont les vraies
+         lignes en train d'être écrites (le flux de diffs de la session) ;
+       · là-bas il était COUPÉ en mode libre — « sur le bureau c'est un pavé qui
+         recouvre ce que l'utilisateur lit ». Enfermé dans le disque de l'orbe,
+         l'objection tombe : il ne déborde plus sur rien.
+     Il est POSÉ SUR le rendu, pas dedans : le shader du moteur `orbe/` est
+     partagé avec le projet du Bureau, et un pavé de texte n'a rien à y faire.
+     Le `screen` + le masque radial font le reste — la lumière du texte se mêle
+     à celle de la matière, et s'éteint sur les bords comme sur une sphère. */
+  /* ⚠ 124 px DÉBORDAIENT. Le disque n'a pas la taille de la FENÊTRE mais celle
+     du MESH, qui est déformé par sa mécanique et n'occupe qu'environ 100 px.
+     Un pavé plus large que la matière se lit par-dessus le bureau, pas dedans —
+     exactement le défaut qui avait fait couper `drawCodeBg` en mode libre. */
+  #pave { position:absolute; left:50%; top:50%; width:96px; height:96px;
+          transform:translate(-50%,-50%); border-radius:50%; overflow:hidden;
+          opacity:0; transition:opacity .5s ease; pointer-events:none;
+          mix-blend-mode:screen;
+          /* le texte s'éteint vers le bord : sans ça il se coupe net sur le
+             cercle et le pavé se lit comme un autocollant, pas comme un dedans */
+          -webkit-mask-image:radial-gradient(circle at 50% 46%,
+                             #000 8%, rgba(0,0,0,.55) 34%, transparent 62%); }
+  #pave.vu { opacity:.88; }   /* le `screen` noie le texte sur les crêtes claires : sans ce gain, le vert disparaît là où la matière brille */
+  /* ── LA COURBURE ──────────────────────────────────────────────────────────
+     Les lignes ne sont plus empilées : chacune est POSÉE sur une latitude de la
+     sphère. Deux effets, et c'est le second qui compte pour l'utilisateur :
+       · elle se resserre horizontalement en s'éloignant de l'équateur (la corde
+         d'un cercle), ce qui donne le volume ;
+       · les latitudes se TASSENT vers les pôles, donc il tient nettement plus
+         de lignes dans la même hauteur qu'avec un empilement régulier.
+     Chaque ligne est placée en absolu et transformée : le rouleau, lui, ne
+     bouge plus du tout. */
+  #pave .rouleau { position:absolute; inset:0;
+                   font:5.5px/7px ui-monospace,SFMono-Regular,Menlo,monospace;
+                   white-space:pre; letter-spacing:-.1px; }
+  /* ⚠ L'ÉCRITURE EST TOUJOURS VERTE, jamais teintée par la famille. Le pavé ne
+     dit pas QUI travaille — la couleur du corps et la pastille s'en chargent
+     déjà. Lui dit qu'il s'écrit du code, et le vert de terminal le dit d'un
+     coup d'œil sur n'importe quel fond. Une teinte qui change avec l'agent
+     ajouterait un troisième signal de couleur pour zéro information. */
+  #pave .l { position:absolute; left:0; width:100%; text-align:center;
+             color:#5ee08a; opacity:.72;
+             will-change:transform; overflow:hidden; text-overflow:clip; }
+  /* On reste dans le vert : seule la LUMINOSITÉ distingue ajouté, retiré et
+     en-tête. Du rouge franc se battrait avec la teinte de l'orbe. */
+  #pave .l.plus  { color:#8ef0b4; opacity:.98; }
+  #pave .l.moins { color:#3d8a5c; opacity:.55; }
+  #pave .l.tete  { color:#d8ffe8; opacity:.92; }
+  @media (prefers-reduced-motion: reduce) { #pave .rouleau { transition:none } }
+
+</style>
+
+<div id="scene"><canvas id="c"></canvas></div>
+<div id="dit"></div>
+<div id="pave"><div class="rouleau"></div></div>
+
+<script type="module">
+const { ipcRenderer } = require('electron');
+const fs = require('fs'), os = require('os'), path = require('path');
+
+const THREE    = await import('./orbe/vendor/three.module.js');
+const { creerOrbe } = await import('./orbe/orbe.js');
+const { reglage }   = await import('./orbe/palettes.js');
+
+const STATUT = path.join(os.homedir(), '.c-brain', 'trunk', 'state', 'status.json');
+const snoise = await fetch('./orbe/snoise.glsl').then(r => r.text());
+
+const REDUIT = window.matchMedia &&
+               window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const depart = reglage('idle');
+const orbe = creerOrbe(document.getElementById('c'), depart.meca, snoise, depart);
+let cible = depart, vu = true;
+// Exposé pour le banc de vérification : on regarde le rendu de CETTE page,
+// pas d'une démo dont la mise en page rétrécit l'orbe à 69 px.
+window.__orbe = orbe;
+
+/* ── LE DOSAGE DU VERRE ─────────────────────────────────────────────────────
+   0 = matière pleine · 1 = verre franc. Choisi à 0,55 sur planche comparative,
+   les trois valeurs posées sur un même faux bureau (`/tmp/orbe/cmp.png`).
+   ⚠ 1,0 est plus joli à l'arrêt mais COÛTE LE CANAL « QUI » : un objet
+     transparent prend la couleur de ce qu'il y a derrière, et sur un fond
+     bleu-violet les familles Inspection et Transformation redevenaient deux
+     bulles incolores. La transparence se paie en lisibilité, pas en beauté. */
+orbe.setVerre(0.55);
+
+/* ── CADENCE : on paie la fluidité là où elle se voit ───────────────────────
+   Mesuré sur cette machine, orbe de 150 px : 60 i/s ≈ 12 %, 12 i/s ≈ 5,4 %,
+   2 i/s ≈ 0,6 %. Un compagnon permanent ne peut pas tenir 12 % à vie.
+   Au repos il respire à 4 i/s ; dès qu'un agent travaille il monte à 30 ;
+   pendant un fondu de mécanique il passe à 60, sinon le morphing crénelle. */
+/* ⚠ REPOS À 12, PAS À 4. À 4 i/s il y a 250 ms entre deux images : la
+   respiration du repos y avançait par crans visibles — « repos saccade ».
+   Le coût est connu et mesuré : 4 i/s → 2,2 % · 12 i/s → 5,4 % · 60 → 12 %.
+   Le repos est l'état le plus longtemps affiché ; il mérite ses 3 points de
+   CPU pour ne pas donner l'impression d'un objet cassé. */
+const CADENCE = { repos: 12, travail: 30, transition: 60 };
+let occupe = false;
+function majCadence() {
+  if (!vu || document.hidden) return orbe.setCadence(1);
+  if (orbe.enTransition()) return orbe.setCadence(CADENCE.transition);
+  orbe.setCadence(occupe ? CADENCE.travail : CADENCE.repos);
+}
+setInterval(majCadence, 200);
+
+/* Les couleurs voyagent en continu ; la mécanique se fond en 1,4 s.
+   ⚠ filet anti-NaN : une valeur non finie contaminerait la géométrie pour
+   toute la session, sans la moindre erreur en console. */
+const lerp = (a, b, k) => a + (b - a) * k;
+setInterval(() => {
+  if (!vu || document.hidden) return;
+  const U = orbe._u, k = 0.045;
+  const sur = (a, b) => Number.isFinite(a) && Number.isFinite(b) ? lerp(a, b, k) : b;
+  U.uC1.value.lerp(new THREE.Color(cible.c1), k);
+  U.uC2.value.lerp(new THREE.Color(cible.c2), k);
+  U.uC3.value.lerp(new THREE.Color(cible.c3), k);
+  U.uRim.value.lerp(new THREE.Color(cible.rim), k);
+  U.uDisp.value  = sur(U.uDisp.value,  cible.disp);
+  U.uFreq.value  = sur(U.uFreq.value,  cible.freq);
+  U.uSpeed.value = sur(U.uSpeed.value, cible.speed);
+  U.uRimI.value  = sur(U.uRimI.value,  cible.rimI);
+}, 1000 / 30);
+
+/* ── L'ÉTAT ────────────────────────────────────────────────────────────────
+   ⚠ GARDE DE FRAÎCHEUR. `status.json` peut rester sur « busy » avec un
+   horodatage périmé : au-delà de 30 s sans battement, on considère que plus
+   rien ne travaille. Le battement est posé par hooks/brain_battement.py, sur
+   chaque appel d'outil. */
+/* ⚠ UN SEUL SYSTÈME. Le jeu précédent mélangeait des RÔLES (GARDENER,
+   ARCHIVIST) et des ACTIONS (FIXING, SAVING) : moins systémique que le reste de
+   l'objet, et surtout faux — le jardinier porte à lui seul quatre activités,
+   donc un nom de rôle ne dit pas ce qui se passe. L'orbe dit CE QUI SE FAIT.
+   Tous les libellés sont donc des actions en -ING, exactement les noms d'état. */
+const NOMS = { mapping:'MAPPING', auditing:'AUDITING', architecting:'ARCHITECTING',
+  challenging:'CHALLENGING', filing:'FILING', archiving:'ARCHIVING',
+  gardening:'GARDENING', correcting:'CORRECTING', working:'WORKING',
+  distilling:'DISTILLING', synthesizing:'SYNTHESIZING', committing:'COMMITTING' };
+
+const dit  = document.getElementById('dit');
+const pave = document.getElementById('pave');
+const rouleau = pave.querySelector('.rouleau');
+let dernier = null;
+
+/* ── LE FLUX D'ÉCRITURE RÉEL ────────────────────────────────────────────────
+   `~/.claude/companion/sessions/<id>.jsonl` : une ligne par outil d'écriture,
+   avec le diff unifié réellement appliqué. C'est la MÊME source que le panneau
+   live du compagnon — pas un fichier d'agent figé comme dans l'ancienne capsule.
+   ⚠ On prend le fichier le plus RÉCEMMENT ÉCRIT, pas le plus récemment créé :
+     plusieurs sessions peuvent être ouvertes, seule celle qui travaille compte. */
+const FLUX = path.join(os.homedir(), '.claude', 'companion', 'sessions');
+const LARGEUR = 26;    // caractères tenables dans 96 px à 5,5 px de fonte
+const GARDE   = 90;    // lignes conservées : au-delà, on paie du DOM invisible
+let fluxFichier = null, fluxTaille = 0, lignes = [];
+
+function fichierActif() {
+  try {
+    let best = null, bestTs = 0;
+    for (const f of fs.readdirSync(FLUX)) {
+      if (!f.endsWith('.jsonl')) continue;
+      const st = fs.statSync(path.join(FLUX, f));
+      if (st.mtimeMs > bestTs) { bestTs = st.mtimeMs; best = path.join(FLUX, f); }
+    }
+    // Un flux qui n'a pas bougé depuis 3 min ne raconte plus le présent.
+    return (best && Date.now() - bestTs < 180000) ? best : null;
+  } catch (e) { return null; }
+}
+
+function classe(l) {
+  if (l.startsWith('@@')) return 'tete';
+  if (l.startsWith('+'))  return 'plus';
+  if (l.startsWith('-'))  return 'moins';
+  return '';
+}
+
+/* ── LE REPLI ───────────────────────────────────────────────────────────────
+   Quand aucun diff n'est arrivé depuis 3 min, le pavé se vidait et l'orbe
+   redevenait muette ALORS QU'UN AGENT TRAVAILLE — c'est précisément le moment
+   où l'on regarde. Un agent passe de longues minutes à lire et réfléchir sans
+   rien écrire : « rien n'a été écrit » ne veut pas dire « rien ne se passe ».
+   On retombe donc sur le fichier que CET agent exécute — le comportement de
+   l'ancienne capsule, gardé ici comme filet et non comme source principale. */
+const SOURCE_AGENT = {
+  distilling:'agents/distillateur.md', gardening:'agents/jardinier.md',
+  filing:'agents/jardinier.md', correcting:'agents/jardinier.md',
+  mapping:'agents/jardinier.md', architecting:'agents/architecte.md',
+  challenging:'agents/challenger.md', archiving:'agents/archiviste.md',
+  synthesizing:'agents/synthetiseur.md', auditing:'hooks/brain_upkeep.py',
+  committing:'hooks/auto_maintain.py', working:'hooks/auto_maintain.py' };
+const cacheAgent = {};
+function lignesAgent(etat) {
+  const rel = SOURCE_AGENT[etat];
+  if (!rel) return [];
+  if (cacheAgent[rel]) return cacheAgent[rel];
+  try {
+    const brut = fs.readFileSync(path.join(os.homedir(), '.c-brain', 'trunk', rel), 'utf8');
+    return cacheAgent[rel] = brut.split('\n')
+      .map(l => l.replace(/\t/g, '  ').trim())
+      // ⚠ Les fiches d'agent sont du Markdown : sans ce tri, une fente sur
+      //   quatre affiche « --- », « ``` » ou une ligne de tableau. Le pavé doit
+      //   ressembler à du travail, pas à de la ponctuation qui défile.
+      .filter(l => l.length > 2 && !/^[-`#*_|>=:\s]+$/.test(l))
+      .slice(0, 400)
+      .map(l => ({ t: l.slice(0, LARGEUR), c: '' }));
+  } catch (e) { return cacheAgent[rel] = []; }
+}
+
+function lireFlux(etat) {
+  const f = fichierActif();
+  if (!f) {
+    const repli = lignesAgent(etat);
+    // ⚠ ne renvoyer `true` que si le contenu CHANGE : sinon on repeint le pavé
+    // à chaque tour de `lire()` et le défilement repart de zéro sans arrêt.
+    if (lignes === repli) return false;
+    lignes = repli; fluxFichier = null; fluxTaille = 0;
+    return true;
+  }
+  let taille = 0;
+  try { taille = fs.statSync(f).size; } catch (e) { return false; }
+  // ⚠ Ne relire QUE si le fichier a grossi. Sans ce garde, on redécoupe un
+  //   fichier de 100 Ko toutes les 1,5 s pour rien, et le pavé se reconstruit
+  //   entièrement — donc il scintille alors que rien n'a été écrit.
+  if (f === fluxFichier && taille === fluxTaille) return false;
+  fluxFichier = f; fluxTaille = taille;
+  let brut = '';
+  try { brut = fs.readFileSync(f, 'utf8'); } catch (e) { return false; }
+  const out = [];
+  for (const ligne of brut.split('\n').slice(-40)) {
+    if (!ligne.trim()) continue;
+    let j; try { j = JSON.parse(ligne); } catch (e) { continue; }
+    if (j.type !== 'diff' || !Array.isArray(j.diff)) continue;
+    out.push({ t: '── ' + (j.rel || j.file || '?'), c: 'tete' });
+    for (const d of j.diff) {
+      const t = d.replace(/\t/g, '  ').replace(/\s+$/, '');
+      if (!t) continue;
+      out.push({ t: t.slice(0, LARGEUR), c: classe(t) });
+    }
+  }
+  lignes = out.slice(-GARDE);
+  return true;
+}
+
+/* Le rouleau monte en continu : une passe complète met ~1 s par ligne, assez
+   lent pour qu'on distingue le code, assez vivant pour dire « ça écrit ».
+   ⚠ Il est animé par `transform`, jamais par `top` : `top` refait la mise en
+     page à chaque image et fait travailler tout le compositeur pour 124 px. */
+/* ── LE PAVÉ COURBÉ ─────────────────────────────────────────────────────────
+   `FENTES` lignes fixes dans le DOM, réutilisées à chaque tour : on ne
+   reconstruit rien, on ne fait que déplacer. Reconstruire 30 nœuds toutes les
+   90 ms ferait recalculer la mise en page en continu pour 96 px de large.
+   Chaque fente k occupe une latitude θ ∈ ]−90°, +90°[ :
+     y  = R·sin θ        → les latitudes se tassent vers les pôles
+     sx = cos θ          → la ligne se resserre comme la corde d'un cercle
+   Le défilement fait glisser les latitudes, pas le bloc : le texte remonte le
+   long de la sphère au lieu de traverser un rectangle. */
+const FENTES = 30, RAYON_TXT = 45;
+const fentes = [];
+for (let k = 0; k < FENTES; k++) {
+  const d = document.createElement('div');
+  d.className = 'l';
+  rouleau.appendChild(d);
+  fentes.push(d);
+}
+
+let defilement = 0;
+function tournerPave() {
+  if (!occupe || !lignes.length || !vu || document.hidden) return;
+  // ~2,2 lignes/s. Le premier réglage (0,055 → 0,6 ligne/s) était pensé pour
+  // qu'on puisse LIRE le code ; mais à 5,5 px on ne lit pas, on regarde une
+  // matière qui travaille. Trop lent, ça ne dit plus que ça écrit.
+  if (!REDUIT) defilement += 0.13;
+  const base = Math.floor(defilement), frac = defilement - base;
+  for (let k = 0; k < FENTES; k++) {
+    const d = fentes[k];
+    // 0,97 plutôt que 1 : à l'exacte verticale du pôle, cos θ vaut 0 et la
+    // ligne disparaît en un trait — on s'arrête juste avant.
+    const th = (((k - frac) / (FENTES - 1)) - 0.5) * Math.PI * 0.97;
+    const y  = RAYON_TXT * Math.sin(th);
+    const sx = Math.cos(th);
+    const l  = lignes[(base + k) % lignes.length];
+    if (d._t !== l.t) { d.textContent = l.t; d._t = l.t; }
+    if (d._c !== l.c) { d.className = 'l' + (l.c ? ' ' + l.c : ''); d._c = l.c; }
+    d.style.transform = `translate(0, ${(45 + y).toFixed(1)}px) scaleX(${sx.toFixed(3)})`;
+    // la matière est plus épaisse vue de biais : le texte s'y noie
+    d.style.opacity = (0.30 + 0.70 * Math.pow(sx, 0.9)).toFixed(2);
+  }
+}
+// 60 ms plutôt que 90 : à la nouvelle vitesse, un pas de 90 ms se voit
+// avancer par crans le long des latitudes.
+setInterval(tournerPave, 60);
+
+/* Les fentes sont permanentes : peindre ne fait qu'ouvrir ou fermer le pavé,
+   le contenu est posé par `tournerPave` à chaque tour. */
+function peindrePave() {
+  if (!lignes.length) { pave.classList.remove('vu'); return; }
+  if (occupe) { pave.classList.add('vu'); tournerPave(); }
+}
+
+function lire() {
+  let st = { state:'idle' };
+  try { st = JSON.parse(fs.readFileSync(STATUT, 'utf8')); } catch (e) {}
+  const frais = (Date.now()/1000 - (st.ts || 0)) < 30;
+  const etat = (st.state === 'busy' && frais) ? (st.activity || 'working') : 'idle';
+  // ⚠ Le flux grossit SANS que l'état change : un même agent écrit des dizaines
+  //   de fois d'affilée. Le sortir du garde `etat === dernier` est le seul moyen
+  //   de voir arriver autre chose que le premier diff de chaque agent.
+  occupe = etat !== 'idle';
+  if (occupe) { if (lireFlux(etat)) peindrePave(); }
+  else { pave.classList.remove('vu'); }
+  if (etat === dernier) return;
+  dernier = etat;
+  // porte l'état sur le body : c'est lui qui arme le souffle CSS du repos
+  document.body.dataset.etat = etat;
+  cible = reglage(etat);
+  if (!REDUIT) orbe.setMecanique(cible.meca);
+  if (occupe) {
+    // textContent effacerait les points : on repose le libellé puis les trois
+    // spans, qui portent chacun leur propre décalage d'animation.
+    dit.replaceChildren(document.createTextNode(NOMS[etat] || etat.toUpperCase()));
+    for (let i = 0; i < 3; i++) {
+      const pt = document.createElement('span');
+      pt.className = 'pt'; pt.textContent = '.';
+      dit.appendChild(pt);
+    }
+    dit.classList.add('vu');
+  }
+  else dit.classList.remove('vu');
+  majCadence();
+}
+setInterval(lire, 700);
+lire();
+
+/* ── ATTRAPER L'ORBE ────────────────────────────────────────────────────────
+   La fenêtre laisse passer les clics (`setIgnoreMouseEvents(true, {forward:true})`)
+   sinon elle avalerait tout un carré de 150 px du bureau. `forward:true` fait
+   quand même remonter les mouvements de souris : on s'en sert pour savoir quand
+   le curseur est SUR l'orbe, et on ne redonne la main à la fenêtre qu'à ce
+   moment-là.
+   ⚠ On teste un DISQUE, pas le rectangle de la fenêtre : dans les coins, le
+     pixel est transparent — y bloquer le clic rendrait mort un bout de bureau
+     où l'utilisateur ne voit rien. */
+const RAYON = 62;   // px, l'orbe occupe ~124 px de large dans une fenêtre de 150
+let surOrbe = false, attrape = false;
+
+function dansOrbe(e) {
+  const dx = e.clientX - window.innerWidth  / 2;
+  const dy = e.clientY - window.innerHeight / 2;
+  return dx * dx + dy * dy <= RAYON * RAYON;
+}
+
+window.addEventListener('mousemove', (e) => {
+  if (attrape) return;                 // pendant le glissé, la main reste prise
+  const dedans = dansOrbe(e);
+  if (dedans === surOrbe) return;      // n'envoyer qu'aux TRANSITIONS
+  surOrbe = dedans;
+  document.body.style.cursor = dedans ? 'grab' : 'default';
+  ipcRenderer.send('cap-interactive', dedans);
+});
+
+window.addEventListener('mousedown', (e) => {
+  if (e.button !== 0 || !dansOrbe(e)) return;
+  attrape = true;
+  document.body.style.cursor = 'grabbing';
+  // ⚠ Le suivi du curseur se fait DANS LE PROCESSUS PRINCIPAL, pas ici. En
+  //   glissant vite, le curseur sort de la fenêtre : le renderer cesse alors de
+  //   recevoir les mouvements et l'orbe resterait plantée en arrière du geste.
+  ipcRenderer.send('cap-drag-begin', { x: e.clientX, y: e.clientY });
+});
+
+const lacher = () => {
+  if (!attrape) return;
+  attrape = false;
+  document.body.style.cursor = surOrbe ? 'grab' : 'default';
+  ipcRenderer.send('cap-drag-end');
+};
+window.addEventListener('mouseup', lacher);
+window.addEventListener('blur', lacher);   // filet : relâché hors de la fenêtre
+
+/* L'animation s'arrête quand personne ne la voit : fenêtre cachée, écran
+   éteint. Sans ça elle peint pour personne et fait recomposer WindowServer. */
+ipcRenderer.on('cap-visible', (_e, v) => { vu = v; majCadence(); });
+document.addEventListener('visibilitychange', majCadence);
+</script>
