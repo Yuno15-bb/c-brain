@@ -5,6 +5,11 @@
 [![Licence](https://img.shields.io/github/license/Yuno15-bb/c-brain?color=8a8f98)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS-8a8f98)](#compatibility)
 
+<p align="center">
+  <img src="docs/media/capsule.webp" alt="The capsule: a glass orb sitting on the desktop, its material and hue changing as each agent works — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing — with the code being written scrolling inside it" width="168">
+</p>
+<p align="center"><sub>Your agents, working. Live, in the corner of your screen.</sub></p>
+
 **C Brain turns each session with your CLI agent into memory it can reuse —
 distilled into a note, filed, linked, and handed back automatically the next
 time it matters. From any project, and without leaving your machine.**
