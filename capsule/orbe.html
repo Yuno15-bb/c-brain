@@ -32,26 +32,51 @@
      le bureau. On paie donc la fluidité du repos en CADENCE DE RENDU, ce qui
      est mesurable et borné. Cf. [[electron-hud-backgroundthrottling-saccade]]. */
 
-  /* ⚠ PLACÉE SUR MESURE, PAS À L'ŒIL. Silhouette relevée état par état sur le
-     canal alpha : le mesh occupe `y 25 → 128` dans la fenêtre de 150. Il reste
-     25 px libres en haut et 22 en bas — mais le HAUT porte le reflet spéculaire,
-     c'est-à-dire le seul détail qui fait lire « verre ». La pastille descend
-     donc sous l'orbe, où elle se lit comme une légende. */
-  /* ⚠ PLUS DE PILULE NOIRE. Un rectangle opaque à coins arrondis se lit comme
-     un composant d'interface collé sur un objet qui n'en est pas un — c'est le
-     seul morceau de l'orbe qui avait l'air emprunté à une autre application.
-     Le libellé devient du texte GRAVÉ DANS LA LUMIÈRE : pas de boîte, une
-     graisse fine, un large interlettrage, et un halo sombre flou qui le tient
-     lisible sur n'importe quel fond — y compris un bureau presque blanc, où un
-     simple texte clair disparaîtrait. Le halo remplace la boîte : il épouse la
-     forme des lettres au lieu de dessiner un rectangle. */
-  #dit { position:absolute; left:50%; bottom:4px; transform:translateX(-50%);
-         white-space:nowrap; color:#f4f2ee;
-         font:500 8px/1.2 ui-sans-serif,-apple-system,sans-serif;
-         letter-spacing:2.1px; text-indent:2.1px;   /* compense le dernier chasse */
-         text-shadow:0 0 3px rgba(8,10,14,.95), 0 0 7px rgba(8,10,14,.85),
-                     0 1px 2px rgba(8,10,14,.9);
+  /* ── LE LIBELLÉ, GRAVÉ DANS LE VERRE ─────────────────────────────────────
+     ⚠ TROIS TENTATIVES. Les deux premières ratées pour la même raison de fond :
+       elles cherchaient à rendre le texte lisible CONTRE le bureau, au lieu de
+       le faire appartenir à l'orbe.
+       1. Pilule noire → un composant d'interface collé sur un objet qui n'en
+          est pas un.
+       2. Texte clair à halo sombre → l'air gravé, mais gravé dans le BUREAU. Le
+          halo détoure chaque lettre : incrustation de jeu vidéo, et ça salit
+          tout ce qui passe derrière.
+       3. Mélange `screen` → le texte entrait bien dans la matière… et
+          DISPARAISSAIT sur un bureau clair. `screen` ne peut qu'éclaircir : sur
+          du blanc il n'a plus rien à ajouter. Mesuré sur la planche à trois
+          fonds, invisible sur le clair.
+     Ce qui marche : le poser SUR la sphère — pas sous elle, pas devant le
+     bureau — dans le bas, la zone que l'éclairage laisse la plus sombre, et
+     n'employer qu'une ombre PORTÉE VERS LE BAS. Une ombre directionnelle se lit
+     comme du relief ; un contour se lit comme un détourage. C'est la seule
+     différence entre « gravé » et « collé ». */
+  #dit { position:absolute; left:50%; top:97px; transform:translateX(-50%);
+         white-space:nowrap; color:rgba(255,255,255,.94);
+         font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
+         /* interlettrage resserré : le libellé doit tenir DANS le dépoli, qui
+            lui-même doit tenir dans le mesh. SYNTHESIZING est le plus long. */
+         letter-spacing:1.3px; text-indent:1.3px;
+         /* une seule ombre, vers le bas : le relief, jamais le contour */
+         text-shadow:0 1px 1.5px rgba(6,10,16,.55);
          opacity:0; transition:opacity .28s ease; pointer-events:none; }
+  /* ⚠ IL MANQUAIT ENCORE UNE CHOSE, vue sur la planche à fond clair : du blanc
+     sur du verre pâle au-dessus d'un bureau blanc ne se lit pas, quelle que
+     soit l'ombre. Le contraste ne peut pas venir du texte — il doit venir de
+     l'OBJET. On dépolit donc une zone du verre, juste sous l'équateur, comme
+     un dépoli de sablage : une tache sombre très douce, sans bord, qui fait
+     partie de la matière. Le libellé y devient lisible sur n'importe quel
+     bureau, et il reste GRAVÉ DANS L'ORBE au lieu d'être posé devant.
+     Pas de rectangle, pas de contour : une ellipse qui se dissout. */
+  /* ⚠ 132 px DÉBORDAIENT DU MESH — relevé au banc : la sphère ne fait qu'environ
+     103 px de large. Le dépoli bavait donc sur le bureau de chaque côté, et
+     refaisait exactement la tache d'incrustation qu'on voulait supprimer. Une
+     zone censée appartenir à l'objet doit se terminer AVANT le bord de l'objet. */
+  #dit::before { content:''; position:absolute; left:50%; top:50%;
+                 width:96px; height:22px; transform:translate(-50%,-50%);
+                 border-radius:50%; z-index:-1;
+                 background:radial-gradient(ellipse at 50% 50%,
+                            rgba(4,7,12,.58) 0%, rgba(4,7,12,.34) 42%,
+                            rgba(4,7,12,0) 70%); }
   #dit.vu { opacity:1; }
   /* Les trois points disent que ça CONTINUE — une passe d'agent dure des
      minutes pendant lesquelles le libellé, lui, ne change jamais. */
