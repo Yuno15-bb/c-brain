@@ -11,6 +11,7 @@ while being the only honest way to judge a change to the orb.
 | `planche.cjs` | captures `orbe.html` state by state, over three backgrounds |
 | `silhouette.cjs` | reads the mesh bounds off the alpha channel, state by state |
 | `cadence.cjs` | real frame intervals per state — median AND worst case |
+| `film.cjs` | films the README demo — see its three traps at the top of the file |
 | `glisse.cjs` | proves the drag chain without moving a real mouse |
 
 All of them run with the Electron in the parent folder:
