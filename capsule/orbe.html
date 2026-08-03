@@ -49,7 +49,16 @@
      Placement itself was measured, not eyeballed: the silhouette was read state
      by state off the alpha channel, and the mesh occupies `y 25 → 128` in the
      150 px window. */
-  #dit { position:absolute; left:50%; top:97px; transform:translateX(-50%);
+  /* ⚠ 97 px WAS TOO HIGH — this is what you see when you wonder why the label
+     overlaps the orb. The bottom of the mesh sits between 117 and 127 px
+     depending on the mechanic (read off the bench, five states); a label at 97
+     lands about three quarters up, in the middle of the material.
+     "Engraved in the glass" does not mean "in the middle of the glass": an
+     engraving reads on an EDGE, where the material thins out. So the label
+     moves down onto the lower rim, straddling it — part inside the material,
+     part emerging from it. That PARTIAL overlap is what makes it belong to the
+     object without covering it. Measured average bottom: ~119 px. */
+  #dit { position:absolute; left:50%; top:110px; transform:translateX(-50%);
          white-space:nowrap; color:rgba(255,255,255,.94);
          font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
          /* tight tracking: the label has to fit INSIDE the frosted patch, which
@@ -70,7 +79,7 @@
        exact overlay stain we were removing. A zone meant to belong to the
        object has to end before the object's edge. */
   #dit::before { content:''; position:absolute; left:50%; top:50%;
-                 width:96px; height:22px; transform:translate(-50%,-50%);
+                 width:88px; height:18px; transform:translate(-50%,-50%);
                  border-radius:50%; z-index:-1;
                  background:radial-gradient(ellipse at 50% 50%,
                             rgba(4,7,12,.58) 0%, rgba(4,7,12,.34) 42%,
