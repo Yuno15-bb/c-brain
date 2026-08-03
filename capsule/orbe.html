@@ -49,41 +49,36 @@
      Placement itself was measured, not eyeballed: the silhouette was read state
      by state off the alpha channel, and the mesh occupies `y 25 → 128` in the
      150 px window. */
-  /* ⚠ 97 px WAS TOO HIGH — this is what you see when you wonder why the label
-     overlaps the orb. The bottom of the mesh sits between 117 and 127 px
-     depending on the mechanic (read off the bench, five states); a label at 97
-     lands about three quarters up, in the middle of the material.
-     "Engraved in the glass" does not mean "in the middle of the glass": an
-     engraving reads on an EDGE, where the material thins out. So the label
-     moves down onto the lower rim, straddling it — part inside the material,
-     part emerging from it. That PARTIAL overlap is what makes it belong to the
-     object without covering it. Measured average bottom: ~119 px. */
-  #dit { position:absolute; left:50%; top:110px; transform:translateX(-50%);
-         white-space:nowrap; color:rgba(255,255,255,.94);
+  /* ── THE LABEL, LAID IN THE ORB'S SHADOW ──────────────────────────────────
+     ⚠ FOURTH PLACEMENT, and each earlier one failed differently — the trail is
+       the point:
+       1. black pill under the orb → a UI component glued onto the object;
+       2. dark halo under the orb → game-overlay outlining, filthy the moment it
+          crosses desktop text;
+       3. ON the sphere → it finally belonged to the object… but the mesh
+          changes shape AND brightness with every mechanic. On `committing`,
+          whose bottom is lumpy and bright, half the letters were eaten. You do
+          not lay fixed text on a moving surface.
+     What holds: the label goes back UNDER the orb — there the geometry is
+     stable whatever the mechanic — but it does not float alone: it is laid in
+     the sphere's CAST SHADOW. A shadow belongs to the scene, not to a UI; it
+     hugs the object instead of outlining it, and it supplies the contrast the
+     text cannot give itself, on a light desktop as on a dark one. */
+  #dit { position:absolute; left:50%; bottom:3px; transform:translateX(-50%);
+         white-space:nowrap; color:rgba(255,255,255,.95);
          font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
-         /* tight tracking: the label has to fit INSIDE the frosted patch, which
-            in turn has to fit inside the mesh. SYNTHESIZING is the longest. */
-         letter-spacing:1.3px; text-indent:1.3px;
-         /* one shadow, downward: relief, never an outline */
-         text-shadow:0 1px 1.5px rgba(6,10,16,.55);
+         letter-spacing:1.4px; text-indent:1.4px;
+         /* one downward shadow: relief, never an outline */
+         text-shadow:0 1px 1.5px rgba(4,7,12,.7);
          opacity:0; transition:opacity .28s ease; pointer-events:none; }
-  /* ⚠ ONE MORE THING WAS MISSING, seen on the light-background sheet: white on
-     pale glass over a white desktop does not read, whatever the shadow. The
-     contrast cannot come from the text — it has to come from the OBJECT. So a
-     patch of the glass is frosted, just below the equator, like sandblasting: a
-     very soft dark smudge with no edge, part of the material. The label becomes
-     legible on any desktop and stays SET INTO THE ORB rather than laid in front
-     of it. No rectangle, no outline: an ellipse that dissolves.
-     ⚠ It was 132 px on the first try and OVERFLOWED the mesh (~103 px, read off
-       the bench): it smeared onto the desktop on both sides and recreated the
-       exact overlay stain we were removing. A zone meant to belong to the
-       object has to end before the object's edge. */
+  /* The cast shadow: wide, very soft, edgeless. It reads as the orb touching
+     the desktop — so as part of the scene. */
   #dit::before { content:''; position:absolute; left:50%; top:50%;
-                 width:88px; height:18px; transform:translate(-50%,-50%);
+                 width:126px; height:20px; transform:translate(-50%,-50%);
                  border-radius:50%; z-index:-1;
                  background:radial-gradient(ellipse at 50% 50%,
-                            rgba(4,7,12,.58) 0%, rgba(4,7,12,.34) 42%,
-                            rgba(4,7,12,0) 70%); }
+                            rgba(3,6,11,.62) 0%, rgba(3,6,11,.34) 40%,
+                            rgba(3,6,11,0) 72%); }
   #dit.vu { opacity:1; }
   /* The three dots say it is STILL GOING — an agent pass runs for minutes, and
      the label itself never changes during it. */
@@ -103,11 +98,14 @@
      project-agnostic engine and a block of text has no business in it. The
      `screen` blend plus a radial mask do the rest — the light of the text mixes
      with the light of the material and dies out at the edges, as on a sphere. */
-  /* ⚠ 124 px OVERFLOWED. The disc must match the MESH, not the WINDOW: the mesh
-     is deformed by its mechanic and only fills about 100 px. A pad wider than
-     the material reads over the desktop rather than inside the orb — exactly
-     the defect that had the old version switched off. */
-  #pave { position:absolute; left:50%; top:50%; width:96px; height:96px;
+  /* ⚠ TWICE TOO WIDE, TWICE. 124 px first, then 96 — and 96 still overflowed.
+     The mistake was aiming at an AVERAGE width: the mesh is not the same width
+     for every mechanic. Read off the bench, five states: 103 px for
+     `synthesizing`… but 84 for `challenging` and 85 for `committing`. A pad is
+     sized on the NARROWEST one, otherwise it bleeds onto the desktop in the
+     thinnest states — and that is exactly where it shows, because the green
+     text is then floating in empty space. 78 px leaves room for the falloff. */
+  #pave { position:absolute; left:50%; top:50%; width:78px; height:78px;
           transform:translate(-50%,-50%); border-radius:50%; overflow:hidden;
           opacity:0; transition:opacity .5s ease; pointer-events:none;
           mix-blend-mode:screen;
@@ -243,7 +241,7 @@ let dernier = null;
    ⚠ We take the MOST RECENTLY WRITTEN file, not the most recently created:
      several sessions can be open, only the one doing work counts. */
 const FLUX = path.join(os.homedir(), '.claude', 'companion', 'sessions');
-const LARGEUR = 26;    // characters that fit in 96 px at a 5.5 px font
+const LARGEUR = 22;    // characters that fit in 78 px at a 5.5 px font
 const GARDE   = 90;    // lines kept: beyond that we pay for invisible DOM
 let fluxFichier = null, fluxTaille = 0, lignes = [];
 
@@ -344,7 +342,7 @@ function lireFlux(etat) {
    sphere instead of crossing a rectangle.
    ⚠ Animated through `transform`, never through `top`: `top` redoes layout on
      every frame and puts the whole compositor to work for 96 px. */
-const FENTES = 30, RAYON_TXT = 45;
+const FENTES = 26, RAYON_TXT = 37;
 const fentes = [];
 for (let k = 0; k < FENTES; k++) {
   const d = document.createElement('div');
@@ -371,7 +369,7 @@ function tournerPave() {
     const l  = lignes[(base + k) % lignes.length];
     if (d._t !== l.t) { d.textContent = l.t; d._t = l.t; }
     if (d._c !== l.c) { d.className = 'l' + (l.c ? ' ' + l.c : ''); d._c = l.c; }
-    d.style.transform = `translate(0, ${(45 + y).toFixed(1)}px) scaleX(${sx.toFixed(3)})`;
+    d.style.transform = `translate(0, ${(37 + y).toFixed(1)}px) scaleX(${sx.toFixed(3)})`;
     // the material is thicker seen edge-on: the text drowns in it
     d.style.opacity = (0.30 + 0.70 * Math.pow(sx, 0.9)).toFixed(2);
   }
