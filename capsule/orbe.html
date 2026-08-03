@@ -30,26 +30,51 @@
      page, not for a HUD sitting on the desktop. Smoothness at rest is therefore
      paid in FRAME RATE, which is measurable and bounded. */
 
-  /* ⚠ PLACED BY MEASUREMENT, NOT BY EYE. Silhouette read state by state off the
-     alpha channel: the mesh occupies `y 25 → 128` in the 150 px window. That
-     leaves 25 px free at the top and 22 at the bottom — but the TOP carries the
-     specular highlight, the one detail that makes it read as glass. So the
-     label goes under the orb, where it reads as a caption.
-
-     ⚠ NO BLACK PILL. An opaque rounded rectangle reads as a UI component glued
-     onto an object that is not one — it was the only part of the orb that
-     looked borrowed from another application. The label became text ENGRAVED IN
-     LIGHT: no box, a light weight, wide letter-spacing, and a soft dark halo
-     that keeps it legible on any background — including a near-white desktop,
-     where plain light text would vanish. The halo replaces the box: it hugs the
-     letterforms instead of drawing a rectangle. */
-  #dit { position:absolute; left:50%; bottom:4px; transform:translateX(-50%);
-         white-space:nowrap; color:#f4f2ee;
-         font:500 8px/1.2 ui-sans-serif,-apple-system,sans-serif;
-         letter-spacing:2.1px; text-indent:2.1px;   /* offsets the trailing gap */
-         text-shadow:0 0 3px rgba(8,10,14,.95), 0 0 7px rgba(8,10,14,.85),
-                     0 1px 2px rgba(8,10,14,.9);
+  /* ── THE LABEL, SET INTO THE GLASS ────────────────────────────────────────
+     ⚠ THREE ATTEMPTS, and the failures share one root cause: they all tried to
+       make the text legible AGAINST the desktop instead of making it belong to
+       the orb.
+       1. A black pill → a UI component glued onto an object that is not one.
+       2. Light text with a dark halo → it looks engraved, but engraved into the
+          DESKTOP. The halo outlines every letter: game-overlay lettering, and
+          it smears whatever text passes behind it.
+       3. A `screen` blend → the text does enter the material… and DISAPPEARS on
+          a light desktop. `screen` can only lighten; over white it has nothing
+          left to add. Measured on the three-background sheet.
+     What works: put it ON the sphere — not under it, not in front of the
+     desktop — low down, where the lighting leaves the glass darkest, with a
+     single shadow cast DOWNWARD. A directional shadow reads as relief; an
+     outline reads as a cut-out. That is the whole difference between "engraved"
+     and "stuck on".
+     Placement itself was measured, not eyeballed: the silhouette was read state
+     by state off the alpha channel, and the mesh occupies `y 25 → 128` in the
+     150 px window. */
+  #dit { position:absolute; left:50%; top:97px; transform:translateX(-50%);
+         white-space:nowrap; color:rgba(255,255,255,.94);
+         font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
+         /* tight tracking: the label has to fit INSIDE the frosted patch, which
+            in turn has to fit inside the mesh. SYNTHESIZING is the longest. */
+         letter-spacing:1.3px; text-indent:1.3px;
+         /* one shadow, downward: relief, never an outline */
+         text-shadow:0 1px 1.5px rgba(6,10,16,.55);
          opacity:0; transition:opacity .28s ease; pointer-events:none; }
+  /* ⚠ ONE MORE THING WAS MISSING, seen on the light-background sheet: white on
+     pale glass over a white desktop does not read, whatever the shadow. The
+     contrast cannot come from the text — it has to come from the OBJECT. So a
+     patch of the glass is frosted, just below the equator, like sandblasting: a
+     very soft dark smudge with no edge, part of the material. The label becomes
+     legible on any desktop and stays SET INTO THE ORB rather than laid in front
+     of it. No rectangle, no outline: an ellipse that dissolves.
+     ⚠ It was 132 px on the first try and OVERFLOWED the mesh (~103 px, read off
+       the bench): it smeared onto the desktop on both sides and recreated the
+       exact overlay stain we were removing. A zone meant to belong to the
+       object has to end before the object's edge. */
+  #dit::before { content:''; position:absolute; left:50%; top:50%;
+                 width:96px; height:22px; transform:translate(-50%,-50%);
+                 border-radius:50%; z-index:-1;
+                 background:radial-gradient(ellipse at 50% 50%,
+                            rgba(4,7,12,.58) 0%, rgba(4,7,12,.34) 42%,
+                            rgba(4,7,12,0) 70%); }
   #dit.vu { opacity:1; }
   /* The three dots say it is STILL GOING — an agent pass runs for minutes, and
      the label itself never changes during it. */
