@@ -62,7 +62,15 @@ app.whenReady().then(async () => {
       //   GitHub en thème sombre, donc la vignette disparaît dans la page.
       + 'background:#0d1117';
     document.body.prepend(bg);
-    document.getElementById('scene').style.zIndex = '1';
+    /* ⚠ MÊME PIÈGE QUE planche.cjs, trouvé le 2026-08-04 : monter #scene en
+       z-index:1 fait passer le canvas DEVANT le pavé de code et le libellé.
+       La vignette publiée jusqu'ici montrait donc une orbe MUETTE — le
+       défilement du code, qui est la moitié de l'intérêt, n'y a jamais été
+       filmé. Le fond suffit avec son z-index:-1 ; on remonte explicitement
+       les deux surcouches. */
+    document.getElementById('scene').style.zIndex = '0';
+    document.getElementById('pave').style.zIndex = '2';
+    document.getElementById('dit').style.zIndex = '2';
     return true; })()`);
 
   let n = 0;

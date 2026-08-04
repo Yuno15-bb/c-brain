@@ -51,7 +51,15 @@ app.whenReady().then(async () => {
       + 'color:${FONDS[nom][1]};background:${FONDS[nom][0]}';
     bg.textContent = Array.from({length:12}, (_,i) => 'bureau ' + i + ' ~ texte').join('\\n');
     document.body.prepend(bg);
-    document.getElementById('scene').style.zIndex = '1';
+    /* ⚠ LE BANC CACHAIT CE QU'IL DEVAIT MONTRER (trouvé le 2026-08-04).
+       Cette ligne montait #scene en z-index:1 — le canvas passait alors DEVANT
+       le pavé de code et le libellé, qui n'ont pas de z-index. Toutes les
+       planches depuis le 03/08 montrent donc une orbe MUETTE, et j'ai failli
+       corriger le pavé sur la foi de cette image. Le fond suffit à lui seul
+       (z-index:-1) ; on remonte explicitement les deux surcouches. */
+    document.getElementById('scene').style.zIndex = '0';
+    document.getElementById('pave').style.zIndex = '2';
+    document.getElementById('dit').style.zIndex = '2';
     return true; })()`);
 
   const FONDS_DEMANDES = (process.env.BANC_FONDS || 'bureau,clair,sombre').split(',');

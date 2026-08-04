@@ -392,9 +392,11 @@
         "capsule/orbe/*.js",
         "hooks/*.py"
       ],
-      "pattern": "(?:Signalé par Dylan|signalé par Dylan|Décision de Dylan|que Dylan a rejetée|compte pour Dylan|et Dylan se retrouvait|Dylan : )",
-      "_note": "Alternation de littéraux COMPLETS. Les commentaires du tronc citent la personne qui a fait le retour — dans le paquet c'est un RÔLE. Forme longue d'abord (« que Dylan a rejetée » avant toute forme courte), sinon la courte mange la longue et laisse un résidu. ⚠ Pas d'ancre `^` : les motifs ne sont pas compilés en multiligne, une ancre ne mordrait qu'au tout premier caractère du fichier. Passé de 7 à 3 le 2026-08-03 : index.html, dock-geometry.js et son test sont sortis du sync ; restent orbe.js, orbe.html et brain_battement.py.",
+      "pattern": "(?:retour de Dylan|demande de Dylan|Signalé par Dylan|signalé par Dylan|Décision de Dylan|que Dylan a rejetée|compte pour Dylan|et Dylan se retrouvait|Dylan : )",
+      "_note": "Alternation de littéraux COMPLETS. Les commentaires du tronc citent la personne qui a fait le retour — dans le paquet c'est un RÔLE. Forme longue d'abord (« que Dylan a rejetée » avant toute forme courte), sinon la courte mange la longue et laisse un résidu. ⚠ Pas d'ancre `^` : les motifs ne sont pas compilés en multiligne, une ancre ne mordrait qu'au tout premier caractère du fichier. Passé de 7 à 3 le 2026-08-03 : index.html, dock-geometry.js et son test sont sortis du sync ; restent orbe.js, orbe.html et brain_battement.py. Passé de 3 à 5 le 2026-08-04 : la passe « liquid glass » a ajouté deux crédits (« retour de Dylan », « demande de Dylan ») qu'AUCUNE forme existante n'attrapait — « Dylan : » exige une espace finale et ne mordait donc pas sur « demande de Dylan :\\n ». Une règle par littéraux complets ne couvre que les tournures déjà vues : toute nouvelle façon de créditer un retour lui échappe en silence.",
       "replace_map": {
+        "retour de Dylan": "retour utilisateur",
+        "demande de Dylan": "demande de l'utilisateur",
         "Signalé par Dylan": "Signalé par l'utilisateur",
         "signalé par Dylan": "signalé par l'utilisateur",
         "Décision de Dylan": "Décision de l'utilisateur",
@@ -403,7 +405,7 @@
         "et Dylan se retrouvait": "et l'utilisateur se retrouvait",
         "Dylan : ": "L'utilisateur : "
       },
-      "expect": 3,
+      "expect": 5,
       "why": "Les commentaires de la capsule et de l'orbe créditent nommément l'auteur des retours (« Signalé par Dylan le … »). C'est juste dans le tronc privé, hors sujet dans un paquet public : ce qui compte est qu'un UTILISATEUR ait signalé le défaut, pas lequel. Règle ajoutée le 2026-08-03 avec l'arrivée de l'orbe, qui apporte quatre fichiers de plus portant ce genre de crédit."
     }
   ],

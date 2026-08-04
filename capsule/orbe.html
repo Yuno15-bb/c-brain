@@ -70,17 +70,22 @@
          white-space:nowrap; color:rgba(255,255,255,.95);
          font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
          letter-spacing:1.4px; text-indent:1.4px;
-         /* une seule ombre vers le bas : du relief, jamais un contour */
-         text-shadow:0 1px 1.5px rgba(4,7,12,.7);
+         /* ⚠ L'OMBRE PORTÉE A ÉTÉ RETIRÉE (2026-08-04, demande de l'utilisateur :
+            « supprime l'ombre noire sous les WORKING / SYNTHESIZING »).
+            C'était une ellipse sombre de 126 px posée derrière le libellé pour
+            lui donner du contraste sur n'importe quel bureau. Elle tenait ce
+            rôle, mais elle pose une tache noire sous une orbe devenue
+            franchement transparente — les deux ne vont plus ensemble : depuis
+            le verre traversant, le seul morceau opaque de l'objet était son
+            ombre.
+            Le contraste repose donc entièrement sur les lettres elles-mêmes :
+            une ombre portée COURTE et une lueur sombre très serrée, qui
+            épousent la forme des glyphes au lieu de dessiner une zone. C'est
+            la même distinction que pour le pavé — une ombre, jamais un
+            contour, jamais un fond. */
+         text-shadow:0 1px 1.5px rgba(4,7,12,.85),
+                     0 0 2.5px rgba(4,7,12,.55);
          opacity:0; transition:opacity .28s ease; pointer-events:none; }
-  /* L'ombre portée : large, très douce, sans bord. Elle se lit comme le contact
-     de l'orbe avec le bureau — donc comme une partie de la scène. */
-  #dit::before { content:''; position:absolute; left:50%; top:50%;
-                 width:126px; height:20px; transform:translate(-50%,-50%);
-                 border-radius:50%; z-index:-1;
-                 background:radial-gradient(ellipse at 50% 50%,
-                            rgba(3,6,11,.62) 0%, rgba(3,6,11,.34) 40%,
-                            rgba(3,6,11,0) 72%); }
   #dit.vu { opacity:1; }
   /* Les trois points disent que ça CONTINUE — une passe d'agent dure des
      minutes pendant lesquelles le libellé, lui, ne change jamais. */
@@ -109,15 +114,24 @@
      pavé se dimensionne sur le PLUS ÉTROIT, sinon il bave sur le bureau dans
      les états les plus fins — et c'est là qu'on le remarque, parce que le texte
      vert flotte alors dans le vide. 78 px laisse la marge du dégradé. */
+  /* ⚠ `mix-blend-mode:screen` RETIRÉ (2026-08-04), retour utilisateur « l'écriture
+     en arrière-plan n'est pas assez claire ». `screen` ne peut qu'ÉCLAIRCIR :
+     sur les crêtes claires de la matière il n'avait presque plus rien à
+     ajouter, et le verre étant désormais traversant, le texte se retrouve
+     par endroits directement sur le bureau — blanc compris, où `screen` ne
+     donne rien du tout. Le gain d'opacité qui compensait (`.88`) ne pouvait pas
+     rattraper ça : le mode de fusion était le problème.
+     Il est donc peint NORMALEMENT, et c'est une ombre — pas un contour — qui
+     lui donne son contraste : elle épouse les lettres et tient aussi bien sur
+     un bureau blanc que sombre. Même principe que le libellé. */
   #pave { position:absolute; left:50%; top:50%; width:78px; height:78px;
           transform:translate(-50%,-50%); border-radius:50%; overflow:hidden;
           opacity:0; transition:opacity .5s ease; pointer-events:none;
-          mix-blend-mode:screen;
           /* le texte s'éteint vers le bord : sans ça il se coupe net sur le
              cercle et le pavé se lit comme un autocollant, pas comme un dedans */
           -webkit-mask-image:radial-gradient(circle at 50% 46%,
-                             #000 8%, rgba(0,0,0,.55) 34%, transparent 62%); }
-  #pave.vu { opacity:.88; }   /* le `screen` noie le texte sur les crêtes claires : sans ce gain, le vert disparaît là où la matière brille */
+                             #000 22%, rgba(0,0,0,.68) 46%, transparent 66%); }
+  #pave.vu { opacity:1; }
   /* ── LA COURBURE ──────────────────────────────────────────────────────────
      Les lignes ne sont plus empilées : chacune est POSÉE sur une latitude de la
      sphère. Deux effets, et c'est le second qui compte pour l'utilisateur :
@@ -127,22 +141,31 @@
          de lignes dans la même hauteur qu'avec un empilement régulier.
      Chaque ligne est placée en absolu et transformée : le rouleau, lui, ne
      bouge plus du tout. */
+  /* ⚠ 5,5 px sur 26 fentes : à l'équateur les latitudes ne sont espacées que de
+     ~4,5 px, donc les lignes se CHEVAUCHAIENT. Un texte qui se marche dessus se
+     lit comme une texture, pas comme du code. 6 px sur 18 fentes → ~6,4 px
+     d'écart : moins de lignes, mais chacune se lit. */
   #pave .rouleau { position:absolute; inset:0;
-                   font:5.5px/7px ui-monospace,SFMono-Regular,Menlo,monospace;
-                   white-space:pre; letter-spacing:-.1px; }
+                   font:600 6px/7.6px ui-monospace,SFMono-Regular,Menlo,monospace;
+                   white-space:pre; letter-spacing:-.05px; }
   /* ⚠ L'ÉCRITURE EST TOUJOURS VERTE, jamais teintée par la famille. Le pavé ne
      dit pas QUI travaille — la couleur du corps et la pastille s'en chargent
      déjà. Lui dit qu'il s'écrit du code, et le vert de terminal le dit d'un
      coup d'œil sur n'importe quel fond. Une teinte qui change avec l'agent
      ajouterait un troisième signal de couleur pour zéro information. */
   #pave .l { position:absolute; left:0; width:100%; text-align:center;
-             color:#5ee08a; opacity:.72;
+             color:#6dfaa2; opacity:.92;
+             /* l'ombre fait le contraste, pas un contour : un halo sombre serré
+                + une retombée d'un pixel. Lisible sur bureau blanc comme sur
+                bureau sombre, sans détourer les lettres. */
+             text-shadow:0 0 1.5px rgba(0,22,12,.95), 0 0 4px rgba(0,30,16,.6),
+                         0 1px 1px rgba(0,0,0,.55);
              will-change:transform; overflow:hidden; text-overflow:clip; }
   /* On reste dans le vert : seule la LUMINOSITÉ distingue ajouté, retiré et
      en-tête. Du rouge franc se battrait avec la teinte de l'orbe. */
-  #pave .l.plus  { color:#8ef0b4; opacity:.98; }
-  #pave .l.moins { color:#3d8a5c; opacity:.55; }
-  #pave .l.tete  { color:#d8ffe8; opacity:.92; }
+  #pave .l.plus  { color:#9dffc4; opacity:1; }
+  #pave .l.moins { color:#4fae76; opacity:.72; }
+  #pave .l.tete  { color:#e6fff1; opacity:1; }
   @media (prefers-reduced-motion: reduce) { #pave .rouleau { transition:none } }
 
 </style>
@@ -175,11 +198,17 @@ window.__orbe = orbe;
 /* ── LE DOSAGE DU VERRE ─────────────────────────────────────────────────────
    0 = matière pleine · 1 = verre franc. Choisi à 0,55 sur planche comparative,
    les trois valeurs posées sur un même faux bureau (`/tmp/orbe/cmp.png`).
-   ⚠ 1,0 est plus joli à l'arrêt mais COÛTE LE CANAL « QUI » : un objet
-     transparent prend la couleur de ce qu'il y a derrière, et sur un fond
-     bleu-violet les familles Inspection et Transformation redevenaient deux
-     bulles incolores. La transparence se paie en lisibilité, pas en beauté. */
-orbe.setVerre(0.55);
+   ⚠ 0,55 ÉTAIT UN COMPROMIS IMPOSÉ PAR L'ANCIEN MODÈLE. Là-bas, monter le
+     verre baissait l'opacité de TOUT le corps : la teinte de la famille se
+     diluait avec, et à 1,0 Inspection et Transformation redevenaient deux
+     bulles incolores sur un fond bleu-violet.
+     Le modèle d'ABSORPTION (2026-08-04) déplace la couleur sur la TRANCHE :
+     le cœur peut être franchement vide sans que la famille s'efface, puisque
+     ce n'est plus la surface pleine qui la porte. Le compromis tombe → 1,0.
+     La contrainte physique, elle, ne tombe pas : sur un bureau violet, la
+     famille violette sera toujours la plus faible. C'est la mécanique et la
+     pastille qui la rattrapent. */
+orbe.setVerre(1.0);
 
 /* ── CADENCE : on paie la fluidité là où elle se voit ───────────────────────
    Mesuré, orbe de 150 px : 60 i/s ≈ 12 %, 12 i/s ≈ 5,4 %, 2 i/s ≈ 0,6 %. Un
@@ -244,7 +273,7 @@ let dernier = null;
    ⚠ On prend le fichier le plus RÉCEMMENT ÉCRIT, pas le plus récemment créé :
      plusieurs sessions peuvent être ouvertes, seule celle qui travaille compte. */
 const FLUX = path.join(os.homedir(), '.claude', 'companion', 'sessions');
-const LARGEUR = 22;    // caractères tenables dans 78 px à 5,5 px de fonte
+const LARGEUR = 19;    // caractères tenables dans 78 px à 6 px de fonte
 const GARDE   = 90;    // lignes conservées : au-delà, on paie du DOM invisible
 let fluxFichier = null, fluxTaille = 0, lignes = [];
 
@@ -346,7 +375,7 @@ function lireFlux(etat) {
    long de la sphère au lieu de traverser un rectangle.
    ⚠ Animé par `transform`, jamais par `top` : `top` refait la mise en page à
      chaque image et fait travailler tout le compositeur pour 96 px. */
-const FENTES = 26, RAYON_TXT = 37;
+const FENTES = 18, RAYON_TXT = 37;
 const fentes = [];
 for (let k = 0; k < FENTES; k++) {
   const d = document.createElement('div');
@@ -378,7 +407,7 @@ function tournerPave() {
     if (d._c !== l.c) { d.className = 'l' + (l.c ? ' ' + l.c : ''); d._c = l.c; }
     d.style.transform = `translate(0, ${(37 + y).toFixed(1)}px) scaleX(${sx.toFixed(3)})`;
     // la matière est plus épaisse vue de biais : le texte s'y noie
-    d.style.opacity = (0.30 + 0.70 * Math.pow(sx, 0.9)).toFixed(2);
+    d.style.opacity = (0.50 + 0.50 * Math.pow(sx, 0.9)).toFixed(2);
   }
 }
 // 60 ms plutôt que 90 : à la nouvelle vitesse, un pas de 90 ms se voit
@@ -401,7 +430,15 @@ function lire() {
   //   de fois d'affilée. Le sortir du garde `etat === dernier` est le seul moyen
   //   de voir arriver autre chose que le premier diff de chaque agent.
   occupe = etat !== 'idle';
-  if (occupe) { if (lireFlux(etat)) peindrePave(); }
+  // ⚠ AVANT : `if (lireFlux(etat)) peindrePave();` — le pavé n'était RALLUMÉ
+  //   que si le contenu venait de changer. Or `lireFlux` renvoie `false` dès que
+  //   le fichier n'a pas grossi (et le repli renvoie le même tableau). Donc un
+  //   agent qui reprend le travail après un passage au repos, sans écrire dans
+  //   la seconde, laissait le pavé ÉTEINT pour toute sa passe. Le contenu était
+  //   là, la classe `vu` ne revenait jamais. Vu sur planche : orbe muette sur
+  //   tous les états de travail sauf le premier.
+  //   La lecture peut être conditionnelle ; l'affichage, non.
+  if (occupe) { lireFlux(etat); peindrePave(); }
   else { pave.classList.remove('vu'); }
   if (etat === dernier) return;
   dernier = etat;

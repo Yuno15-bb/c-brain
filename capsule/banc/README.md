@@ -12,6 +12,7 @@ alors qu'ils sont la seule façon honnête de juger une modification de l'orbe.
 | `silhouette.cjs` | relève les bornes du mesh sur le canal alpha, état par état |
 | `film.cjs` | filme la démo du README — voir ses trois pièges en tête de fichier |
 | `glisse.cjs` | prouve que `mousedown` au centre déplace la fenêtre, et qu'un coin ne fait rien |
+| `cycle.sh` | fait passer l'orbe **vivante** par ses 13 états, pour la regarder sur le vrai bureau |
 
 Tous se lancent avec l'Electron du dossier parent :
 

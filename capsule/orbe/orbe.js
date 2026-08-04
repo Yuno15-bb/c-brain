@@ -210,28 +210,61 @@ export function creerOrbe(canvas, mode, snoiseSrc, couleurs) {
           base=mix(base,uC1,pow(d,3.0)*0.75);
           vec3 L=normalize(vec3(0.6,0.8,0.7));
           float spec=pow(max(dot(reflect(-L,N),V),0.0),34.0)*uSweep;
-
-          // Épaisseur traversée : 0 de face, 1 en incidence rasante.
-          float ep=pow(1.0-d,1.5);
-          // Le relief compte aussi — un creux profond retient plus de matière
-          // qu'une crête, sinon le verre est une bulle uniforme et la mécanique
-          // (le seul canal lisible sans couleur) disparaît sous la transparence.
-          ep=clamp(ep+smoothstep(0.15,-0.8,vDisp)*0.22,0.0,1.0);
-
           vec3 plein=base + uRim*f*0.85 + vec3(spec)*0.55;
-          // En verre, la couleur ne recouvre plus : elle s'accumule. On la
-          // renforce donc là où elle survit, sinon un corps à 30 % d'opacité
-          // rend un pastel — et les familles redeviennent indistinctes.
-          // ⚠ PREMIER JET RATÉ, VU SUR RENDU : plancher d'opacité 0.26 et lueur
-          //   interne prise sur uC1. Les familles bleue et violette devenaient
-          //   des bulles incolores — le verre avait mangé le canal « qui ».
-          //   uC1 est la CRÊTE, donc presque blanche : elle ne peut pas porter
-          //   une teinte. La lueur interne se prend sur le CORPS (uC2), et le
-          //   plancher monte : sous ~0,4 il ne reste plus assez de matière pour
-          //   qu'une couleur existe sur un fond clair.
-          vec3 verre=base*(0.78+0.80*ep) + uC2*pow(1.0-d,3.0)*0.55
-                     + uRim*f*1.15 + vec3(spec)*0.85;
-          float a=clamp(mix(0.42,1.0,ep)+spec*0.9+f*0.20,0.0,1.0);
+
+          // ── LE VERRE, DEUXIÈME MODÈLE (2026-08-04) ────────────────────────
+          // Le premier posait une opacité PLANCHER de 0,42 sur tout le corps et
+          // gardait 'base' — donc le creux sombre 'uC3' — au centre. Résultat vu
+          // sur planche : une pâte translucide tachée de sombre, et rien à voir
+          // au travers. Deux changements de principe :
+          //   · la couleur ne RECOUVRE plus, elle s'ACCUMULE avec l'épaisseur
+          //     traversée (Beer-Lambert) — le cœur est presque vide, le bord
+          //     porte la teinte. C'est ce qui permet d'être franchement
+          //     transparent SANS perdre le canal « qui » : la famille se lit
+          //     désormais sur la tranche, pas sur la surface pleine ;
+          //   · le relief ne se dit plus par des taches sombres mais par la
+          //     LUMIÈRE qui glisse dessus (horizon réfléchi + deux spéculaires).
+          float ep=pow(1.0-d,1.55);
+          // Le relief garde sa part d'épaisseur — sinon la mécanique, seul canal
+          // lisible sans couleur, disparaît sous la transparence.
+          ep=clamp(ep+smoothstep(0.10,-0.75,vDisp)*0.16,0.0,1.0);
+
+          // TEINTE PAR ABSORPTION : rien au centre, dense sur la tranche.
+          vec3 teinte=uC2*(0.30+1.45*ep);
+
+          // ⚠ IL N'Y A PAS DE FOND À RÉFLÉCHIR (fenêtre transparente, WebGL ne
+          //   voit pas le bureau). On en FABRIQUE un : ciel clair en haut, sol
+          //   sombre en bas, horizon net. C'est cette LIGNE d'horizon qui fait
+          //   lire « surface polie » — elle glisse sur le relief quand la
+          //   matière bouge, là où un simple point spéculaire reste collé.
+          vec3 R=reflect(-V,N);
+          float ciel=smoothstep(-0.10,0.30,R.y);
+          vec3 env=mix(vec3(0.07,0.09,0.13),vec3(0.88,0.93,1.0),ciel);
+          env+=vec3(1.0)*smoothstep(0.62,0.92,R.y)*0.45;   // la lucarne
+          // Fresnel : un verre ne réfléchit presque rien de face, tout en biais.
+          float fres=0.06+0.94*pow(1.0-d,4.0);
+
+          // DEUX SPÉCULAIRES, pas un. Le dur donne le point de lumière qui dit
+          // « poli » ; le large donne le vernis sur toute la face éclairée. Un
+          // seul lobe étroit se lit comme du plastique.
+          vec3 H=normalize(L+V);
+          float dur  =pow(max(dot(N,H),0.0),200.0)*uSweep;
+          float large=pow(max(dot(N,H),0.0), 14.0)*uSweep;
+
+          // LA TRANCHE — un liseré FIN sur les tout derniers degrés avant la
+          // silhouette. Sans lui le bord s'éteint en dégradé mou et l'objet a
+          // l'air flou ; avec, il a une arête, comme un bord de verre poli.
+          // ⚠ Il doit rester dans les 0,03 dernier de 'd' : plus large, il se
+          //   lit comme un contour d'interface, pas comme une épaisseur.
+          float tranche=smoothstep(0.88,0.998,1.0-d);
+          vec3 verre=teinte + env*fres*0.85 + uRim*f*0.55
+                     + (uRim*0.45+vec3(0.55))*tranche*0.60
+                     + vec3(large)*0.22 + vec3(dur)*1.15;
+          // L'ALPHA fait le verre : cœur presque vide, tranche dense, et les
+          // reflets restent OPAQUES — un reflet translucide se lit comme une
+          // tache de peinture, pas comme une surface.
+          float a=clamp(0.10+0.86*ep + dur*1.0 + large*0.16 + fres*0.10
+                        + tranche*0.30,0.0,1.0);
 
           gl_FragColor=vec4(mix(plein,verre,uVerre), mix(1.0,a,uVerre)); }`,
     }));
