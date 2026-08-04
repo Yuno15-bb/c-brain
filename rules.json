@@ -135,6 +135,20 @@
       "why": "Racine du tronc côté shell (CLI `brain`, selftest)."
     },
     {
+      "id": "banc-chemins-shell",
+      "files": [
+        "capsule/banc/*.sh"
+      ],
+      "pattern": "(?:\\$HOME/claude-brain/hooks|claude-brain/capsule)",
+      "replace_map": {
+        "$HOME/claude-brain/hooks": "$HOME/.c-brain/trunk/hooks",
+        "claude-brain/capsule": "c-brain/trunk/capsule"
+      },
+      "expect": 2,
+      "_note": "Ajoutée le 2026-08-04 avec banc/cycle.sh, le premier script SHELL du banc. `tronc-chemin-shell` ne vise que `hooks/*.sh` et `brain` — volontairement, pour ne pas réécrire sync.sh/publish.sh qui visent le Brain vivant de l'auteur. Le banc tombait donc dans le trou : le script est parti en public avec `$HOME/claude-brain/hooks/`, un chemin qui n'existe chez personne d'autre. Chez l'utilisateur le moteur est LIÉ dans le tronc (`install.sh` : hooks, agents, capsule… → ~/.c-brain/trunk/), donc la cible est bien `trunk`, pas `engine`.",
+      "why": "Un script du banc livré avec le chemin du tronc privé de l'auteur ne tourne chez personne."
+    },
+    {
       "id": "tronc-chemin-prose",
       "files": [
         "agents/*.md",
