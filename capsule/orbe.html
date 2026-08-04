@@ -68,17 +68,20 @@
          white-space:nowrap; color:rgba(255,255,255,.95);
          font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
          letter-spacing:1.4px; text-indent:1.4px;
-         /* one downward shadow: relief, never an outline */
-         text-shadow:0 1px 1.5px rgba(4,7,12,.7);
+         /* ⚠ THE CAST SHADOW WAS REMOVED (2026-08-04, user request: "remove the
+            black shadow under WORKING / SYNTHESIZING"). It was a 126 px dark
+            ellipse behind the label, there to give it contrast on any desktop.
+            It did that job, but it lays a black patch under an orb that has
+            become properly transparent — the two no longer go together: since
+            the glass lets the desktop through, the only opaque part of the
+            object was its shadow.
+            Contrast therefore rests entirely on the letters: a SHORT drop
+            shadow plus a very tight dark glow, both hugging the glyph shapes
+            instead of drawing an area. Same distinction as for the pad — a
+            shadow, never an outline, never a plate. */
+         text-shadow:0 1px 1.5px rgba(4,7,12,.85),
+                     0 0 2.5px rgba(4,7,12,.55);
          opacity:0; transition:opacity .28s ease; pointer-events:none; }
-  /* The cast shadow: wide, very soft, edgeless. It reads as the orb touching
-     the desktop — so as part of the scene. */
-  #dit::before { content:''; position:absolute; left:50%; top:50%;
-                 width:126px; height:20px; transform:translate(-50%,-50%);
-                 border-radius:50%; z-index:-1;
-                 background:radial-gradient(ellipse at 50% 50%,
-                            rgba(3,6,11,.62) 0%, rgba(3,6,11,.34) 40%,
-                            rgba(3,6,11,0) 72%); }
   #dit.vu { opacity:1; }
   /* The three dots say it is STILL GOING — an agent pass runs for minutes, and
      the label itself never changes during it. */
@@ -105,17 +108,24 @@
      sized on the NARROWEST one, otherwise it bleeds onto the desktop in the
      thinnest states — and that is exactly where it shows, because the green
      text is then floating in empty space. 78 px leaves room for the falloff. */
+  /* ⚠ `mix-blend-mode:screen` REMOVED (2026-08-04, user feedback: "the writing
+     in the background is not clear enough"). `screen` can only LIGHTEN: on the
+     bright crests of the material it had almost nothing left to add, and now
+     that the glass lets the desktop through, the text also lands straight on
+     the desktop — white included, where `screen` gives nothing at all. The
+     opacity gain that compensated (`.88`) could not make up for that: the
+     blend mode was the problem.
+     So it is painted NORMALLY, and a shadow — not an outline — gives it
+     contrast: it hugs the letters and holds on a white desktop as on a dark
+     one. Same principle as the label. */
   #pave { position:absolute; left:50%; top:50%; width:78px; height:78px;
           transform:translate(-50%,-50%); border-radius:50%; overflow:hidden;
           opacity:0; transition:opacity .5s ease; pointer-events:none;
-          mix-blend-mode:screen;
           /* the text fades towards the edge: without this it is cut dead on the
              circle and the pad reads as a sticker, not as an inside */
           -webkit-mask-image:radial-gradient(circle at 50% 46%,
-                             #000 8%, rgba(0,0,0,.55) 34%, transparent 62%); }
-  /* `screen` drowns the text on bright crests: without this gain the green
-     disappears wherever the material shines. */
-  #pave.vu { opacity:.88; }
+                             #000 22%, rgba(0,0,0,.68) 46%, transparent 66%); }
+  #pave.vu { opacity:1; }
   /* ── THE CURVE ────────────────────────────────────────────────────────────
      Lines are no longer stacked: each one SITS on a latitude of the sphere.
      Two effects, and the second is the one that matters:
@@ -125,22 +135,30 @@
          height than with regular stacking.
      Each line is absolutely positioned and transformed: the roll itself never
      moves at all. */
+  /* ⚠ 5.5 px over 26 slots: at the equator latitudes are only ~4.5 px apart, so
+     the lines OVERLAPPED. Text walking over itself reads as a texture, not as
+     code. 6 px over 18 slots → ~6.4 px apart: fewer lines, but each one reads. */
   #pave .rouleau { position:absolute; inset:0;
-                   font:5.5px/7px ui-monospace,SFMono-Regular,Menlo,monospace;
-                   white-space:pre; letter-spacing:-.1px; }
+                   font:600 6px/7.6px ui-monospace,SFMono-Regular,Menlo,monospace;
+                   white-space:pre; letter-spacing:-.05px; }
   /* ⚠ THE WRITING IS ALWAYS GREEN, never tinted by the family. The pad does not
      say WHO is working — the body colour and the label already do. It says that
      code is being written, and terminal green says so at a glance on any
      background. A hue that changed with the agent would add a third colour
      signal carrying zero information. */
   #pave .l { position:absolute; left:0; width:100%; text-align:center;
-             color:#5ee08a; opacity:.72;
+             color:#6dfaa2; opacity:.92;
+             /* the shadow makes the contrast, not an outline: a tight dark halo
+                plus a one-pixel drop. Readable on a white desktop as on a dark
+                one, without outlining the letters. */
+             text-shadow:0 0 1.5px rgba(0,22,12,.95), 0 0 4px rgba(0,30,16,.6),
+                         0 1px 1px rgba(0,0,0,.55);
              will-change:transform; overflow:hidden; text-overflow:clip; }
   /* Still green: only BRIGHTNESS separates added, removed and header. Plain red
      would fight the hue of the orb. */
-  #pave .l.plus  { color:#8ef0b4; opacity:.98; }
-  #pave .l.moins { color:#3d8a5c; opacity:.55; }
-  #pave .l.tete  { color:#d8ffe8; opacity:.92; }
+  #pave .l.plus  { color:#9dffc4; opacity:1; }
+  #pave .l.moins { color:#4fae76; opacity:.72; }
+  #pave .l.tete  { color:#e6fff1; opacity:1; }
   @media (prefers-reduced-motion: reduce) { #pave .rouleau { transition:none } }
 
 </style>
@@ -173,11 +191,17 @@ window.__orbe = orbe;
 /* ── HOW MUCH GLASS ─────────────────────────────────────────────────────────
    0 = solid material · 1 = full glass. Set to 0.55 on a comparison sheet, the
    three values laid over one and the same fake desktop.
-   ⚠ 1.0 looks better standing still but COSTS THE "WHO" CHANNEL: a transparent
-     object takes the colour of whatever is behind it, and over a blue-violet
-     background the Inspection and Transformation families turned back into two
-     colourless bubbles. Transparency is paid in legibility, not in beauty. */
-orbe.setVerre(0.55);
+   ⚠ 0.55 WAS A COMPROMISE FORCED BY THE OLD MODEL. There, raising the glass
+     lowered the opacity of the WHOLE body: the family tint was diluted with it,
+     and at 1.0 Inspection and Transformation turned back into two colourless
+     bubbles over a blue-violet background.
+     The ABSORPTION model (2026-08-04) moves the colour onto the EDGE: the core
+     can be properly empty without the family fading, because a filled surface
+     no longer carries it. The compromise falls away → 1.0.
+     The physical constraint does not fall away: over a violet desktop, the
+     violet family will always be the weakest. The mechanic and the label are
+     what carry it there. */
+orbe.setVerre(1.0);
 
 /* ── FRAME RATE: pay for smoothness where it shows ──────────────────────────
    Measured, 150 px orb: 60 fps ≈ 12 %, 12 fps ≈ 5.4 %, 2 fps ≈ 0.6 %. A
@@ -241,7 +265,7 @@ let dernier = null;
    ⚠ We take the MOST RECENTLY WRITTEN file, not the most recently created:
      several sessions can be open, only the one doing work counts. */
 const FLUX = path.join(os.homedir(), '.claude', 'companion', 'sessions');
-const LARGEUR = 22;    // characters that fit in 78 px at a 5.5 px font
+const LARGEUR = 19;    // characters that fit in 78 px at a 6 px font
 const GARDE   = 90;    // lines kept: beyond that we pay for invisible DOM
 let fluxFichier = null, fluxTaille = 0, lignes = [];
 
@@ -342,7 +366,7 @@ function lireFlux(etat) {
    sphere instead of crossing a rectangle.
    ⚠ Animated through `transform`, never through `top`: `top` redoes layout on
      every frame and puts the whole compositor to work for 96 px. */
-const FENTES = 26, RAYON_TXT = 37;
+const FENTES = 18, RAYON_TXT = 37;
 const fentes = [];
 for (let k = 0; k < FENTES; k++) {
   const d = document.createElement('div');
@@ -374,7 +398,7 @@ function tournerPave() {
     if (d._c !== l.c) { d.className = 'l' + (l.c ? ' ' + l.c : ''); d._c = l.c; }
     d.style.transform = `translate(0, ${(37 + y).toFixed(1)}px) scaleX(${sx.toFixed(3)})`;
     // the material is thicker seen edge-on: the text drowns in it
-    d.style.opacity = (0.30 + 0.70 * Math.pow(sx, 0.9)).toFixed(2);
+    d.style.opacity = (0.50 + 0.50 * Math.pow(sx, 0.9)).toFixed(2);
   }
 }
 // 60 ms rather than 90: at the current speed a 90 ms step is visibly notched
@@ -397,7 +421,15 @@ function lire() {
   //   times in a row. Keeping this outside the `etat === dernier` guard is the
   //   only way to see anything past each agent's first diff.
   occupe = etat !== 'idle';
-  if (occupe) { if (lireFlux(etat)) peindrePave(); }
+  // ⚠ BEFORE: `if (lireFlux(etat)) peindrePave();` — the pad was only turned
+  //   BACK ON when the content had just changed. But `lireFlux` returns `false`
+  //   as soon as the file has not grown (and the fallback returns the same
+  //   array). So an agent resuming work after a spell at rest, without writing
+  //   within the second, left the pad DARK for its whole pass. The content was
+  //   there, the `vu` class never came back. Seen on the bench: a mute orb on
+  //   every working state but the first.
+  //   Reading may be conditional; DISPLAYING may not.
+  if (occupe) { lireFlux(etat); peindrePave(); }
   else { pave.classList.remove('vu'); }
   if (etat === dernier) return;
   dernier = etat;

@@ -51,7 +51,15 @@ app.whenReady().then(async () => {
       + 'color:${FONDS[nom][1]};background:${FONDS[nom][0]}';
     bg.textContent = Array.from({length:12}, (_,i) => 'bureau ' + i + ' ~ texte').join('\\n');
     document.body.prepend(bg);
-    document.getElementById('scene').style.zIndex = '1';
+    /* ⚠ THE BENCH WAS HIDING WHAT IT WAS MEANT TO SHOW (found 2026-08-04).
+       This line raised #scene to z-index:1 — the canvas then sat IN FRONT of
+       the code pad and the label, neither of which has a z-index. So every
+       sheet made since 2026-08-03 shows a MUTE orb, and the pad was nearly
+       "fixed" on the strength of that image. The background alone is enough
+       (z-index:-1); the two overlays are raised explicitly. */
+    document.getElementById('scene').style.zIndex = '0';
+    document.getElementById('pave').style.zIndex = '2';
+    document.getElementById('dit').style.zIndex = '2';
     return true; })()`);
 
   const FONDS_DEMANDES = (process.env.BANC_FONDS || 'bureau,clair,sombre').split(',');

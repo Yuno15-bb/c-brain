@@ -13,6 +13,7 @@ while being the only honest way to judge a change to the orb.
 | `cadence.cjs` | real frame intervals per state — median AND worst case |
 | `film.cjs` | films the README demo — see its three traps at the top of the file |
 | `glisse.cjs` | proves the drag chain without moving a real mouse |
+| `cycle.sh` | walks the **live** orb through its 13 states, to watch it on the real desktop |
 
 All of them run with the Electron in the parent folder:
 

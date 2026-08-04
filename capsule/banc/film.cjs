@@ -62,7 +62,14 @@ app.whenReady().then(async () => {
       //   dissolves into the page.
       + 'background:#0d1117';
     document.body.prepend(bg);
-    document.getElementById('scene').style.zIndex = '1';
+    /* ⚠ SAME TRAP AS planche.cjs, found 2026-08-04: raising #scene to
+       z-index:1 puts the canvas IN FRONT of the code pad and the label. The
+       clip published until now therefore showed a MUTE orb — the scrolling
+       code, which is half the point, was never in it. The background does the
+       job with its z-index:-1; the two overlays are raised explicitly. */
+    document.getElementById('scene').style.zIndex = '0';
+    document.getElementById('pave').style.zIndex = '2';
+    document.getElementById('dit').style.zIndex = '2';
     return true; })()`);
 
   let n = 0;

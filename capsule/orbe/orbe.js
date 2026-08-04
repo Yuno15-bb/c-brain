@@ -210,28 +210,62 @@ export function creerOrbe(canvas, mode, snoiseSrc, couleurs) {
           base=mix(base,uC1,pow(d,3.0)*0.75);
           vec3 L=normalize(vec3(0.6,0.8,0.7));
           float spec=pow(max(dot(reflect(-L,N),V),0.0),34.0)*uSweep;
-
-          // Épaisseur traversée : 0 de face, 1 en incidence rasante.
-          float ep=pow(1.0-d,1.5);
-          // Le relief compte aussi — un creux profond retient plus de matière
-          // qu'une crête, sinon le verre est une bulle uniforme et la mécanique
-          // (le seul canal lisible sans couleur) disparaît sous la transparence.
-          ep=clamp(ep+smoothstep(0.15,-0.8,vDisp)*0.22,0.0,1.0);
-
           vec3 plein=base + uRim*f*0.85 + vec3(spec)*0.55;
-          // En verre, la couleur ne recouvre plus : elle s'accumule. On la
-          // renforce donc là où elle survit, sinon un corps à 30 % d'opacité
-          // rend un pastel — et les familles redeviennent indistinctes.
-          // ⚠ PREMIER JET RATÉ, VU SUR RENDU : plancher d'opacité 0.26 et lueur
-          //   interne prise sur uC1. Les familles bleue et violette devenaient
-          //   des bulles incolores — le verre avait mangé le canal « qui ».
-          //   uC1 est la CRÊTE, donc presque blanche : elle ne peut pas porter
-          //   une teinte. La lueur interne se prend sur le CORPS (uC2), et le
-          //   plancher monte : sous ~0,4 il ne reste plus assez de matière pour
-          //   qu'une couleur existe sur un fond clair.
-          vec3 verre=base*(0.78+0.80*ep) + uC2*pow(1.0-d,3.0)*0.55
-                     + uRim*f*1.15 + vec3(spec)*0.85;
-          float a=clamp(mix(0.42,1.0,ep)+spec*0.9+f*0.20,0.0,1.0);
+
+          // ── GLASS, SECOND MODEL (2026-08-04) ──────────────────────────────
+          // The first one put an opacity FLOOR of 0.42 on the whole body and
+          // kept 'base' — hence the dark cavity colour 'uC3' — in the centre.
+          // Seen on the test board: translucent paste stained with dark
+          // patches, and nothing visible through it. Two changes of principle:
+          //   · colour no longer COVERS, it ACCUMULATES with the thickness
+          //     travelled through (Beer-Lambert) — the core is nearly empty,
+          //     the edge carries the tint. That is what allows being properly
+          //     transparent WITHOUT losing the "who" channel: the family now
+          //     reads on the edge, not on a filled surface;
+          //   · relief is no longer told by dark patches but by the LIGHT
+          //     sliding over it.
+          float ep=pow(1.0-d,1.55);
+          // Relief keeps its share of thickness — otherwise the mechanic, the
+          // only channel readable without colour, vanishes under transparency.
+          ep=clamp(ep+smoothstep(0.10,-0.75,vDisp)*0.16,0.0,1.0);
+
+          // TINT BY ABSORPTION: nothing in the centre, dense on the edge.
+          vec3 teinte=uC2*(0.30+1.45*ep);
+
+          // ⚠ THERE IS NO BACKGROUND TO REFLECT (transparent window, WebGL
+          //   cannot see the desktop). So we MAKE one: bright sky above, dark
+          //   ground below, crisp horizon. That HORIZON LINE is what reads as
+          //   "polished surface" — it slides over the relief as the material
+          //   moves, where a plain specular dot stays glued in place.
+          vec3 R=reflect(-V,N);
+          float ciel=smoothstep(-0.10,0.30,R.y);
+          vec3 env=mix(vec3(0.07,0.09,0.13),vec3(0.88,0.93,1.0),ciel);
+          env+=vec3(1.0)*smoothstep(0.62,0.92,R.y)*0.45;   // the skylight
+          // Fresnel: glass reflects almost nothing head-on, everything at a
+          // grazing angle.
+          float fres=0.06+0.94*pow(1.0-d,4.0);
+
+          // TWO SPECULARS, not one. The tight one gives the highlight that
+          // says "polished"; the broad one gives the sheen over the whole lit
+          // face. A single narrow lobe reads as plastic.
+          vec3 H=normalize(L+V);
+          float dur  =pow(max(dot(N,H),0.0),200.0)*uSweep;
+          float large=pow(max(dot(N,H),0.0), 14.0)*uSweep;
+
+          // THE EDGE — a THIN rim over the very last degrees before the
+          // silhouette. Without it the border fades out softly and the object
+          // looks blurry; with it, it has an arris, like a polished glass edge.
+          // ⚠ It must stay within the last ~0.03 of 'd': any wider and it
+          //   reads as a UI outline rather than as thickness.
+          float tranche=smoothstep(0.88,0.998,1.0-d);
+          vec3 verre=teinte + env*fres*0.85 + uRim*f*0.55
+                     + (uRim*0.45+vec3(0.55))*tranche*0.60
+                     + vec3(large)*0.22 + vec3(dur)*1.15;
+          // ALPHA makes the glass: nearly empty core, dense edge, and the
+          // reflections stay OPAQUE — a translucent reflection reads as a
+          // smear of paint, not as a surface.
+          float a=clamp(0.10+0.86*ep + dur*1.0 + large*0.16 + fres*0.10
+                        + tranche*0.30,0.0,1.0);
 
           gl_FragColor=vec4(mix(plein,verre,uVerre), mix(1.0,a,uVerre)); }`,
     }));
