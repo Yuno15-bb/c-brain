@@ -119,8 +119,9 @@
       ],
       "pattern": "os\\.homedir\\(\\),\\s*'claude-brain'",
       "replace": "os.homedir(), '.c-brain', 'trunk'",
-      "expect": 2,
-      "why": "Côté capsule, le tronc est dérivé de homedir() en segments. C'est ce chemin qui décide si la capsule surveille le state de l'UTILISATEUR ou celui du moteur. — expect passé de 3 à 2 le 2026-07-30 : la 3ᵉ occurrence vivait dans capsule/main.js, GELÉ hors sync tant que la refonte V2 est en chantier (voir sync.sh §4 et _regles_gelees). Le fichier du paquet porte déjà le bon chemin en dur. À remonter à 3 quand main.js repasse dans le sync."
+      "expect": 3,
+      "why": "Côté capsule, le tronc est dérivé de homedir() en segments. C'est ce chemin qui décide si la capsule surveille le state de l'UTILISATEUR ou celui du moteur. — expect passé de 3 à 2 le 2026-07-30 : la 3ᵉ occurrence vivait dans capsule/main.js, GELÉ hors sync tant que la refonte V2 est en chantier (voir sync.sh §4 et _regles_gelees). Le fichier du paquet porte déjà le bon chemin en dur. À remonter à 3 quand main.js repasse dans le sync.",
+      "_note": " Passé de 2 à 3 le 2026-08-04 : la ligne « sur quoi » résout les slugs de fiches en titres, donc orbe.html ouvre lui aussi le tronc. Le compteur ne mord que vers le BAS (total < expect) : une occurrence de plus ne déclenche rien, il faut donc le relever à la main pour que le canari reste utile."
     },
     {
       "id": "tronc-chemin-shell",

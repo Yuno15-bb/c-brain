@@ -68,8 +68,13 @@ app.whenReady().then(async () => {
    await poserFond(fond);
    for (const verre of VERRES) {
     for (const [etat, st] of ETATS) {
-      cp.execFileSync('python3', [STATUS, st, st === 'busy' ? etat : '', 'banc']
-                      .filter(x => x !== ''));
+      /* ⚠ Le 3e argument de brain_status.py est le DÉTAIL, pas une source : le
+         banc y posait le mot « banc », et depuis que la ligne « sur quoi »
+         existe, la planche affichait ce mot comme repère de travail. Une
+         planche doit montrer ce que l'utilisateur verra — donc un vrai slug de
+         fiche, celui que `on_fiche_write` écrirait. */
+      cp.execFileSync('python3', [STATUS, st, st === 'busy' ? etat : '',
+                      st === 'busy' ? 'capsule-orbe-agents' : ''].filter(x => x !== ''));
       await w.webContents.executeJavaScript(`window.__orbe.setVerre(${verre})`);
       // 2,6 s : le fondu de mécanique dure 1,4 s. Capturer avant fige une forme
       // intermédiaire qui n'existe à aucun moment réel.

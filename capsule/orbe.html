@@ -66,7 +66,7 @@
      une interface ; elle épouse l'objet, elle ne le détoure pas. Et elle donne
      le contraste que le texte ne peut pas se donner à lui-même, sur un bureau
      clair comme sur un bureau sombre. */
-  #dit { position:absolute; left:50%; bottom:3px; transform:translateX(-50%);
+  #dit { position:absolute; left:50%; bottom:11px; transform:translateX(-50%);
          white-space:nowrap; color:rgba(255,255,255,.95);
          font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
          letter-spacing:1.4px; text-indent:1.4px;
@@ -87,6 +87,34 @@
                      0 0 2.5px rgba(4,7,12,.55);
          opacity:0; transition:opacity .28s ease; pointer-events:none; }
   #dit.vu { opacity:1; }
+
+  /* ── SUR QUOI ────────────────────────────────────────────────────────────
+     Le libellé dit ce que la machine FAIT ; il ne dit pas sur QUOI. « FILING »
+     pendant deux minutes ne donne aucun repère : on ne sait pas si le travail
+     avance ni s'il porte sur ce qu'on croit. Cette seconde ligne nomme la
+     fiche — ou le fichier — réellement en cours.
+     ⚠ Elle est en casse normale, sans interlettrage : c'est un TITRE, pas une
+       étiquette. Si les deux lignes avaient la même graisse et les mêmes
+       majuscules, on lirait un bloc de deux libellés et le repère se perdrait.
+       La hiérarchie se fait ici par la casse et la clarté, pas par la taille —
+       à 6 px, réduire encore rendrait le texte illisible.
+     ⚠ 146 px de large maximum, coupé par des points de suspension : un slug de
+       fiche fait couramment 60 caractères, et la fenêtre en fait 150. */
+  #fiche { position:absolute; left:50%; bottom:2px; transform:translateX(-50%);
+           max-width:146px; overflow:hidden; text-overflow:ellipsis;
+           white-space:nowrap; text-align:center;
+           color:rgba(255,255,255,.92);
+           font:500 6px/1.25 ui-sans-serif,-apple-system,sans-serif;
+           /* ⚠ Ombre PLUS APPUYÉE que celle du libellé, à l'inverse de ce que
+              la hiérarchie laisserait croire : cette ligne est plus fine et
+              plus longue, donc elle a moins de matière pour se détacher. Vue
+              sur planche à fond clair, la version douce se noyait dans le
+              texte de bureau derrière. Le rang se lit à la casse, pas à la
+              faiblesse du contraste. */
+           text-shadow:0 1px 2px rgba(4,7,12,.95),
+                       0 0 3px rgba(4,7,12,.75);
+           opacity:0; transition:opacity .28s ease; pointer-events:none; }
+  #fiche.vu { opacity:1; }
   /* Les trois points disent que ça CONTINUE — une passe d'agent dure des
      minutes pendant lesquelles le libellé, lui, ne change jamais. */
   #dit .pt { opacity:.25; animation:pt 1.35s ease-in-out infinite; }
@@ -172,6 +200,7 @@
 
 <div id="scene"><canvas id="c"></canvas></div>
 <div id="dit"></div>
+<div id="fiche"></div>
 <div id="pave"><div class="rouleau"></div></div>
 
 <script type="module">
@@ -261,7 +290,8 @@ const NOMS = { mapping:'MAPPING', auditing:'AUDITING', architecting:'ARCHITECTIN
   gardening:'GARDENING', correcting:'CORRECTING', working:'WORKING',
   distilling:'DISTILLING', synthesizing:'SYNTHESIZING', committing:'COMMITTING' };
 
-const dit  = document.getElementById('dit');
+const dit   = document.getElementById('dit');
+const fiche = document.getElementById('fiche');
 const pave = document.getElementById('pave');
 const rouleau = pave.querySelector('.rouleau');
 let dernier = null;
@@ -275,7 +305,82 @@ let dernier = null;
 const FLUX = path.join(os.homedir(), '.claude', 'companion', 'sessions');
 const LARGEUR = 19;    // caractères tenables dans 78 px à 6 px de fonte
 const GARDE   = 90;    // lignes conservées : au-delà, on paie du DOM invisible
-let fluxFichier = null, fluxTaille = 0, lignes = [];
+let fluxFichier = null, fluxTaille = 0, lignes = [], dernierFichier = null;
+
+/* ── LA LIGNE « SUR QUOI » ──────────────────────────────────────────────────
+   `status.json` porte déjà un champ `detail`, mais il est HÉTÉROGÈNE selon qui
+   l'écrit — et c'est ça, tout le travail ici :
+     · `on_fiche_write.py` y met un slug de fiche nu ...... `format-arbre-projet`
+     · `brain_upkeep.py`  y met « agent : raison » ........ `jardinier: 3 à ranger`
+     · `on_fiche_write.py` y met aussi de la prose ........ `mise à jour de la carte`
+     · `brain_battement.py` (mes propres passes) .......... rien du tout
+   Un slug se résout en VRAI TITRE ; une phrase s'affiche telle quelle ; et
+   l'absence se rattrape sur le dernier fichier écrit. Sans ce dernier cas la
+   ligne serait vide pendant les passes les plus longues — donc absente pile
+   quand on regarde, exactement le défaut déjà corrigé sur le pavé.
+   ⚠ Tout est mis en cache, échecs compris : la résolution ouvre des dossiers,
+     et `lire()` tourne toutes les 700 ms. */
+const TRONC = path.join(os.homedir(), '.c-brain', 'trunk');
+const RACINES = ['lessons', 'meta', 'life', 'projects', 'agents', 'sessions'];
+const cacheTitre = {};
+
+function cheminFiche(slug) {
+  for (const r of RACINES) {
+    const base = path.join(TRONC, r);
+    const direct = path.join(base, slug + '.md');
+    try { if (fs.existsSync(direct)) return direct; } catch (e) {}
+    // un seul niveau de sous-dossier : `projects/<projet>/<slug>.md`
+    try {
+      for (const sous of fs.readdirSync(base, { withFileTypes: true })) {
+        if (!sous.isDirectory()) continue;
+        const p = path.join(base, sous.name, slug + '.md');
+        if (fs.existsSync(p)) return p;
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
+/** Titre lisible d'une fiche : frontmatter `title:`, sinon premier `# `,
+ *  sinon le slug rendu lisible. Jamais d'exception vers l'appelant. */
+function titreDeFichier(p, repli) {
+  try {
+    const tete = fs.readFileSync(p, 'utf8').slice(0, 2000).split('\n');
+    for (const l of tete) {
+      const m = l.match(/^title:\s*["']?(.+?)["']?\s*$/);
+      if (m) return m[1];
+    }
+    for (const l of tete) {
+      const m = l.match(/^#\s+(.+?)\s*$/);
+      if (m) return m[1];
+    }
+  } catch (e) {}
+  return repli;
+}
+
+function surQuoi(detail) {
+  const brut = (detail || '').trim();
+  if (brut) {
+    if (cacheTitre[brut] !== undefined) return cacheTitre[brut];
+    let sortie = brut;
+    // un slug nu — pas d'espace, pas de deux-points — se résout en titre
+    if (/^[a-z0-9][a-z0-9-]*$/.test(brut)) {
+      const p = cheminFiche(brut);
+      sortie = p ? titreDeFichier(p, brut.replace(/-/g, ' ')) : brut.replace(/-/g, ' ');
+    }
+    return cacheTitre[brut] = sortie;
+  }
+  // repli : le dernier fichier réellement écrit
+  if (!dernierFichier) return '';
+  if (cacheTitre['~' + dernierFichier] !== undefined) return cacheTitre['~' + dernierFichier];
+  const nom = dernierFichier.split('/').pop();
+  let sortie = nom;
+  if (nom.endsWith('.md')) {
+    const p = path.join(TRONC, dernierFichier);
+    sortie = titreDeFichier(p, nom.replace(/\.md$/, '').replace(/-/g, ' '));
+  }
+  return cacheTitre['~' + dernierFichier] = sortie;
+}
 
 function fichierActif() {
   try {
@@ -353,6 +458,11 @@ function lireFlux(etat) {
     if (!ligne.trim()) continue;
     let j; try { j = JSON.parse(ligne); } catch (e) { continue; }
     if (j.type !== 'diff' || !Array.isArray(j.diff)) continue;
+    // Retenu pour la ligne « sur quoi » : quand `status.json` n'a pas de
+    // `detail` — le cas de mes propres passes, où le battement écrit
+    // « working » sans rien d'autre — le dernier fichier réellement écrit est
+    // le seul repère disponible, et c'est le bon.
+    dernierFichier = j.rel || j.file || dernierFichier;
     out.push({ t: '── ' + (j.rel || j.file || '?'), c: 'tete' });
     for (const d of j.diff) {
       const t = d.replace(/\t/g, '  ').replace(/\s+$/, '');
@@ -430,6 +540,16 @@ function lire() {
   //   de fois d'affilée. Le sortir du garde `etat === dernier` est le seul moyen
   //   de voir arriver autre chose que le premier diff de chaque agent.
   occupe = etat !== 'idle';
+  // ⚠ AVANT le garde `etat === dernier`, et c'est tout l'intérêt : le DÉTAIL
+  //   change sans que l'état bouge — « FILING » reste « FILING » pendant que
+  //   l'agent passe d'une fiche à l'autre. Posée après le garde, cette ligne
+  //   serait figée sur la première fiche de chaque passe. Même classe de défaut
+  //   que le pavé qui ne se rallumait pas.
+  if (occupe) {
+    const quoi = surQuoi(st.detail);
+    if (fiche._t !== quoi) { fiche.textContent = quoi; fiche._t = quoi; }
+    fiche.classList.toggle('vu', !!quoi);
+  } else { fiche.classList.remove('vu'); }
   // ⚠ AVANT : `if (lireFlux(etat)) peindrePave();` — le pavé n'était RALLUMÉ
   //   que si le contenu venait de changer. Or `lireFlux` renvoie `false` dès que
   //   le fichier n'a pas grossi (et le repli renvoie le même tableau). Donc un
