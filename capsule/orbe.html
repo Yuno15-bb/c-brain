@@ -64,7 +64,7 @@
      the sphere's CAST SHADOW. A shadow belongs to the scene, not to a UI; it
      hugs the object instead of outlining it, and it supplies the contrast the
      text cannot give itself, on a light desktop as on a dark one. */
-  #dit { position:absolute; left:50%; bottom:3px; transform:translateX(-50%);
+  #dit { position:absolute; left:50%; bottom:11px; transform:translateX(-50%);
          white-space:nowrap; color:rgba(255,255,255,.95);
          font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
          letter-spacing:1.4px; text-indent:1.4px;
@@ -83,6 +83,33 @@
                      0 0 2.5px rgba(4,7,12,.55);
          opacity:0; transition:opacity .28s ease; pointer-events:none; }
   #dit.vu { opacity:1; }
+
+  /* ── WHAT ON ──────────────────────────────────────────────────────────────
+     The label says what the machine IS DOING; it does not say what ON.
+     "FILING" for two minutes gives no landmark at all: you cannot tell whether
+     the work is moving, nor whether it is about what you think. This second
+     line names the note — or the file — actually in hand.
+     ⚠ It is in normal case, with no letter-spacing: it is a TITLE, not a tag.
+       Were both lines the same weight and the same caps, you would read one
+       block of two labels and the landmark would be lost. The hierarchy is
+       carried by case and brightness, not by size — at 6 px, going smaller
+       would simply make it unreadable.
+     ⚠ 146 px wide at most, cut with an ellipsis: a note slug commonly runs to
+       60 characters, and the window is 150 px. */
+  #fiche { position:absolute; left:50%; bottom:2px; transform:translateX(-50%);
+           max-width:146px; overflow:hidden; text-overflow:ellipsis;
+           white-space:nowrap; text-align:center;
+           color:rgba(255,255,255,.92);
+           font:500 6px/1.25 ui-sans-serif,-apple-system,sans-serif;
+           /* ⚠ A HEAVIER shadow than the label's, the opposite of what the
+              hierarchy would suggest: this line is thinner and longer, so it
+              has less matter to stand out with. Seen on the light-background
+              sheet, the soft version drowned in the desktop text behind it.
+              Rank is read from the case, not from weak contrast. */
+           text-shadow:0 1px 2px rgba(4,7,12,.95),
+                       0 0 3px rgba(4,7,12,.75);
+           opacity:0; transition:opacity .28s ease; pointer-events:none; }
+  #fiche.vu { opacity:1; }
   /* The three dots say it is STILL GOING — an agent pass runs for minutes, and
      the label itself never changes during it. */
   #dit .pt { opacity:.25; animation:pt 1.35s ease-in-out infinite; }
@@ -165,6 +192,7 @@
 
 <div id="scene"><canvas id="c"></canvas></div>
 <div id="dit"></div>
+<div id="fiche"></div>
 <div id="pave"><div class="rouleau"></div></div>
 
 <script type="module">
@@ -253,7 +281,8 @@ const NOMS = { mapping:'MAPPING', auditing:'AUDITING', architecting:'ARCHITECTIN
   gardening:'GARDENING', correcting:'CORRECTING', working:'WORKING',
   distilling:'DISTILLING', synthesizing:'SYNTHESIZING', committing:'COMMITTING' };
 
-const dit  = document.getElementById('dit');
+const dit   = document.getElementById('dit');
+const fiche = document.getElementById('fiche');
 const pave = document.getElementById('pave');
 const rouleau = pave.querySelector('.rouleau');
 let dernier = null;
@@ -267,7 +296,82 @@ let dernier = null;
 const FLUX = path.join(os.homedir(), '.claude', 'companion', 'sessions');
 const LARGEUR = 19;    // characters that fit in 78 px at a 6 px font
 const GARDE   = 90;    // lines kept: beyond that we pay for invisible DOM
-let fluxFichier = null, fluxTaille = 0, lignes = [];
+let fluxFichier = null, fluxTaille = 0, lignes = [], dernierFichier = null;
+
+/* ── THE "WHAT ON" LINE ─────────────────────────────────────────────────────
+   `status.json` already carries a `detail` field, but it is HETEROGENEOUS
+   depending on who writes it — and that is the whole job here:
+     · `on_fiche_write.py` puts a bare note slug ....... `format-arbre-projet`
+     · `brain_upkeep.py`  puts "agent: reason" ......... `gardener: 3 to file`
+     · `on_fiche_write.py` also puts prose ............. `updating the map`
+     · `brain_battement.py` (your own passes) .......... nothing at all
+   A slug resolves to a REAL TITLE; a sentence is shown as is; and the empty
+   case falls back on the last file written. Without that last case the line
+   would be blank during the longest passes — so missing exactly when you look,
+   which is the very defect already fixed on the pad.
+   ⚠ Everything is cached, misses included: resolving opens directories, and
+     `lire()` runs every 700 ms. */
+const TRONC = path.join(os.homedir(), '.c-brain', 'trunk');
+const RACINES = ['lessons', 'meta', 'life', 'projects', 'agents', 'sessions'];
+const cacheTitre = {};
+
+function cheminFiche(slug) {
+  for (const r of RACINES) {
+    const base = path.join(TRONC, r);
+    const direct = path.join(base, slug + '.md');
+    try { if (fs.existsSync(direct)) return direct; } catch (e) {}
+    // one level of sub-folder only: `projects/<project>/<slug>.md`
+    try {
+      for (const sous of fs.readdirSync(base, { withFileTypes: true })) {
+        if (!sous.isDirectory()) continue;
+        const p = path.join(base, sous.name, slug + '.md');
+        if (fs.existsSync(p)) return p;
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
+/** Readable title of a note: frontmatter `title:`, else the first `# `, else
+ *  the slug made readable. Never throws back to the caller. */
+function titreDeFichier(p, repli) {
+  try {
+    const tete = fs.readFileSync(p, 'utf8').slice(0, 2000).split('\n');
+    for (const l of tete) {
+      const m = l.match(/^title:\s*["']?(.+?)["']?\s*$/);
+      if (m) return m[1];
+    }
+    for (const l of tete) {
+      const m = l.match(/^#\s+(.+?)\s*$/);
+      if (m) return m[1];
+    }
+  } catch (e) {}
+  return repli;
+}
+
+function surQuoi(detail) {
+  const brut = (detail || '').trim();
+  if (brut) {
+    if (cacheTitre[brut] !== undefined) return cacheTitre[brut];
+    let sortie = brut;
+    // a bare slug — no space, no colon — resolves to a title
+    if (/^[a-z0-9][a-z0-9-]*$/.test(brut)) {
+      const p = cheminFiche(brut);
+      sortie = p ? titreDeFichier(p, brut.replace(/-/g, ' ')) : brut.replace(/-/g, ' ');
+    }
+    return cacheTitre[brut] = sortie;
+  }
+  // fallback: the last file actually written
+  if (!dernierFichier) return '';
+  if (cacheTitre['~' + dernierFichier] !== undefined) return cacheTitre['~' + dernierFichier];
+  const nom = dernierFichier.split('/').pop();
+  let sortie = nom;
+  if (nom.endsWith('.md')) {
+    const p = path.join(TRONC, dernierFichier);
+    sortie = titreDeFichier(p, nom.replace(/\.md$/, '').replace(/-/g, ' '));
+  }
+  return cacheTitre['~' + dernierFichier] = sortie;
+}
 
 function fichierActif() {
   try {
@@ -344,6 +448,11 @@ function lireFlux(etat) {
     if (!ligne.trim()) continue;
     let j; try { j = JSON.parse(ligne); } catch (e) { continue; }
     if (j.type !== 'diff' || !Array.isArray(j.diff)) continue;
+    // Kept for the "what on" line: when `status.json` has no `detail` — the
+    // case of your own passes, where the heartbeat writes "working" and
+    // nothing else — the last file actually written is the only landmark
+    // available, and it is the right one.
+    dernierFichier = j.rel || j.file || dernierFichier;
     out.push({ t: '── ' + (j.rel || j.file || '?'), c: 'tete' });
     for (const d of j.diff) {
       const t = d.replace(/\t/g, '  ').replace(/\s+$/, '');
@@ -421,6 +530,16 @@ function lire() {
   //   times in a row. Keeping this outside the `etat === dernier` guard is the
   //   only way to see anything past each agent's first diff.
   occupe = etat !== 'idle';
+  // ⚠ BEFORE the `etat === dernier` guard, and that is the whole point: the
+  //   DETAIL changes without the state moving — "FILING" stays "FILING" while
+  //   the agent walks from one note to the next. Placed after the guard, this
+  //   line would be frozen on the first note of every pass. Same class of
+  //   defect as the pad that would not light back up.
+  if (occupe) {
+    const quoi = surQuoi(st.detail);
+    if (fiche._t !== quoi) { fiche.textContent = quoi; fiche._t = quoi; }
+    fiche.classList.toggle('vu', !!quoi);
+  } else { fiche.classList.remove('vu'); }
   // ⚠ BEFORE: `if (lireFlux(etat)) peindrePave();` — the pad was only turned
   //   BACK ON when the content had just changed. But `lireFlux` returns `false`
   //   as soon as the file has not grown (and the fallback returns the same

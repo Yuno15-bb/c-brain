@@ -68,8 +68,13 @@ app.whenReady().then(async () => {
    await poserFond(fond);
    for (const verre of VERRES) {
     for (const [etat, st] of ETATS) {
-      cp.execFileSync('python3', [STATUS, st, st === 'busy' ? etat : '', 'banc']
-                      .filter(x => x !== ''));
+      /* ⚠ The 3rd argument of brain_status.py is the DETAIL, not a source: the
+         bench was putting the word "banc" there, and ever since the "what on"
+         line exists, the sheet displayed that word as the work landmark. A
+         sheet must show what the user will see — so a real note slug, the kind
+         `on_fiche_write` would write. */
+      cp.execFileSync('python3', [STATUS, st, st === 'busy' ? etat : '',
+                      st === 'busy' ? 'capsule-orbe-agents' : ''].filter(x => x !== ''));
       await w.webContents.executeJavaScript(`window.__orbe.setVerre(${verre})`);
       // 2,6 s : le fondu de mécanique dure 1,4 s. Capturer avant fige une forme
       // intermédiaire qui n'existe à aucun moment réel.
