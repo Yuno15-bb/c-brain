@@ -46,6 +46,10 @@ part — `./install.sh --core-only` laisse les deux de côté :
 | 🥚 **Une capsule** | petite fenêtre Electron qui montre les agents travailler, en direct |
 | 🪐 **Une planète** | ton savoir en globe 3D navigable, régénéré à chaque lancement |
 
+<p align="center">
+  <img src="docs/media/architecture.png" alt="Comment une session devient de la mémoire : le tronc — ~/.c-brain/trunk, qui porte les fiches, MEMORY.md et l'état — est lu et écrit par trois étapes de hooks à l'intérieur de ta session. À chaque prompt, inject_recall se sert de BM25 et d'embeddings pour choisir les quelques fiches qui répondent à ta demande, et les colle dans le prompt. Pendant la session, post_diff, track_read, on_fiche_write et pre_snapshot enregistrent ce qui est écrit et lu. À la fin, archive_session et auto_maintain archivent la session puis réveillent les agents, en deux couches : la couche 1 lance toujours le distillateur puis le jardinier, ce dernier conditionné à la réussite réelle du premier ; la couche 2 ne réveille au plus qu'un agent parmi le challenger, l'architecte, l'archiviste et le mécanicien, et seulement si son capteur franchit un seuil et que douze heures ont passé. En bas, les trois façons de le regarder : la capsule qui lit state/status.json, la planète bâtie par graph_export, et le CLI brain — status, review, selftest, update — chaque étape automatique relançable à la main" width="900">
+</p>
+
 ### Il est bon à quel point, ce rappel ?
 
 Mesuré, pas affirmé — `tests/recall_benchmark.py`, sur un corpus synthétique où
