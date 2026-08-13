@@ -38,6 +38,29 @@ const EDGE = 26;
 // path orbe.html uses.
 const STATUS = path.join(os.homedir(), '.c-brain', 'trunk', 'state', 'status.json');
 
+// PROOF OF LIFE of the window, ported by hand on 2026-08-13.
+//
+// auto_maintain replaces a capsule process that no longer has a window (a
+// zombie). It reads this file to tell a live capsule from a dead one — and
+// until now the package shipped that CHECK WITHOUT ITS EMITTER, because this
+// file is not synced. What kept it harmless is the guard on the other side:
+// "never beaten != zombie". So the check could never repair anything either.
+// Now it can.
+//
+// ⚠ Written by the MAIN process, never by the renderer: the renderer pauses on
+//   purpose when the orb is hidden (asleep screen, idle), so a heartbeat placed
+//   there would stop at rest and cry zombie over a perfectly healthy capsule.
+// ⚠ Only while the window exists — that is the entire point: a process without
+//   a window stops beating, and becomes visible from the outside.
+// Same $HOME-derived path as STATUS: it is the TRUNK's state, not the engine's.
+const ALIVE = path.join(os.homedir(), '.c-brain', 'trunk', 'state', 'capsule-alive');
+const HEARTBEAT = 5000;
+function heartbeat() {
+  try {
+    if (win && !win.isDestroyed()) fs.writeFileSync(ALIVE, String(Date.now()));
+  } catch (e) {}
+}
+
 // The orb clears itself off the screen once nothing is working: an indicator
 // that says nothing should not occupy the desktop. It comes back on the first
 // agent. One minute of presence after the work ends — long enough to read what
@@ -192,6 +215,7 @@ app.whenReady().then(() => {
     .forEach(e => screen.on(e, place));
   watchStatus();   // re-shows the orb as soon as an agent turns 'busy'
   watchPower();    // real pause when the screen sleeps or the session locks
+  heartbeat(); setInterval(heartbeat, HEARTBEAT);   // proof of life of the WINDOW
 
   // Hot reload — opt-in: this is a DEVELOPMENT comfort, not a feature of the
   // capsule. In normal use it would hit the disk every second, forever, for a

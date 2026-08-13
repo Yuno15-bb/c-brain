@@ -137,11 +137,15 @@ def capsule_alive(pids):
         alive = os.path.join(BRAIN, "state", "capsule-alive")
         if not os.path.exists(alive):
             # ⚠ NO beat has EVER been written. This is not a zombie, it is a
-            #   capsule that cannot beat: `capsule/main.js` is FROZEN out of the
-            #   sync (V2 rework), so the public package ships this check WITHOUT
-            #   the emitter. Without this guard, every capsule here would be
-            #   declared dead past the grace delay and killed in a loop, every
-            #   single pass. We only judge what has ALREADY beaten and gone quiet.
+            #   capsule that cannot beat. Two real cases:
+            #     · a capsule never launched since the install;
+            #     · a capsule from a version PREDATING the emitter — the public
+            #       package long carried this check without it (`capsule/main.js`
+            #       is not synced; the emitter was ported into it by hand on
+            #       2026-08-13, but an older install still runs without one).
+            #   Without this guard, those capsules would be declared dead past the
+            #   grace delay and killed in a loop, every single pass.
+            #   We only judge what has ALREADY beaten and then gone quiet.
             return True
         if time.time() - os.path.getmtime(alive) < HEARTBEAT_MAX:
             return True
