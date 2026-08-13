@@ -28,8 +28,8 @@
     {
       "id": "racines-code-vs-donnees",
       "file": "tests/invariants_brain.py",
-      "pattern": "BRAIN = os\\.path\\.realpath\\(os\\.path\\.join\\(os\\.path\\.dirname\\(os\\.path\\.abspath\\(__file__\\)\\), \"\\.\\.\"\\)\\)\\nsys\\.path\\.insert\\(0, os\\.path\\.join\\(BRAIN, \"hooks\"\\)\\)\\n",
-      "why": "Une seule racine servait à la fois au CODE et aux DONNÉES. Avec la séparation moteur/tronc, elle pointait dans le moteur : le test écrivait state/coherence.json dans le dépôt installé (échec, et corruption à la mise à jour). Trouvé par le selftest en HOME isolé, pas par relecture.",
+      "pattern": "BRAIN = os\\.path\\.realpath\\(\\n    os\\.environ\\.get\\(\"BRAIN_HOME\"\\)\\n    or os\\.path\\.join\\(os\\.path\\.dirname\\(os\\.path\\.abspath\\(__file__\\)\\), \"\\.\\.\"\\)\\n\\)\\nsys\\.path\\.insert\\(0, os\\.path\\.join\\(BRAIN, \"hooks\"\\)\\)\\n",
+      "why": "Une seule racine servait à la fois au CODE et aux DONNÉES. Avec la séparation moteur/tronc, elle pointait dans le moteur : le test écrivait state/coherence.json dans le dépôt installé (échec, et corruption à la mise à jour). Trouvé par le selftest en HOME isolé, pas par relecture. | 2026-08-13 : motif reecrit, la source a reformate BRAIN sur plusieurs lignes en ajoutant le support de BRAIN_HOME.",
       "replace": "# Deux racines DISTINCTES, et c'est volontaire :\n#  · CODE  — d'où viennent les hooks à importer. Suit le fichier, car le moteur\n#    peut vivre ailleurs que le tronc (installation par symlinks).\n#  · BRAIN — le tronc de l'utilisateur, d'où viennent les DONNÉES (state/).\n#    Toujours dérivé de $HOME : écrire dans le moteur casserait l'installation\n#    et serait écrasé à la première mise à jour.\nCODE = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), \"..\"))\nBRAIN = os.path.expanduser(\"~/claude-brain\")\nsys.path.insert(0, os.path.join(CODE, \"hooks\"))\n"
     },
     {
@@ -78,8 +78,8 @@
       ],
       "pattern": "Claude Brain",
       "replace": "C Brain",
-      "expect": 36,
-      "why": "Le produit s'appelle C Brain. « Claude Brain » est le nom du tronc PRIVÉ de l'auteur, et porte en plus une marque Anthropic : il n'a rien à faire dans un paquet public. Les agents s'annonçaient tous comme « l'architecte du Claude Brain » — c'est le tout premier écran que lit un nouvel utilisateur."
+      "expect": 35,
+      "why": "Le produit s'appelle C Brain. « Claude Brain » est le nom du tronc PRIVÉ de l'auteur, et porte en plus une marque Anthropic : il n'a rien à faire dans un paquet public. Les agents s'annonçaient tous comme « l'architecte du Claude Brain » — c'est le tout premier écran que lit un nouvel utilisateur. | 2026-08-13 : 36 -> 35, une mention perdue en amont. Verifie : aucun enjeu de fuite, c'est le nom du produit."
     },
     {
       "id": "tronc-chemin-plist",
@@ -405,6 +405,27 @@
       },
       "expect": 3,
       "why": "Les commentaires de la capsule et de l'orbe créditent nommément l'auteur des retours (« Signalé par Dylan le … »). C'est juste dans le tronc privé, hors sujet dans un paquet public : ce qui compte est qu'un UTILISATEUR ait signalé le défaut, pas lequel. Règle ajoutée le 2026-08-03 avec l'arrivée de l'orbe, qui apporte quatre fichiers de plus portant ce genre de crédit."
+    },
+    {
+      "id": "proprietaire-nomme-filet",
+      "files": [
+        "hooks/**/*.py",
+        "hooks/**/*.sh",
+        "capsule/**/*.js",
+        "capsule/**/*.html",
+        "capsule/**/*.md",
+        "planet/**/*.html",
+        "agents/**/*.md",
+        "companion/**/*.py",
+        "tests/**/*.py",
+        "skills/**/*.md",
+        "skeleton/**/*.md",
+        "brain"
+      ],
+      "pattern": "Dylan",
+      "replace": "l'auteur",
+      "expect": 1,
+      "why": "FILET DE SÉCURITÉ, en DERNIER. Les règles fines réécrivent des tournures précises ; ce filet attrape le nom nu là où il reste. Ajouté le 2026-08-13 : 9 mentions étaient apparues dans des commentaires écrits depuis le sync précédent (« demande de X », « retour de X », « constat de X »). Une règle par tournure est perdue d'avance : il s'en écrit une nouvelle à chaque session. `expect` étant un MINIMUM, ce filet ne fait jamais échouer la passe."
     }
   ],
   "_regles_gelees": [
