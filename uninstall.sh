@@ -81,7 +81,12 @@ done
 # ─── 4. Divers ────────────────────────────────────────────────────────────
 echo
 echo "▸ Divers"
-[ -f "$HOME/Desktop/Planete-C-Brain.command" ] && { rm -f "$HOME/Desktop/Planete-C-Brain.command"; say "- lanceur du Bureau"; }
+[ -f "$HOME/Desktop/Planete-C-Brain.command" ] && { rm -f "$HOME/Desktop/Planete-C-Brain.command"; say "- lanceur du Bureau (ancien .command)"; }
+# Le lanceur est devenu un bundle d'application le 2026-08-14 — un DOSSIER, donc
+# `rm -f` passe à côté sans rien dire. Un désinstalleur qui laisse un lanceur sur
+# le Bureau laisse croire que l'outil est encore installé, et son icône pointe
+# sur un tronc qu'on vient peut-être de délier.
+[ -d "$HOME/Desktop/Planète C Brain.app" ] && { rm -rf "$HOME/Desktop/Planète C Brain.app"; say "- lanceur du Bureau (Planète C Brain.app)"; }
 # Le raccourci vers le tronc — retiré SEULEMENT s'il pointe encore chez nous.
 # Réorienté par l'utilisateur, il est devenu le sien : on n'y touche pas.
 SHORTCUT="$HOME/C Brain"

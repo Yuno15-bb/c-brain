@@ -199,6 +199,20 @@ elif ! command -v npm >/dev/null; then
   say  "  (Homebrew marche aussi, mais sur une machine dont les Command Line Tools"
   say  "   ne sont pas à jour, il reconstruit ses dépendances depuis les sources —"
   say  "   compte 40 min au lieu de 2.)"
+  # Proposé, jamais fait dans son dos : installer Node demande un mot de passe
+  # administrateur et modifie le système. Demander coûte une touche ; décider à
+  # sa place coûte sa confiance. Et seulement si un humain est là pour répondre —
+  # dans un tube ou une CI, ça ne doit pas rester bloqué.
+  if [ -t 0 ]; then
+    printf "  Ouvrir la page de téléchargement maintenant ? [o/N] "
+    read -r rep || rep=""
+    case "$rep" in
+      [oOyY]*) open "https://nodejs.org/fr/download" 2>/dev/null \
+                 && say "→ page ouverte. Une fois Node installé : relance ./install.sh" \
+                 || warn "impossible d'ouvrir le navigateur — https://nodejs.org/fr/download" ;;
+      *) say "(non ouverte — l'adresse est ci-dessus)" ;;
+    esac
+  fi
 elif [ "$DRY" = "1" ]; then say "(dry-run) installerait les dépendances de la capsule"
 elif capsule_ok; then say "= capsule déjà opérationnelle"
 else
@@ -210,6 +224,14 @@ else
   # démarrer. On vérifie le binaire lui-même.
   if capsule_ok; then
     say "+ capsule opérationnelle ($("$ENGINE/capsule/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" --version 2>/dev/null))"
+    # npm 11 affiche ici `warn allow-scripts ... electron (postinstall: node
+    # install.js)`. Ça ressemble à un échec, et ça a assez inquiété le premier
+    # utilisateur extérieur pour figurer dans son rapport. Ce n'en est pas un —
+    # et on est en position de le PROUVER, puisque capsule_ok vient de lancer le
+    # vrai binaire.
+    say "  (l'avertissement npm « allow-scripts » ci-dessus est bénin : Electron a"
+    say "   bien démarré, c'est ce que la ligne du dessus vérifie — le binaire,"
+    say "   pas le code de sortie de npm.)"
   else
     warn "npm a rendu la main, mais le binaire Electron ne répond pas."
     warn "C'est un défaut connu de son téléchargeur, pas de C Brain. Remède :"
@@ -239,15 +261,63 @@ else
 fi
 
 # ─── 9. Lanceur de la planète ─────────────────────────────────────────────
+# UN BUNDLE D'APPLICATION, PAS UN `.command`. Les deux tiennent en un
+# double-clic, mais seul un bundle peut porter une ICÔNE : un `.command` n'en
+# reçoit une que par sa resource fork, qu'on écrit avec `Rez` — des Xcode
+# Command Line Tools, exactement ce que la machine du rapport d'installation
+# n'avait pas. Une icône qui n'apparaît que sur les machines déjà équipées pour
+# développer n'est pas une icône. Un bundle, ce sont des fichiers ordinaires :
+# il marche sur une machine nue, apparaît dans le Dock tant que la planète est
+# servie, et le quitter arrête le serveur.
+#
+# L'icône : `planet/planete.icns`, dessinée avec les couleurs PROPRES à la
+# planète (fond #07070b, accent #5ad7e6) — cf. tools/icone-planete.py dans le
+# tronc de l'auteur, qui la redessine avec la seule bibliothèque standard.
 step "Lanceur de la planète (Bureau)"
-CMD="$HOME/Desktop/Planete-C-Brain.command"
+APP="$HOME/Desktop/Planète C Brain.app"
+ANCIEN_CMD="$HOME/Desktop/Planete-C-Brain.command"
 if [ "$DO_PLANET" = "0" ]; then say "(sauté — --core-only)"
-elif [ "$DRY" = "1" ]; then say "(dry-run) créerait $CMD"
+elif [ "$DRY" = "1" ]; then say "(dry-run) créerait $APP"
 elif [ -d "$HOME/Desktop" ]; then
-  printf '#!/bin/bash\nexport PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"\nexec "%s/planet/launch.sh"\n' "$TRUNK" > "$CMD"
-  chmod +x "$CMD"
-  note file "$CMD"
-  say "+ $CMD (double-clic → globe sur localhost:8765)"
+  run rm -rf "$APP"                       # idempotent : reconstruit en entier, jamais rapiécé
+  run mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+  if [ "$DRY" != "1" ]; then
+    # Le système ne donne qu'un PATH minimal à une application lancée depuis le
+    # Bureau : python3 et `open` doivent être trouvables, sinon le double-clic
+    # ne fait rien — et ne dit rien non plus.
+    printf '#!/bin/bash\nexport PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"\nexec "%s/planet/launch.sh"\n' "$TRUNK" > "$APP/Contents/MacOS/planet"
+    chmod +x "$APP/Contents/MacOS/planet"
+    cat > "$APP/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Planète C Brain</string>
+  <key>CFBundleDisplayName</key><string>Planète C Brain</string>
+  <key>CFBundleIdentifier</key><string>org.cbrain.planet</string>
+  <key>CFBundleExecutable</key><string>planet</string>
+  <key>CFBundleIconFile</key><string>planete</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+</dict></plist>
+PLIST
+    if [ -f "$ENGINE/planet/planete.icns" ]; then
+      cp "$ENGINE/planet/planete.icns" "$APP/Contents/Resources/planete.icns"
+    else
+      warn "planete.icns absent — le lanceur marche, avec l'icône générique."
+    fi
+    # Le Finder met l'icône d'une app en cache par chemin+date. Sans ce touch,
+    # un bundle reconstruit garde l'ancienne icône jusqu'à la prochaine session.
+    touch "$APP"
+  fi
+  note dir "$APP"
+  say "+ $APP (double-clic → globe sur localhost:8765)"
+  # Un installeur qui laisse le raccourci de la version précédente donne à
+  # l'utilisateur deux icônes pour une seule action, et le laisse choisir la
+  # périmée.
+  if [ -f "$ANCIEN_CMD" ]; then
+    run rm -f "$ANCIEN_CMD"
+    say "- Planete-C-Brain.command retiré (remplacé par l'app ci-dessus)"
+  fi
 else
   warn "~/Desktop introuvable — lanceur non créé. La planète reste accessible :"
   warn "  $TRUNK/planet/launch.sh"
