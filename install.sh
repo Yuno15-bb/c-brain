@@ -180,7 +180,25 @@ capsule_ok() {  # Electron répond-il VRAIMENT ?
 }
 
 if [ "$DO_CAPSULE" = "0" ]; then say "(sauté — --no-capsule)"
-elif ! command -v npm >/dev/null; then warn "npm absent — capsule non installée (le reste marche)."
+elif ! command -v npm >/dev/null; then
+  # ⚠ CETTE BRANCHE ÉTAIT UNE SEULE LIGNE MUETTE, et elle a coûté environ une
+  # heure au premier utilisateur extérieur (rapport d'installation du 2026-08-13,
+  # macOS Intel sans outillage de dev). N'ayant appris que « npm absent », il est
+  # parti chercher Node lui-même : arrivé sur Homebrew, qui exige un sudo
+  # interactif, puis recompilation d'openssl@3, xz, lz4 et cmake DEPUIS LES
+  # SOURCES pendant 38 minutes sans jamais atteindre Node, deux cœurs à 85 %,
+  # ventilateur à fond. Le .pkg officiel prend deux minutes et ne compile rien.
+  # Dire CE QUI MANQUE ne suffit pas. Un message qui ne nomme pas l'étape
+  # suivante envoie le lecteur en inventer une, et il invente la coûteuse.
+  warn "Node.js est absent — seule la capsule (l'orbe flottante) est sautée."
+  say  "Tout le reste est installé et fonctionne : hooks, agents, mémoire, \`brain\`."
+  say  "Pour avoir l'orbe plus tard :"
+  say  "  1. installe Node avec le paquet OFFICIEL — https://nodejs.org (.pkg macOS,"
+  say  "     ~2 min, une fenêtre de mot de passe, ne compile rien) ;"
+  say  "  2. relance cet installeur : il est idempotent, il n'ajoutera que la capsule."
+  say  "  (Homebrew marche aussi, mais sur une machine dont les Command Line Tools"
+  say  "   ne sont pas à jour, il reconstruit ses dépendances depuis les sources —"
+  say  "   compte 40 min au lieu de 2.)"
 elif [ "$DRY" = "1" ]; then say "(dry-run) installerait les dépendances de la capsule"
 elif capsule_ok; then say "= capsule déjà opérationnelle"
 else
@@ -293,6 +311,12 @@ echo "       brain recall cache        ce que le rappel retrouve"
 echo "       brain demo --remove       les retire, sans laisser de trace"
 echo
 echo "   brain status     où en est le tronc"
+# Dit ICI, avant qu'il ne la lance : juste après une installation, `brain status`
+# affiche « busy / gardening ». C'est la première passe de maintenance, et c'est
+# normal — mais un premier utilisateur lit une machine qui dit « busy » sans
+# raison comme un plantage. Remonté tel quel dans le rapport du 2026-08-13.
+echo "                    (« busy / gardening » juste après l'installation, c'est"
+echo "                     la première passe de rangement : normal, ça se termine seul)"
 echo "   brain recall <q> chercher dans ta mémoire"
 echo "   brain doctor     santé de l'arbre"
 echo "   brain selftest   revérifier l'installation"
