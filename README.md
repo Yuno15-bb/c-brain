@@ -31,6 +31,8 @@ conversation history, which only gets longer.
 |---|---|
 | 🌳 **A trunk** | your lessons, projects, method — markdown, on your machine, versionable |
 | 🔎 **Automatic recall** | relevant notes are injected into context on every prompt |
+| 📈 **It learns from use** | what served you climbs — with a slot kept for notes never seen, so it does not go round in circles |
+| 🕰️ **It knows its own age** | notes never re-checked enter a review queue, dated from the git history |
 | 🤖 **8 agents** | they distill, file, link, challenge, synthesize, prune, repair, and watch the machine |
 | 🔁 **A closed loop** | session ends → archive → distill → file, without being asked |
 | ⬆️ **Updates** | the engine updates itself; **your notes are never touched** |
@@ -62,6 +64,28 @@ subject and most of its vocabulary:
 It holds to about a thousand notes and degrades sharply past that. Published
 here because a memory tool that will not say how well it remembers is asking
 for trust it has not earned. The CI enforces these numbers as thresholds.
+
+⚠️ **This bench does NOT measure everything.** Its corpus is synthetic, so its
+vocabulary is coherent by construction: it says nothing about morphology
+("ranger" versus "rangement") nor about the French/English mix, which are two
+real causes of an unfindable note. Its numbers did not move when those two
+points were fixed — that is a limit of the bench, not the absence of an effect.
+
+### And on a real trunk, what does it change?
+
+Measured on 2026-08-12 against the author's living Brain (312 notes), 10
+questions about real facts of his work, 50 runs isolated from one another:
+
+| what the assistant has | right answers | tokens per exchange |
+|---|---|---|
+| nothing | **0/10** | 178 k |
+| the trunk + the map, **without** automatic recall | **8/10** | 264 k |
+| **the full system** | **10/10** | **168 k** |
+
+Automatic recall does not cost context, it **saves** it: with no suggestion the
+assistant has to search, and searching burns turns. The detail of the protocol —
+and the three campaigns that had to be thrown away before an honest measurement
+came out — lives in the author's trunk, not here.
 
 ## Install
 
