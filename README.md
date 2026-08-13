@@ -34,6 +34,8 @@ historique de conversation, qui ne fait que s'allonger.
 |---|---|
 | 🌳 **Un tronc** | tes leçons, projets, méthode — en markdown, chez toi, versionnable |
 | 🔎 **Rappel automatique** | à chaque question, les fiches pertinentes sont injectées dans le contexte |
+| 📈 **Il apprend de l'usage** | ce qui t'a servi remonte — avec une place réservée aux fiches jamais vues, pour ne pas tourner en rond |
+| 🕰️ **Il connaît son âge** | les fiches jamais revérifiées entrent dans une file de revue, datée par l'historique git |
 | 🤖 **8 agents** | ils distillent, rangent, relient, contestent, synthétisent, élaguent, réparent, surveillent la machine |
 | 🔁 **Boucle fermée** | fin de session → archivage → distillation → rangement, sans rien demander |
 | ⬆️ **Mises à jour** | le moteur se met à jour ; **tes fiches ne sont jamais touchées** |
@@ -66,6 +68,29 @@ Il tient jusqu'à environ mille fiches et se dégrade nettement au-delà. Publi�
 ici parce qu'un outil de mémoire qui refuse de dire à quel point il se souvient
 demande une confiance qu'il n'a pas gagnée. La CI tient ces chiffres comme des
 seuils.
+
+⚠️ **Ce banc ne mesure PAS tout.** Son corpus est synthétique, donc son
+vocabulaire est cohérent : il ne dit rien de la morphologie (« ranger » contre
+« rangement ») ni du mélange français/anglais, qui sont deux causes réelles de
+fiche introuvable. Ses chiffres n'ont pas bougé quand ces deux points ont été
+corrigés — c'est une limite du banc, pas l'absence d'effet.
+
+### Et sur un vrai tronc, ça change quoi ?
+
+Mesuré le 2026-08-12 sur le Brain vivant de l'auteur (312 fiches), 10 questions
+portant sur des faits réels de son travail, 50 exécutions isolées les unes des
+autres :
+
+| ce dont dispose l'assistant | bonnes réponses | tokens par échange |
+|---|---|---|
+| rien | **0/10** | 178 k |
+| le tronc + la carte, **sans** rappel automatique | **8/10** | 264 k |
+| **le système complet** | **10/10** | **168 k** |
+
+Le rappel automatique ne coûte pas de contexte, il en **économise** : sans
+suggestion, l'assistant doit chercher, et chercher brûle des tours. Le détail du
+protocole — et les trois campagnes qu'il a fallu jeter avant d'obtenir une mesure
+honnête — est dans le tronc de l'auteur, pas ici.
 
 ## Installation
 
