@@ -81,7 +81,12 @@ done
 # ─── 4. Odds and ends ─────────────────────────────────────────────────────
 echo
 echo "▸ Odds and ends"
-[ -f "$HOME/Desktop/Planete-C-Brain.command" ] && { rm -f "$HOME/Desktop/Planete-C-Brain.command"; say "- Desktop launcher"; }
+[ -f "$HOME/Desktop/Planete-C-Brain.command" ] && { rm -f "$HOME/Desktop/Planete-C-Brain.command"; say "- Desktop launcher (old .command)"; }
+# The launcher became an app bundle on 2026-08-14 — a DIRECTORY, so `rm -f` walks
+# straight past it. An uninstaller that leaves a launcher on the Desktop leaves
+# the impression the tool is still installed, and the icon still points at a
+# trunk we may just have unlinked.
+[ -d "$HOME/Desktop/C Brain Planet.app" ] && { rm -rf "$HOME/Desktop/C Brain Planet.app"; say "- Desktop launcher (C Brain Planet.app)"; }
 
 # The Finder shortcut: a symlink we made, removed only if it still points at
 # the trunk. If the user re-aimed it somewhere, it stopped being ours.

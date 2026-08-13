@@ -196,6 +196,20 @@ elif ! command -v npm >/dev/null; then
   say  "  2. re-run this installer: it is idempotent, it will only add the capsule."
   say  "  (Homebrew works too, but on a machine without up-to-date Command Line Tools"
   say  "   it rebuilds its dependencies from source — count 40 min instead of 2.)"
+  # Offered, never done behind their back: installing Node means an admin
+  # password and a system-wide change. Asking costs one keypress; deciding for
+  # them costs their trust. Only when a human is actually there to answer —
+  # in a pipe or a CI this must not hang.
+  if [ -t 0 ]; then
+    printf "  Open the download page now? [y/N] "
+    read -r rep || rep=""
+    case "$rep" in
+      [yYoO]*) open "https://nodejs.org/en/download" 2>/dev/null \
+                 && say "→ page opened. Once Node is installed: re-run ./install.sh" \
+                 || warn "could not open the browser — https://nodejs.org/en/download" ;;
+      *) say "(not opened — the address is above)" ;;
+    esac
+  fi
 elif [ "$DRY" = "1" ]; then say "(dry-run) would install the capsule dependencies"
 elif capsule_ok; then say "= capsule already working"
 else
@@ -207,6 +221,12 @@ else
   # So we check the binary itself.
   if capsule_ok; then
     say "+ capsule working ($("$ENGINE/capsule/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" --version 2>/dev/null))"
+    # npm 11 prints `warn allow-scripts ... electron (postinstall: node install.js)`
+    # here. It reads like a failure, and it worried the first outside user enough
+    # to be logged in their report. It is not one — and we are in a position to
+    # PROVE it, since capsule_ok has just started the actual binary.
+    say "  (npm's \"allow-scripts\" warning above is benign: Electron did start,"
+    say "   which is what the line above checks — the binary, not npm's exit code.)"
   else
     warn "npm returned, but the Electron binary does not respond."
     warn "This is a known flaw in its downloader, not in C Brain. Remedy:"
@@ -236,15 +256,60 @@ else
 fi
 
 # ─── 9. Planet launcher ─────────────────────────────────────────────
+# AN APP BUNDLE, NOT A `.command`. Both are one double-click, but only a bundle
+# can carry an icon: a `.command` takes one solely through its resource fork,
+# which on macOS is set with `Rez` — from the Xcode Command Line Tools, exactly
+# what the machine in the 2026-08-13 install report did not have. An icon that
+# only appears on machines already equipped for development is not an icon.
+# A bundle is plain files: it works on a bare machine, shows up in the Dock while
+# the planet is serving, and quitting it stops the server.
+#
+# The icon itself: `planet/planete.icns`, generated from the planet's OWN colours
+# (#07070b ground, #5ad7e6 accent) — see tools/icone-planete.py in the author's
+# trunk, which redraws it with the standard library alone.
 step "Planet launcher (Desktop)"
-CMD="$HOME/Desktop/Planete-C-Brain.command"
+APP="$HOME/Desktop/C Brain Planet.app"
+OLD_CMD="$HOME/Desktop/Planete-C-Brain.command"
 if [ "$DO_PLANET" = "0" ]; then say "(skipped — --core-only)"
-elif [ "$DRY" = "1" ]; then say "(dry-run) would create $CMD"
+elif [ "$DRY" = "1" ]; then say "(dry-run) would create $APP"
 elif [ -d "$HOME/Desktop" ]; then
-  printf '#!/bin/bash\nexport PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"\nexec "%s/planet/launch.sh"\n' "$TRUNK" > "$CMD"
-  chmod +x "$CMD"
-  note file "$CMD"
-  say "+ $CMD (double-click → globe on localhost:8765)"
+  run rm -rf "$APP"                       # idempotent: rebuilt whole, never patched
+  run mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+  if [ "$DRY" != "1" ]; then
+    # The GUI hands a launched app a minimal PATH — python3 and `open` have to be
+    # findable, or the double-click does nothing at all and says nothing either.
+    printf '#!/bin/bash\nexport PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"\nexec "%s/planet/launch.sh"\n' "$TRUNK" > "$APP/Contents/MacOS/planet"
+    chmod +x "$APP/Contents/MacOS/planet"
+    cat > "$APP/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>C Brain Planet</string>
+  <key>CFBundleDisplayName</key><string>C Brain Planet</string>
+  <key>CFBundleIdentifier</key><string>org.cbrain.planet</string>
+  <key>CFBundleExecutable</key><string>planet</string>
+  <key>CFBundleIconFile</key><string>planete</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+</dict></plist>
+PLIST
+    if [ -f "$ENGINE/planet/planete.icns" ]; then
+      cp "$ENGINE/planet/planete.icns" "$APP/Contents/Resources/planete.icns"
+    else
+      warn "planete.icns missing — the launcher works, with the generic icon."
+    fi
+    # Finder caches an app's icon by path+mtime. Without this touch, a rebuilt
+    # bundle keeps showing the previous icon until the next log-out.
+    touch "$APP"
+  fi
+  note dir "$APP"
+  say "+ $APP (double-click → globe on localhost:8765)"
+  # An installer that leaves the previous version's shortcut behind hands the
+  # user two icons for one action, and lets them pick the stale one.
+  if [ -f "$OLD_CMD" ]; then
+    run rm -f "$OLD_CMD"
+    say "- Planete-C-Brain.command removed (replaced by the app above)"
+  fi
 else
   warn "~/Desktop not found — launcher not created. The planet stays reachable at:"
   warn "  $TRUNK/planet/launch.sh"
