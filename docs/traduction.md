@@ -117,6 +117,34 @@ l'autre :
   chemin dans un commentaire, aucun compteur ne bouge. Quand tu supprimes une
   règle, vérifie à la main ce qu'elle tenait.
 
+## `main` est le produit, `fr` est une soute (2026-08-13)
+
+`fr` était publiée comme un produit à part, avec sa famille de tags `-fr`. Ce
+n'est plus le cas. Elle redevient ce qu'elle a toujours vraiment été : **la piste
+d'atterrissage française du sync**, lue par personne d'autre que l'étape de
+traduction.
+
+Deux coûts l'ont décidé, mesurés le même jour :
+
+- **Les familles de tags se percutent au tri.** `sort -V` place `v1.27.0-fr`
+  APRÈS `v1.27.0` : tout sélecteur « dernière version » qui ratisse tous les tags
+  fait basculer une installation anglaise sur l'arbre français — aucune erreur,
+  l'outil se met simplement à parler une autre langue. Ça n'est resté invisible
+  que tant que `fr` traînait derrière ; les mettre à niveau l'a ARMÉ.
+- **`fr` ne peut pas sortir sans un sync propre.** Publier depuis `fr` exige que
+  le Brain vivant de l'auteur colle au paquet. Un chantier en cours sur cette
+  machine bloque donc une publication qui n'a rien à voir avec lui.
+
+`publish.sh` refuse désormais de tagger depuis `fr` (`CBRAIN_ALLOW_TAG_ON_FR=1`
+force le passage, pour le cas rare où tu sais pourquoi). Les tags publiés restent
+publiés — en déplacer un casse le fetch de qui est encore dessus — donc la
+famille `-fr` cesse simplement de grandir à `v1.27.0-fr`.
+
+**Ce qui ne change PAS** : le sens de la chaîne. Le Brain vivant est en français
+et `generalize.py` matche des motifs français, donc le sync atterrit toujours sur
+`fr` d'abord, et `main` en est toujours la traduction faite par un humain qui lit
+le diff. `fr` est une étape, plus une destination.
+
 ## Tags
 
 | Branche | Tags | Qui l'installe |

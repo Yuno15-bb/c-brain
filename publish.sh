@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 # C Brain — Copyright (c) 2026 Dylan Peellaert.
 # Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
-# publish.sh — publier une version. Le SEUL chemin autorisé vers un `git push`.
+# publish.sh — publish a version. The ONLY sanctioned path to a `git push`.
 #
-# Pourquoi ce script existe : le contrôle de fuite a été lancé une fois en fin
-# de pipe (`leakcheck.py | tail -1 && git push`). `tail` réussit toujours — le
-# `&&` testait donc le mauvais code de retour, et la publication est partie
-# alors que le contrôle était ROUGE. Le garde-fou existait, il était juste
-# court-circuité par la façon de l'appeler.
+# Why this script exists: the leak check was once run at the end of a pipe
+# (`leakcheck.py | tail -1 && git push`). `tail` always succeeds — so the `&&`
+# tested the wrong exit code, and a push went out while the check was RED. The
+# guard existed; it was simply short-circuited by how it was called.
 #
-# Ici, aucun pipe, aucun `&&` : le contrôle est un `if` explicite, et son échec
-# arrête tout.
+# Here there is no pipe and no `&&`: the check is an explicit `if`, and its
+# failure stops everything.
 #
-# Usage : ./publish.sh v1.2.3 "message du tag"
+# Usage: ./publish.sh v1.2.3 "tag message"
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd -P)"
@@ -20,83 +19,101 @@ cd "$ROOT"
 
 TAG="${1:-}"
 MSG="${2:-}"
-[ -n "$TAG" ] || { echo "Usage : ./publish.sh v1.2.3 \"message du tag\""; exit 1; }
-# Le suffixe `-fr` est la convention de tag de la branche française (cf docs/translation.md).
-# Sans lui dans le motif, la branche fr ne pouvait tout simplement pas être publiée.
-[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+)?$ ]] || { echo "❌ Tag attendu au format vX.Y.Z (suffixe -fr accepté)"; exit 1; }
-[ -n "$MSG" ] || { echo "❌ Un message de tag est requis."; exit 1; }
+[ -n "$TAG" ] || { echo "Usage: ./publish.sh v1.2.3 \"tag message\""; exit 1; }
+[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+)?$ ]] || { echo "❌ Expected a vX.Y.Z tag"; exit 1; }
+[ -n "$MSG" ] || { echo "❌ A tag message is required."; exit 1; }
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
-echo "▸ Le paquet colle-t-il au Brain vivant ?"
+# --- `main` IS THE PRODUCT, `fr` IS A STAGING BUFFER (decision of 2026-08-13) --
+# `fr` used to be a released product too, with its own `-fr` tag family. That cost
+# more than it gave:
+#   · `sort -V` places `v1.27.0-fr` AFTER `v1.27.0`, so any "latest tag" selector
+#     that scans every tag moves an English install onto the French tree. It stayed
+#     invisible only while `fr` lagged behind; bringing it level ARMED it.
+#   · `fr` cannot be published without a clean sync from the author's living Brain,
+#     so unfinished work on that machine blocks a release that has nothing to do
+#     with it — measured the same day.
+# `fr` remains what it always really was: the French landing strip of the sync,
+# read by nobody but the translation step. Published tags stay published — a moved
+# tag breaks the fetch of anyone still on it — so the `-fr` family simply stops
+# growing at v1.27.0-fr.
+if [ "$BRANCH" = "fr" ] && [ "${CBRAIN_ALLOW_TAG_ON_FR:-}" != "1" ]; then
+  echo "❌ \`fr\` is a staging buffer, not a product — nothing is published from it."
+  echo "   The engine ships from \`main\`, which is the translated, public branch."
+  echo "   → git checkout main    (or CBRAIN_ALLOW_TAG_ON_FR=1 if you know why)"
+  exit 1
+fi
+
+echo "▸ Does the package still match the living Brain?"
 if [ "$BRANCH" = "fr" ]; then
   if ! ./sync.sh --check >/dev/null 2>&1; then
-    echo "❌ Le paquet a divergé. Lance ./sync.sh, relis le diff, puis recommence."
+    echo "❌ The package has drifted. Run ./sync.sh, read the diff, then retry."
     exit 1
   fi
-  echo "  ✅ à jour"
+  echo "  ✅ up to date"
 else
-  # Seule `fr` est synchronisée depuis le Brain vivant ; `main` en est la
-  # traduction. Lancer le contrôle de divergence ici comparerait des fichiers
-  # anglais à une source française et échouerait toujours.
-  echo "  ⤳ sauté sur \`$BRANCH\` (seule \`fr\` se synchronise depuis le Brain)"
+  # Only `fr` is synced from the living Brain; `main` is translated from `fr`.
+  # Running the drift check here would compare English files against a French
+  # source and always fail.
+  echo "  ⤳ skipped on \`$BRANCH\` (only \`fr\` syncs from the Brain)"
 fi
 
-echo "▸ Arbre de travail propre ?"
+echo "▸ Is the working tree clean?"
 if ! git diff --quiet || ! git diff --cached --quiet; then
-  echo "❌ Modifications non commitées. Commite d'abord."
+  echo "❌ Uncommitted changes. Commit first."
   exit 1
 fi
-echo "  ✅ propre"
+echo "  ✅ clean"
 
-echo "▸ Contrôle de fuite (historique compris)"
+echo "▸ Leak check (history included)"
 if ! python3 leakcheck.py --history; then
   echo
-  echo "⛔ FUITE — rien n'est publié."
+  echo "⛔ LEAK — nothing is published."
   exit 1
 fi
 
-echo "▸ Tag déjà utilisé ?"
+echo "▸ Is the tag already taken?"
 if git rev-parse "$TAG" >/dev/null 2>&1; then
-  echo "❌ $TAG existe déjà. Prends le numéro suivant."
-  echo "   Ne déplace JAMAIS un tag publié : chez les utilisateurs encore sur"
-  echo "   une ancienne version, le fetch échoue et les mises à jour se bloquent."
+  echo "❌ $TAG already exists. Take the next number."
+  echo "   NEVER move a published tag: for users still on an older version the"
+  echo "   fetch fails and updates lock up for good."
   exit 1
 fi
 
-# Le manifeste du plugin porte une version explicite, et Claude Code ne propose
-# AUCUNE mise à jour tant que cette chaîne ne change pas — pousser des commits
-# ne fait rien du tout. Laisser ce geste à un humain, c'est la même classe de
-# geste que traduire à la main, et on sait comment ça finit. Donc c'est le tag
-# qui l'écrit, ici, une fois.
+# The plugin manifest carries an explicit version, and Claude Code will NOT
+# hand users an update until that string changes — pushing commits alone does
+# nothing. Leaving it to a human is the same class of gesture as translating,
+# and we already know how that ends. So the tag writes it, here, once.
 PLUGIN_MANIFEST=".claude-plugin/plugin.json"
 if [ -f "$PLUGIN_MANIFEST" ]; then
   python3 - "$PLUGIN_MANIFEST" "${TAG#v}" <<'PYEOF'
 import json, re, sys
 path, version = sys.argv[1], sys.argv[2].removesuffix("-fr")
 raw = open(path, encoding="utf-8").read()
-# Substitution ciblée, pas un re-dump : json.dump reformaterait tout le fichier
-# et transformerait chaque version en un diff que personne ne peut relire.
+# A targeted substitution, not a re-dump: json.dump would reflow the whole file
+# and turn every release into a diff nobody can read.
 new = re.sub(r'("version"\s*:\s*)"[^"]*"', lambda m: m.group(1) + '"%s"' % version, raw, count=1)
 if new != raw:
     open(path, "w", encoding="utf-8").write(new)
-    print("  version de plugin.json → %s" % version)
+    print("  plugin.json version → %s" % version)
 else:
-    print("  plugin.json déjà en %s" % version)
+    print("  plugin.json already at %s" % version)
 PYEOF
   if ! git diff --quiet -- "$PLUGIN_MANIFEST"; then
     git add "$PLUGIN_MANIFEST"
-    git commit -q -m "Manifeste du plugin : version $TAG"
-    echo "  bump de version committé"
+    git commit -q -m "Plugin manifest: version $TAG"
+    echo "  committed the version bump"
   fi
 fi
 
-# La branche COURANTE, jamais `main` en dur — BRANCH est déjà résolu en tête de
-# ce script. Avec `main` codé en dur, une publication depuis `fr` poussait le
-# tag et… la branche main (déjà à jour) : les commits français ne partaient
-# jamais. Le tag masquait le trou, puisqu'il porte les objets — `brain update`
-# marchait, mais la branche `fr` distante restait figée.
+# The CURRENT branch, never a hardcoded `main` — BRANCH is already resolved at
+# the top of this script. Hardcoding it meant a publish from `fr` pushed the tag
+# and an already up-to-date main branch, while the French commits never left.
+# The tag hid the hole, since it carries the objects: `brain update` worked, but
+# the remote `fr` branch stayed frozen. Fixed here in c91c10d; `fr` only caught
+# up on 2026-07-27, after two releases had gone out with the branch behind.
 git tag -a "$TAG" -m "$MSG"
 git push origin "$BRANCH" "$TAG"
 echo
-echo "✅ $TAG publiée sur $BRANCH."
+echo "✅ $TAG published on $BRANCH."
