@@ -62,6 +62,61 @@ python3 leakcheck.py --history
 Lis le diff avant de traduire. La plupart des syncs déplacent une poignée de
 lignes ; un `git merge fr` aveugle ramènerait tout l'arbre français sur `main`.
 
+## Ce qui n'est PAS traduit, volontairement
+
+Trois fichiers sont **identiques octet pour octet sur les deux branches** et
+restent en français :
+
+| Fichier | Pourquoi |
+|---|---|
+| `sync.sh` | il lit le Brain vivant de l'auteur, qui est en français |
+| `rules.json` | les motifs français SONT son métier, et sa prose les documente |
+| `.sync-manifest` | une empreinte de la SOURCE, pas du paquet |
+
+`rules.json` est inerte sur `main` ; il y est gardé pour que le dépôt reste
+complet et auditable, et identique pour que le porter soit un simple
+`git checkout fr --`.
+
+## Le glossaire — ce que la traduction renomme
+
+Le moteur est traduit, et le vocabulaire qu'il ÉCRIT SUR LE DISQUE aussi. Un
+portage qui renomme un côté et pas l'autre laisse la branche lire un fichier que
+personne n'écrit. Voici les paires ; on complète le tableau, on ne re-tranche pas.
+
+| sur `fr` | sur `main` | ce que c'est |
+|---|---|---|
+| `base_sur` / `contredit` / `remplace` | `based_on` / `contradicts` / `replaces` | relations typées du frontmatter |
+| `recall-utilite.json` | `recall-utility.json` | état écrit par `recall_feedback.py` |
+| `souvent-proposee-jamais-ouverte.json` | `often-suggested-never-opened.json` | état, même écrivain |
+| `inacheves.json` | `unfinished.json` | état écrit par `brain_guard.py` |
+| `a-revalider.json` | `to-revalidate.json` | état écrit par `fraicheur_fiches.py` |
+| `SEUIL_JOURS` | `THRESHOLD_DAYS` | variable d'environnement |
+| `brain_guard.py inacheves --reenfiler` | `brain_guard.py unfinished --requeue` | sous-commande |
+
+**Ce qui n'est PAS renommé** : les noms de FICHIER des hooks
+(`fraicheur_fiches.py`, `on_fiche_write.py` — `sync.sh` les copie par leur nom et
+`hooks/hooks.json` les liste), et les clés de frontmatter déjà anglaises
+(`name`, `description`, `born_from`, `redirectsTo`, `last_validated`). Les
+fichiers d'agents, eux, SONT renommés (`jardinier.md` → `gardener.md`).
+
+## Deux outils, une garantie — et le trou entre les deux
+
+`generalize.py` RÉÉCRIT ce qui ne doit pas sortir ; `leakcheck.py` REFUSE ce qui
+ne doit toujours pas sortir. Ils ne sont pas redondants, et aucun ne couvre
+l'autre :
+
+- Une règle de réécriture peut ABÎMER ce qu'elle touche. Le filet sur le nom du
+  propriétaire, un `Dylan` nu, a transformé deux en-têtes de copyright Apache en
+  `(c) 2026 l'auteur Peellaert`. leakcheck ne pouvait pas le voir : il exempte
+  justement les lignes de copyright de ce marqueur. Le motif est désormais
+  `Dylan(?! Peellaert)`, et leakcheck couvre ce que ce négatif laisse passer
+  partout ailleurs.
+- **Retirer une règle ne laisse aucune trace rouge.** `banc-chemins-shell` a été
+  supprimée, et `capsule/banc/cycle.sh` est aussitôt reparti en public avec
+  `$HOME/claude-brain/` — le chemin privé de l'auteur. Aucun test ne lit un
+  chemin dans un commentaire, aucun compteur ne bouge. Quand tu supprimes une
+  règle, vérifie à la main ce qu'elle tenait.
+
 ## Tags
 
 | Branche | Tags | Qui l'installe |
