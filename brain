@@ -43,6 +43,38 @@ case "$cmd" in
     # latest trends (last 10 readings)
     if [ -f state/metrics.jsonl ]; then tail -10 state/metrics.jsonl; else echo "(no metrics yet)"; fi
     ;;
+  credit|quota)
+    # "can the agents spend RIGHT NOW?" — a one-token probe (~$0.00003) that asks
+    # the API instead of guessing. `--unblock` clears a block marker that has become
+    # false (cap topped up, account switched).
+    if [ "${2:-}" = "--unblock" ]; then
+      python3 -c "
+import json, sys, time
+sys.path.insert(0, 'hooks')
+import quota_probe as qp
+v = qp.probe()
+if not v['ok']:
+    print('⚠️  the probe says NO —', v['reason']); print('   marker left in place.'); raise SystemExit(7)
+json.dump({'blocked_until': 0, 'family': None, 'failures': 0, 'msg': 'ok — unblocked by hand',
+           'fingerprint': v['fingerprint'], 'last_probe': v['ts'], 'limits': v['limits']},
+          open('state/quota.json', 'w'))
+print('✅ block lifted — the agents can start again (verified by probe, HTTP', str(v['http']) + ')')
+"
+    else
+      python3 hooks/quota_probe.py
+      python3 -c "
+import json, time
+try: q = json.load(open('state/quota.json'))
+except Exception: raise SystemExit
+b = q.get('blocked_until', 0)
+if b and time.time() < b:
+    print()
+    print('⛔ maintenance FROZEN locally until', time.strftime('%d/%m %H:%M', time.localtime(b)))
+    print('   reason:', str(q.get('msg', ''))[:100])
+    print('   the probe will retry on its own (≤ 15 min) — or: brain credit --unblock')
+"
+    fi
+    ;;
   push|backup)
     git add -A
     git commit -q -m "manual backup via brain $(date +%F\ %H:%M)" || echo "(nothing to commit)"
@@ -64,7 +96,8 @@ case "$cmd" in
     cat "$HOME/.c-brain/VERSION" 2>/dev/null || echo "(unknown version)"
     ;;
   *)
-    echo "Usage: brain <status|doctor|audit|review|recall|next|coherence|utility|embed|push|metrics|selftest|backup|update|demo|version>"
+    echo "Usage: brain <status|doctor|audit|review|recall|next|coherence|utility|credit|embed|push|metrics|selftest|backup|update|demo|version>"
+    echo "        (credit: can the agents spend? — --unblock lifts a block that has become false)"
     echo "       (recall accepts --semantic for the embeddings backend)"
     exit 1
     ;;

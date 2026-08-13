@@ -153,11 +153,31 @@ def main():
                 print(f"     {sid[:8]}")
 
         if d["post_infra"]:
+            # Since 2026-08-13 this list is no longer merely OBSERVED: launchd drains
+            # it (one an hour, cf. resume_pending.backlog_to_catch_up). So we state
+            # the fate of each line, otherwise the display suggests a backlog that
+            # sleeps — which is exactly what it did for three weeks.
+            try:
+                import resume_pending as rp
+                log = rp._log()
+                grace, floor, cap = rp.OPEN_SESSION_GRACE, rp.MIN_BACKLOG_LINES, rp.MAX_ATTEMPTS
+            except Exception:
+                log, grace, floor, cap = {}, 2 * 3600, 60, 2
+
+            def _fate(t):
+                if log.get(t["sid"], {}).get("attempts", 0) >= cap:
+                    return "given up (2 failures)"
+                if t["n"] < floor:
+                    return "too short, ignored"
+                if time.time() - t["mtime"] < grace:
+                    return "session may still be open"
+                return "will be caught up"
+
             print(f"\n  🟠 Substantial sessions left undistilled SINCE the automatic system "
-                  f"({len(d['post_infra'])}) — vraies candidates au rattrapage :")
+                  f"({len(d['post_infra'])}) — drained 1/hour by launchd:")
             for t in d["post_infra"]:
                 when = time.strftime("%m-%d %H:%M", time.localtime(t["mtime"]))
-                print(f"     {when}  {t['n']:>5} lignes  {t['sid'][:8]}")
+                print(f"     {when}  {t['n']:>5} lines  {t['sid'][:8]}  → {_fate(t)}")
         else:
             print(f"\n  ✅ No undistilled session since the automatic system started.")
 
