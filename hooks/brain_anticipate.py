@@ -67,9 +67,16 @@ def collect():
 
 def main():
     items = collect()[:4]
-    if not items:
-        return
     mode_hook = "--hook" in sys.argv
+    if not items:
+        # As a HOOK, say nothing: an empty trunk must not add a line to every
+        # prompt. As a COMMAND, say so — `brain next` is a display command, and
+        # a display command that prints nothing cannot be told apart from a
+        # broken one. That silence is exactly what selftest §8 goes red on, on
+        # a brand-new trunk where having no resume point is the normal state.
+        if not mode_hook:
+            print("🧭 No pending resume point.")
+        return
     if mode_hook:
         print("<brain-resume> Pending resume points (from your project notes, "
               "newest first) — offer to continue if relevant:")
