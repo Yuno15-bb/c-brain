@@ -12,7 +12,7 @@ Règle d'or : ne JAMAIS bloquer ni faire échouer la session. Sort toujours 0.
 import sys, os, json, re, glob, subprocess
 from datetime import datetime
 
-BRAIN = os.path.expanduser("~/.c-brain/trunk")
+BRAIN = (os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk"))
 # Nom du dossier transcripts = $HOME avec "/" -> "-" (convention Claude Code).
 # NE JAMAIS coder le nom d'utilisateur en dur ici (a cassé silencieusement la
 # distillation lors de la migration d'un compte utilisateur vers un autre, cf. [[restauration-machine-2026-07-22]]).
@@ -170,33 +170,43 @@ def write_archive_note(data, cache):
     return fn
 
 def commit_brain():
-    try:
-        subprocess.run(["git", "-C", BRAIN, "add", "-A"], capture_output=True, timeout=20)
-        diff = subprocess.run(["git", "-C", BRAIN, "diff", "--cached", "--quiet"], timeout=20)
-        if diff.returncode == 0:
-            return  # rien à commit
-        subprocess.run(["git", "-C", BRAIN,
-                        "-c", "user.name=C Brain", "-c", "user.email=brain@local",
-                        "commit", "-q", "-m",
-                        f"auto: archivage session ({datetime.now():%Y-%m-%d %H:%M})"],
-                       capture_output=True, timeout=20)
-        push_brain()
-    except Exception:
-        pass
+    """DÉSACTIVÉ le 2026-08-03 — Phase 0 du RFC Brain V3.
 
-def push_brain():
-    """Pousse vers le remote si configuré. Silencieux et non bloquant (hors-ligne OK)."""
-    try:
-        has_remote = subprocess.run(["git", "-C", BRAIN, "remote"],
-                                    capture_output=True, text=True, timeout=10)
-        if not has_remote.stdout.strip():
-            return  # pas de remote → rien à pousser
-        subprocess.run(["git", "-C", BRAIN, "push", "--quiet"],
-                       capture_output=True, timeout=30)
-    except Exception:
-        pass  # hors-ligne ou push refusé → on ne bloque jamais la fin de session
+    Ce qui était fait ici : `git add -A`, commit, puis push. Donc TOUT ce qui
+    avait changé dans le tronc partait, pas seulement l'archive de session.
+
+    Ce que ça a produit : le commit e61fd01 « auto: archivage session » a avalé
+    et poussé 19 fichiers d'un chantier de refonte en cours — MEMORY.md, 12
+    hooks, la suite de tests. 612 commits de ce type existent dans l'historique.
+    Un fichier partiel, un brouillon ou un secret en attente de nettoyage suivait
+    le même chemin, sans que rien ne le signale.
+
+    Pourquoi une simple liste blanche ne suffirait pas : des fichiers déjà
+    présents dans l'index git seraient embarqués quand même. Le commit sûr
+    demande un index isolé (GIT_INDEX_FILE) ou un worktree dédié, un manifeste
+    exact, une comparaison du diff final au manifeste, puis UN commit. Ça se
+    construit dans le lab, pas ici.
+
+    Le push automatique ne revient qu'après ce dispositif. En attendant, la
+    sauvegarde distante est assurée par le coffre chiffré (restic →
+    Yuno15-bb/brain-backup), pas par un commit opportuniste.
+
+    Archiver n'écrit plus dans git : l'archive est posée sur le disque, et c'est
+    un humain qui décide ce qui entre dans l'historique.
+    """
+    return
 
 def main():
+    # ANTI-RÉCURSION (Phase 0 du RFC Brain V3, 2026-08-03).
+    # Les agents de maintenance sont lancés en headless au SessionEnd ; leur
+    # propre fin de session redéclenchait CE hook. Résultat : des archives
+    # d'agents mêlées aux vraies sessions, et — tant que commit_brain écrivait
+    # dans git — des commits intermédiaires posés avant même que la distillation
+    # soit validée. auto_maintain et desktop_sync avaient déjà cette garde ;
+    # archive_session ne l'avait pas.
+    if os.environ.get("CLAUDE_BRAIN_GARDENING") == "1":
+        sys.exit(0)
+
     try:
         raw = sys.stdin.read()
         data = json.loads(raw) if raw.strip() else {}

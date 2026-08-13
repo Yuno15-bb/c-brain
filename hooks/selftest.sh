@@ -59,6 +59,53 @@ python3 tests/invariants_brain.py >/dev/null 2>&1 \
   && ok "invariants_brain (7 relations)" \
   || ko "invariants_brain — un invariant du tronc est violé (python3 tests/invariants_brain.py)"
 
+# 8. LA PORTE D'ENTRÉE — le CLI `brain` lui-même (ajouté le 2026-08-04).
+#    LE TROU QUI A COÛTÉ 6 SEMAINES : ce selftest ne testait QUE des hooks. `brain` n'est pas un
+#    hook, donc rien ne l'exerçait — et `brain status` appelait depuis le 2026-06-22 un
+#    `brain_status.py show` qui N'EXISTAIT PAS. Le mot « show » était pris pour un ÉTAT et ÉCRIT
+#    dans status.json : sortie vide, code 0, capsule corrompue. Le commit qui a introduit le bug
+#    est CELUI QUI A CRÉÉ CE SELFTEST, et il annonçait « 12/12 OK ».
+#    La leçon est dans le critère : « sort en code 0 » ne teste pas une commande dont le métier
+#    est d'AFFICHER. On assarte donc sur la SORTIE, et sur l'ABSENCE d'effet de bord.
+avant=$(cat state/status.json 2>/dev/null)
+for c in "" next; do
+  out=$(./brain $c 2>&1)
+  [ -n "$out" ] \
+    && ok "brain ${c:-status} produit une sortie ($(echo "$out" | wc -l | tr -d ' ') ligne(s))" \
+    || ko "brain ${c:-status} ne sort RIEN — une commande d'affichage muette est cassée, même en code 0"
+done
+# une commande de LECTURE ne doit jamais muter l'état que lit la capsule
+[ "$(cat state/status.json 2>/dev/null)" = "$avant" ] \
+  && ok "brain status n'a pas modifié state/status.json (lecture pure)" \
+  || ko "brain status a MUTÉ status.json — c'est exactement le bug du 2026-06-22"
+# un état inconnu doit être REFUSÉ, pas enregistré (sinon une faute de frappe empoisonne la capsule)
+python3 hooks/brain_status.py etat-bidon >/dev/null 2>&1
+[ $? -eq 2 ] && [ "$(cat state/status.json 2>/dev/null)" = "$avant" ] \
+  && ok "brain_status refuse un état inconnu (exit 2, fichier intact)" \
+  || ko "brain_status a accepté un état inconnu — n'importe quelle faute de frappe casse la capsule"
+# toutes les sous-commandes annoncées dans l'usage existent-elles vraiment dans le case ?
+if python3 - <<'PYEOF'
+import re, subprocess, sys, os
+brain = os.path.expanduser("~/.c-brain/trunk/brain")
+usage = subprocess.run([brain, "commande-inexistante"], capture_output=True, text=True)
+m = re.search(r"brain <([^>]*)>", usage.stdout + usage.stderr)
+annoncees = set(m.group(1).split("|")) if m else set()
+src = open(brain).read()
+# toutes les alternatives de toutes les étiquettes de `case`
+implementees = set()
+for lab in re.findall(r"^\s{2}([a-z|]+)\)", src, re.M):
+    implementees |= set(lab.split("|"))
+manquantes = sorted(annoncees - implementees)
+if not annoncees:
+    print("usage introuvable", file=sys.stderr); sys.exit(1)
+if manquantes:
+    print("annoncées mais absentes : " + " ".join(manquantes), file=sys.stderr); sys.exit(1)
+print(f"{len(annoncees)} sous-commandes annoncées, toutes implémentées")
+PYEOF
+then ok "usage ↔ case : aucune sous-commande annoncée à vide"
+else ko "l'usage de brain annonce une sous-commande qui n'existe pas (c'est CE type d'écart qui a créé le bug du 2026-06-22)"
+fi
+
 echo
 [ $fail -eq 0 ] && echo "✅ selftest OK — tous les hooks sains" || echo "❌ selftest : des hooks sont cassés"
 exit $fail

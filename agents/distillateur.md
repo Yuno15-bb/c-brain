@@ -33,6 +33,18 @@ metadata:
 ```
 - `feedback` et `project` → ajoute des lignes **Why:** et **How to apply:**.
 - Relie aux fiches voisines avec `[[slug]]` (lier généreusement, même vers une fiche pas encore écrite).
+- **Type le lien AU MOMENT où tu le poses**, quand il tombe dans un des trois cas — et
+  seulement ceux-là. Tu sais déjà pourquoi tu relies deux fiches pendant que tu écris ;
+  le coût est nul maintenant, et personne ne le retrouvera après. Ajoute au frontmatter,
+  **sans retirer** le `[[slug]]` du corps :
+  ```yaml
+  relations:
+    base_sur:  [fiche-fondatrice]    # ta fiche PRÉSUPPOSE l'autre
+    contredit: [fiche-en-conflit]    # les deux ne peuvent pas être vraies ensemble
+    remplace:  [fiche-perimee]       # l'autre est morte, la tienne prend la suite
+  ```
+  Dans le doute, **laisse le lien nu** : un lien nu veut dire « lié », c'est une réponse
+  honnête. Un type posé au hasard vaut moins que pas de type. Détail : les règles de jardinage §4 bis.
 
 ## Principe directeur : DISTILLER, pas archiver
 - Une session de 2 messages « comment je liste un dossier » ne mérite **aucune** fiche.

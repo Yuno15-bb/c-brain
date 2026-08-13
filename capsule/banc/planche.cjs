@@ -56,10 +56,15 @@ app.whenReady().then(async () => {
        le pavé de code et le libellé, qui n'ont pas de z-index. Toutes les
        planches depuis le 03/08 montrent donc une orbe MUETTE, et j'ai failli
        corriger le pavé sur la foi de cette image. Le fond suffit à lui seul
-       (z-index:-1) ; on remonte explicitement les deux surcouches. */
+       (z-index:-1) ; on remonte explicitement les surcouches.
+       ⚠ 2026-08-08 : #fiche manquait à l'appel — la ligne « sur quoi » était
+         donc ABSENTE de toutes les planches, alors même que le banc prend soin
+         de lui poser un vrai slug juste en dessous. Une planche qui ne montre
+         pas la ligne dont on juge la lisibilité ne prouve rien. */
     document.getElementById('scene').style.zIndex = '0';
     document.getElementById('pave').style.zIndex = '2';
     document.getElementById('dit').style.zIndex = '2';
+    document.getElementById('fiche').style.zIndex = '2';
     return true; })()`);
 
   const FONDS_DEMANDES = (process.env.BANC_FONDS || 'bureau,clair,sombre').split(',');

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# C Brain — Copyright (c) 2026 Dylan Peellaert.
+# C Brain — Copyright (c) 2026 l'auteur Peellaert.
 # Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
 """
 recall_benchmark.py — le rappel, il est bon à quel point, au juste ?

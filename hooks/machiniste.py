@@ -23,7 +23,7 @@ Usage :
 import json, os, re, subprocess, sys, time
 from datetime import datetime, timezone
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 STATE = os.path.join(BRAIN, "state")
 SNAPSHOT = os.path.join(STATE, "machiniste.json")       # dernier état, écrasé
 JOURNAL = os.path.join(STATE, "machiniste.jsonl")       # historique, append-only

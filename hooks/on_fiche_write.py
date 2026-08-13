@@ -3,7 +3,8 @@
 Hook PostToolUse (Write|Edit) du C Brain — garde mécanique instantanée.
 À CHAQUE fiche déposée dans le tronc, sans LLM, sans boucle, sans bloquer :
   1. masque tout secret en clair
-  2. garantit que la fiche est dans la carte MEMORY.md (sinon -> Inbox "à classer")
+  2. garantit que la fiche est dans la carte MEMORY.md + lessons/INDEX.md
+     (sinon -> Inbox "à classer")
   3. signale si le frontmatter manque
 
 Anti-boucle : ce script édite les fichiers en I/O direct Python (pas via l'outil
@@ -19,8 +20,10 @@ try:
 except Exception:
     def write_status(*a, **k): pass
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 MEMORY = os.path.join(BRAIN, "MEMORY.md")
+LESSONS_INDEX = os.path.join(BRAIN, "lessons", "INDEX.md")
+MAP_RELS = {"MEMORY.md", os.path.join("lessons", "INDEX.md")}
 INBOX_HEADER = "## 🆕 Inbox — fiches à classer (auto)"
 
 SECRET = re.compile(
@@ -44,13 +47,13 @@ def main(data):
 
     # --- pulse de statut pour la capsule (toute activité sur l'arbre) ---
     name = os.path.basename(rel)[:-3] if rel.endswith(".md") else os.path.basename(rel)
-    if rel == "MEMORY.md":
+    if rel in MAP_RELS:
         write_status("busy", "mapping", "mise à jour de la carte")
     elif rel.endswith(".md") and not rel.startswith("sessions" + os.sep):
         write_status("busy", "filing", name)
 
     # exclure la carte elle-même, l'archive auto, et les non-.md du travail mécanique
-    if rel == "MEMORY.md" or rel.startswith("sessions" + os.sep) or not rel.endswith(".md"):
+    if rel in MAP_RELS or rel.startswith("sessions" + os.sep) or not rel.endswith(".md"):
         return
     if not os.path.exists(real):
         return
@@ -104,15 +107,20 @@ def main(data):
     slug = m.group(1).strip() if m else None
     fname = os.path.basename(rel)[:-3]
 
-    # --- 2. garantir la présence dans la carte ---
+    # --- 2. garantir la présence dans la carte composée ---
     try:
         mem = open(MEMORY, encoding="utf-8").read()
     except Exception:
         return
-    linked = (rel in mem) or (fname in mem) or (slug and f"[[{slug}]]" in mem) \
-             or (slug and f"({rel})" in mem)
+    try:
+        lessons_index = open(LESSONS_INDEX, encoding="utf-8").read()
+    except Exception:
+        lessons_index = ""  # repli migration/récupération : l'Inbox reste fonctionnelle
+    card = mem + "\n" + lessons_index
+    linked = (rel in card) or (fname in card) or (slug and f"[[{slug}]]" in card) \
+             or (slug and f"({rel})" in card)
     # F2 — pendant une passe de maintenance (CLAUDE_BRAIN_GARDENING=1), c'est le
-    # jardinier qui possède la carte : il range les fiches DANS MEMORY.md et vide
+    # jardinier qui possède la carte : il range les fiches dans MEMORY/lessons INDEX et vide
     # l'Inbox. Déposer en parallèle dans l'Inbox créerait une course (re-déposer une
     # fiche qu'il vient de classer). On garde le masquage des secrets et le capteur de
     # cohérence (au-dessus, toujours actifs) mais on saute le dépôt Inbox ici.

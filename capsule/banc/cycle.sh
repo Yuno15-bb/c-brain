@@ -8,12 +8,12 @@
 #   ment. Le lancer DÉTACHÉ, puis ne plus rien exécuter jusqu'à la fin.
 #
 # ⚠ Il pilote l'orbe DÉJÀ LANCÉE — il n'en ouvre pas une. Vérifier avant :
-#     pgrep -f "c-brain/trunk/capsule" | wc -l     (0 = rien à regarder)
+#     pgrep -f "claude-brain/capsule" | wc -l     (0 = rien à regarder)
 #
 # Usage :  ./banc/cycle.sh [secondes par état]     (défaut 4)
 set -u
 PAUSE="${1:-4}"
-STATUS="$HOME/.c-brain/trunk/hooks/brain_status.py"
+STATUS="$HOME/claude-brain/hooks/brain_status.py"
 
 # L'ordre suit les FAMILLES, pas l'alphabet : on voit chaque mécanique monter en
 # intensité, puis basculer dans la suivante. Un ordre alphabétique ferait sauter

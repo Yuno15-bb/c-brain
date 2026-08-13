@@ -12,7 +12,7 @@ Sous-agents Claude Code natifs qui entretiennent et nourrissent le tronc. Fichie
 ## Les agents
 
 - **[distillateur](distillateur.md)** — crée le savoir : transforme les sessions brutes (`sessions/archive/`, transcripts) en fiches/leçons propres, ou met à jour l'existant. *Ne range pas l'arbre globalement* (c'est le jardinier).
-- **[jardinier](jardinier.md)** — range l'arbre : déduplique, garantit que chaque fiche est dans `MEMORY.md`, tisse/répare les liens `[[...]]` **évidents**, masque les secrets, traite cohérence/utilité. *Ne crée pas de savoir.*
+- **[jardinier](jardinier.md)** — range l'arbre : déduplique, garantit que chaque fiche est dans la carte (`MEMORY.md` + `lessons/INDEX.md`), tisse/répare les liens `[[...]]` **évidents**, masque les secrets, traite cohérence/utilité. *Ne crée pas de savoir.*
 - **[architecte](architecte.md)** — cohésion **globale** : lit toute la topologie du graphe (`hooks/brain_topology.py`) pour tisser les liens **manquants**, relier les fiches isolées, raccrocher les îlots détachés, privilégier les ponts inter-domaines. *Vue d'ensemble, là où le jardinier range fiche par fiche.*
 - **[challenger](challenger.md)** — met le savoir à l'épreuve : traque le périmé, le faux, le contredit, le survendu ; produit des doutes étayés (`state/challenges.json`). *Ne corrige rien — il doute.*
 - **[synthetiseur](synthetiseur.md)** — savoir de second ordre : relie un thème transverse à travers plusieurs projets en un essai dense (`lessons/`). *Crée la vision d'ensemble qu'aucune fiche ne dit seule.*

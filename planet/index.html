@@ -97,6 +97,27 @@
 
   #hint{ position:fixed; bottom:14px; right:16px; font-size:10px; opacity:.5; text-align:right; line-height:1.6; }
 
+  /* ── PETIT ÉCRAN (téléphone, via `distant/`) ───────────────────────────────
+     La planète est née sur un 27 pouces : ses panneaux sont posés dans les
+     quatre coins d'un écran large. À 390 px de large, la légende des dix-huit
+     régions et l'aide à la souris recouvrent le globe qu'elles commentent —
+     et l'aide parle de molette et de survol, deux gestes qui n'existent pas
+     sur un écran tactile.
+     On ne redessine rien : sous 520 px on RETIRE ce qui ne sert pas là-bas et
+     on resserre le reste. Aucune de ces règles ne peut atteindre le bureau. */
+  @media (max-width: 520px) {
+    #hint  { display:none; }
+    #legend{ font-size:9px; line-height:1.5; max-height:32vh; opacity:.7;
+             bottom:8px; left:10px; columns:2; column-gap:12px; }
+    #hud   { top:8px; left:10px; }
+    #title { font-size:11px; }
+    #counts, #viewtag, #livenow, #session { font-size:9.5px; }
+    #modes { flex-wrap:wrap; }
+    /* la fiche survolée devient une feuille en bas, pas une colonne de droite */
+    #tip   { right:8px; left:8px; width:auto; max-width:none; top:auto; bottom:8px;
+             transform:none; font-size:12px; }
+  }
+
   /* viewer 3D rejouable (Étage 4) */
   #viewer{ position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
     background:radial-gradient(ellipse at center, rgba(16,20,30,0.96), rgba(3,4,7,0.985)); }

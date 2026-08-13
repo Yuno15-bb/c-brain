@@ -11,6 +11,11 @@ qui préemptait l'architecte — et un check_coherence mort en KeyError sur la m
 """
 import json, os, sys, unittest
 
+# BRAIN_HOME rend la suite HERMÉTIQUE (Phase 1 du RFC Brain V3, 2026-08-03).
+# Sans elle, SensorNeverStuck écrit dans le VRAI state/coherence.json et le
+# restaure ensuite depuis une copie mémoire : un crash entre les deux laisse
+# l'état de production écrasé par une valeur de test. Le défaut par défaut reste
+# la racine du dépôt, donc `python3 tests/invariants_brain.py` ne change pas.
 # Deux racines DISTINCTES, et c'est volontaire :
 #  · CODE  — d'où viennent les hooks à importer. Suit le fichier, car le moteur
 #    peut vivre ailleurs que le tronc (installation par symlinks).
@@ -113,6 +118,57 @@ class ModeleParAgentCoucheUn(unittest.TestCase):
         m = ns["MODEL_L1"]
         self.assertGreaterEqual(self.RANG[m["distillateur"]], self.RANG[m["jardinier"]],
                                 "le distillateur (irréversible) tourne sous le jardinier (rejouable)")
+
+
+class CarteComposeeSansPollution(unittest.TestCase):
+    """INVARIANT : l'index secondaire allège le démarrage sans devenir du savoir."""
+
+    REL_INDEX = os.path.join("lessons", "INDEX.md")
+
+    def test_memory_garde_sa_marge_de_chargement(self):
+        import brain_doctor
+        size = os.path.getsize(os.path.join(BRAIN, "MEMORY.md"))
+        self.assertLessEqual(size, brain_doctor.MEMORY_WARN_BYTES)
+
+    def test_index_structurel_est_exclu_des_moteurs_de_savoir(self):
+        import brain_recall
+        import brain_topology
+        import brain_utility
+        import track_read
+        self.assertTrue(brain_recall._skip(self.REL_INDEX))
+        self.assertIn(self.REL_INDEX, brain_topology.STRUCTURAL_MAPS)
+        self.assertIn(self.REL_INDEX, brain_utility.STRUCTURAL_MAPS)
+        self.assertIn(self.REL_INDEX, track_read.STRUCTURAL_MAPS)
+
+    def test_catalogues_infra_sont_exclus_du_rappel(self):
+        import brain_recall
+        for rel in ("agents/jardinier.md", "state/a-valider.md",
+                    "capsule-v2/README.md", self.REL_INDEX):
+            with self.subTest(rel=rel):
+                self.assertTrue(brain_recall._skip(rel))
+
+
+class SignalDeContexte(unittest.TestCase):
+    """INVARIANT : l'alerte de contexte ne dépend pas d'un résultat de rappel."""
+
+    def test_somme_usage_partagee(self):
+        import context_usage
+        self.assertEqual(context_usage.usage_tokens({
+            "input_tokens": 10,
+            "cache_read_input_tokens": 20,
+            "cache_creation_input_tokens": 30,
+        }), 60)
+
+    def test_alerte_strictement_au_dessus_de_300k(self):
+        import inject_recall
+        original = inject_recall.read_context_tokens
+        try:
+            inject_recall.read_context_tokens = lambda _path: 300_000
+            self.assertIsNone(inject_recall.context_notice({"transcript_path": "x"}))
+            inject_recall.read_context_tokens = lambda _path: 300_001
+            self.assertIn("300k tokens", inject_recall.context_notice({"transcript_path": "x"}))
+        finally:
+            inject_recall.read_context_tokens = original
 
 
 if __name__ == "__main__":

@@ -54,11 +54,54 @@ def touch_status():
     except Exception:
         pass
 
+ETATS = ("busy", "idle")   # le 1er argument est un ÉTAT ; l'activité est le 2e
+
+
+def show_status():
+    """AFFICHE le statut courant. Ne l'écrit JAMAIS.
+
+    Existe depuis le 2026-08-04. Avant : `brain status` appelait `brain_status.py show`,
+    or ce fichier n'était qu'un ÉCRIVAIN — « show » était donc pris pour un état et
+    ENREGISTRÉ dans status.json. Résultat : la commande phare du CLI n'affichait rien
+    (sortie vide, code 0, donc les replis `||` du script `brain` ne partaient pas) et
+    corrompait au passage l'état que lit la capsule. Deux fautes en une ligne."""
+    try:
+        with open(STATUS, "r", encoding="utf-8") as f:
+            s = json.load(f)
+    except FileNotFoundError:
+        print("(aucun statut : state/status.json absent)")
+        return 0
+    except Exception as e:
+        print(f"(statut illisible : {e})")
+        return 1
+    age = time.time() - (s.get("ts") or 0)
+    frais = age < 120
+    etat = s.get("state") or "?"
+    if etat not in ETATS:
+        etat += "  ⚠️ état inconnu (status.json a été corrompu par un appel fautif)"
+    print(f"état     : {etat}")
+    print(f"activité : {s.get('activity') or '—'}")
+    print(f"détail   : {s.get('detail') or '—'}")
+    print(f"source   : {s.get('source') or '—'}")
+    quand = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(s.get('ts') or 0))
+    print(f"depuis   : {quand}  ({int(age)} s — {'frais' if frais else 'PÉRIMÉ, la capsule le lit comme idle'})")
+    return 0
+
+
 if __name__ == "__main__":
     a = sys.argv
-    if len(a) > 1 and a[1] == "touch":
+    cmd = a[1] if len(a) > 1 else "idle"
+    if cmd == "touch":
         touch_status()
+    elif cmd in ("show", "status"):
+        sys.exit(show_status())
+    elif cmd in ETATS:
+        write_status(cmd, a[2] if len(a) > 2 else None, a[3] if len(a) > 3 else None)
     else:
-        write_status(a[1] if len(a) > 1 else "idle",
-                     a[2] if len(a) > 2 else None,
-                     a[3] if len(a) > 3 else None)
+        # REFUSER plutôt qu'enregistrer : n'importe quel mot était accepté comme état, donc
+        # une faute de frappe empoisonnait silencieusement le fichier que lit la capsule.
+        print(f"état inconnu : {cmd!r} — attendu {' | '.join(ETATS)} (ou touch / show).",
+              file=sys.stderr)
+        print("Usage : brain_status.py <busy|idle> [activité] [détail]  ·  ... touch  ·  ... show",
+              file=sys.stderr)
+        sys.exit(2)

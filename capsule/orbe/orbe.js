@@ -25,8 +25,10 @@
 // repos, haute pendant les transitions et le travail.
 import * as THREE from './vendor/three.module.js';
 
-export const MECANIQUES = { houle:0, balayage:1, plaques:2, ebullition:3,
-  ondeDeChoc:4, cellules:5, vortex:6, respiration:7, interference:8, eclats:9 };
+// Les constantes vivent dans `mecaniques.js` — un module SANS Three.js, pour
+// que `palettes.js` (les couleurs) n'ait pas à charger le moteur 3D pour dix
+// nombres. Réexportées ici : les appelants historiques ne changent pas.
+export { MECANIQUES } from './mecaniques.js';
 
 export const PHYSIQUES = [
   { id: 0,  nom: 'Houle',        desc: 'une seule échelle, lente et ronde' },
@@ -224,13 +226,39 @@ export function creerOrbe(canvas, mode, snoiseSrc, couleurs) {
           //     désormais sur la tranche, pas sur la surface pleine ;
           //   · le relief ne se dit plus par des taches sombres mais par la
           //     LUMIÈRE qui glisse dessus (horizon réfléchi + deux spéculaires).
+          // ── DOSAGES DE MATIÈRE (2026-08-08) ──────────────────────────────
+          // Demande de l'auteur, mot à mot : « les bordures sont transparentes,
+          // j'aimerais que ce le soit moins et plus organique, moins brillant,
+          // moins de reflets, qu'on voit mieux le milieu et le texte qui
+          // défile ». Quatre curseurs NOMMÉS plutôt qu'une réécriture : le
+          // réglage se refait en changeant quatre nombres, et le modèle de
+          // verre de la version précédente reste lisible dessous.
+          // ⚠ Ceci REVIENT EN PARTIE sur la note du 2026-08-04 qui rejetait
+          //   « la pâte translucide tachée de sombre » et son opacité plancher
+          //   de 0,42. La raison de ce rejet tenait : un cœur sombre OPAQUE
+          //   cachait le fond ET n'avait rien à montrer. Ce n'est plus le cas —
+          //   le pavé de code vit au centre depuis, et un cœur presque vide le
+          //   laisse tomber directement sur le bureau, où il devient illisible.
+          //   Le cœur porte donc à nouveau de la matière, mais SOMBRE et
+          //   modérée : elle sert de fond au texte vert, elle ne le recouvre pas.
+          const float BRILLANCE = 0.26;   // 1.0 = le verre poli d'avant
+          const float REFLET    = 0.34;   // part d'environnement réfléchi
+          const float COEUR     = 0.78;   // alpha au centre — porte le texte
+          const float BORD      = 0.30;   // ce que l'épaisseur ajoute par-dessus
+
           float ep=pow(1.0-d,1.55);
           // Le relief garde sa part d'épaisseur — sinon la mécanique, seul canal
           // lisible sans couleur, disparaît sous la transparence.
           ep=clamp(ep+smoothstep(0.10,-0.75,vDisp)*0.16,0.0,1.0);
+          // ⚠ ORGANIQUE = LE BORD SUIT LE RELIEF. Le liseré net d'avant dessinait
+          //   le même cercle quelle que soit la matière dessous : ça se lit comme
+          //   un contour d'interface posé sur l'objet. En modulant l'épaisseur
+          //   par le champ, la densité du bord ondule avec la mécanique.
+          ep=clamp(ep*(0.90+0.26*smoothstep(-0.9,0.9,vDisp)),0.0,1.0);
 
-          // TEINTE PAR ABSORPTION : rien au centre, dense sur la tranche.
-          vec3 teinte=uC2*(0.30+1.45*ep);
+          // TEINTE : le creux sombre revient AU CENTRE (fond du texte), la
+          // couleur de famille reste portée par l'épaisseur du bord.
+          vec3 teinte=mix(uC3*0.60,uC2*1.30,clamp(ep*1.30,0.0,1.0));
 
           // ⚠ IL N'Y A PAS DE FOND À RÉFLÉCHIR (fenêtre transparente, WebGL ne
           //   voit pas le bureau). On en FABRIQUE un : ciel clair en haut, sol
@@ -239,32 +267,44 @@ export function creerOrbe(canvas, mode, snoiseSrc, couleurs) {
           //   matière bouge, là où un simple point spéculaire reste collé.
           vec3 R=reflect(-V,N);
           float ciel=smoothstep(-0.10,0.30,R.y);
-          vec3 env=mix(vec3(0.07,0.09,0.13),vec3(0.88,0.93,1.0),ciel);
-          env+=vec3(1.0)*smoothstep(0.62,0.92,R.y)*0.45;   // la lucarne
+          // Ciel ASSOURDI (0,88→0,52) : à pleine clarté, l'horizon réfléchi
+          // repeignait la moitié haute de l'objet en blanc laiteux et mangeait
+          // le texte par transparence.
+          vec3 env=mix(vec3(0.05,0.06,0.09),vec3(0.52,0.57,0.66),ciel);
+          // ⚠ LA LUCARNE EST RETIRÉE — c'était le carré de lumière au zénith,
+          //   le signal le plus « bille de verre sous un spot » de tout le
+          //   rendu, et le premier que l'auteur désigne en disant « trop de reflet ».
           // Fresnel : un verre ne réfléchit presque rien de face, tout en biais.
-          float fres=0.06+0.94*pow(1.0-d,4.0);
+          float fres=(0.04+0.62*pow(1.0-d,4.0))*REFLET;
 
           // DEUX SPÉCULAIRES, pas un. Le dur donne le point de lumière qui dit
           // « poli » ; le large donne le vernis sur toute la face éclairée. Un
           // seul lobe étroit se lit comme du plastique.
+          // ⚠ Exposants ABAISSÉS en même temps que les gains : un lobe très
+          //   étroit (200) très atténué reste un point dur qui accroche l'œil.
+          //   Élargi et affaibli, il devient un lustre de matière mate.
           vec3 H=normalize(L+V);
-          float dur  =pow(max(dot(N,H),0.0),200.0)*uSweep;
-          float large=pow(max(dot(N,H),0.0), 14.0)*uSweep;
+          float dur  =pow(max(dot(N,H),0.0), 80.0)*uSweep*BRILLANCE;
+          float large=pow(max(dot(N,H),0.0), 10.0)*uSweep*BRILLANCE;
 
           // LA TRANCHE — un liseré FIN sur les tout derniers degrés avant la
           // silhouette. Sans lui le bord s'éteint en dégradé mou et l'objet a
           // l'air flou ; avec, il a une arête, comme un bord de verre poli.
           // ⚠ Il doit rester dans les 0,03 dernier de 'd' : plus large, il se
           //   lit comme un contour d'interface, pas comme une épaisseur.
-          float tranche=smoothstep(0.88,0.998,1.0-d);
-          vec3 verre=teinte + env*fres*0.85 + uRim*f*0.55
-                     + (uRim*0.45+vec3(0.55))*tranche*0.60
-                     + vec3(large)*0.22 + vec3(dur)*1.15;
-          // L'ALPHA fait le verre : cœur presque vide, tranche dense, et les
-          // reflets restent OPAQUES — un reflet translucide se lit comme une
-          // tache de peinture, pas comme une surface.
-          float a=clamp(0.10+0.86*ep + dur*1.0 + large*0.16 + fres*0.10
-                        + tranche*0.30,0.0,1.0);
+          // ⚠ Le liseré est désormais TEINTÉ (uRim domine, le blanc ne fait plus
+          //   qu'un appoint) : un liseré blanc sur les 360° du contour, c'est
+          //   exactement ce qui donnait l'arête de verre taillé.
+          float tranche=smoothstep(0.90,0.999,1.0-d);
+          vec3 verre=teinte + env*fres + uRim*f*0.42
+                     + (uRim*0.55+vec3(0.10))*tranche*0.45
+                     + vec3(large)*0.10 + vec3(dur)*0.45;
+          // L'ALPHA : le cœur n'est plus vide (COEUR), l'épaisseur du bord
+          // achève de le rendre franchement matiéré (BORD). Les reflets ne
+          // poussent presque plus l'opacité — ils ne doivent plus faire le
+          // volume à la place de la matière.
+          float a=clamp(COEUR + BORD*ep + dur*0.45 + large*0.06
+                        + tranche*0.22,0.0,1.0);
 
           gl_FragColor=vec4(mix(plein,verre,uVerre), mix(1.0,a,uVerre)); }`,
     }));

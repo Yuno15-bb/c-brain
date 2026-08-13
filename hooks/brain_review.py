@@ -27,12 +27,13 @@ Usage :
 """
 import os, re, sys, json, time, glob, subprocess
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 STATE = os.path.join(BRAIN, "state")
 HOOKS = os.path.join(BRAIN, "hooks")
 STALE_DAYS = 90                                     # « plus de trois mois »
 FICHE_DIRS = ("projects", "lessons", "meta", "life", "agents", "planet", "sessions")
 SKIP_PARTS = {".git", "node_modules", "audits", "capsule", "planet/dist"}
+STRUCTURAL_MAPS = {os.path.join("lessons", "INDEX.md")}
 
 
 def _rj(name, default):
@@ -58,6 +59,8 @@ def _fiches_in(dirs):
     for d in dirs:
         for p in glob.glob(os.path.join(BRAIN, d, "**", "*.md"), recursive=True):
             rel = os.path.relpath(p, BRAIN)
+            if rel in STRUCTURAL_MAPS:
+                continue
             if any(part in SKIP_PARTS for part in rel.split(os.sep)):
                 continue
             out.append((rel, p))
@@ -164,6 +167,7 @@ def build():
         "liens_morts": doctor.get("liens_morts", []),
         "orphelins": doctor.get("orphelins", []),
         "hors_index": doctor.get("hors_index", []),
+        "memory_trop_lourd": doctor.get("memory_trop_lourd", []),
         "nommage": doctor.get("nommage", []),
         "frontmatter": doctor.get("frontmatter", []),
         "drift_git": doctor.get("drift_git"),
@@ -198,7 +202,8 @@ def to_markdown(r):
         ("Chemins d'infra incohérents", "chemins_incoherents", "→ mécanicien : corriger l'infra"),
         ("Liens morts", "liens_morts", "→ mécanicien/jardinier"),
         ("Orphelins (hors carte)", "orphelins", "→ jardinier : indexer"),
-        ("Hors index (MEMORY.md)", "hors_index", "→ jardinier : indexer"),
+        ("Hors carte (MEMORY + lessons/INDEX)", "hors_index", "→ jardinier : indexer"),
+        ("MEMORY.md au-dessus de 20 ko", "memory_trop_lourd", "→ jardinier : alléger la carte de démarrage"),
     ]
     for label, key, who in rows:
         n = (r["n_composantes"] - 1 if key is None and r.get("n_composantes") else _n(r.get(key)))

@@ -30,6 +30,24 @@ def main():
     if os.environ.get("CLAUDE_BRAIN_GARDENING") == "1":
         return                              # on est déjà un headless
 
+    # Le gel des écrivains autonomes vit dans auto_maintain.main(), et ce chemin-ci
+    # ne passe PAS par main() : il appelle launch_agent directement. Le gel était
+    # donc contournable toutes les dix minutes par le launchd, sans que personne le
+    # voie. Même erreur que [[desarmer-le-hook-ne-suffit-pas-la-session-voisine-
+    # commite-aussi]] : un verrou posé chez UN appelant ne protège pas des autres.
+    # La file continue de se remplir — rien n'est perdu, tout attend le dégel.
+    if os.path.exists(os.path.join(am.BRAIN, "state", "FREEZE")):
+        return
+
+    # Les fiches au traitement INACHEVÉ, avant de regarder la file — sinon une fiche
+    # à moitié écrite avec une file vide ne serait jamais vue (le retour anticipé
+    # ci-dessous coupe le passage). Le contrôle ne lit que des fichiers locaux :
+    # zéro token, ~20 ms sur 314 fiches. Il plafonne lui-même ses reprises.
+    try:
+        guard.reenfiler_inacheves()
+    except Exception:
+        pass
+
     try:
         pending = json.load(open(QUEUE, encoding="utf-8"))
     except Exception:

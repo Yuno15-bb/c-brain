@@ -14,7 +14,7 @@ Déterministe et sans dépendance externe. Sort toujours 0 (ne bloque jamais un 
 """
 import os, re, json, sys
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 OUT = os.path.join(BRAIN, "planet", "graph.json")
 EMBED2 = os.path.join(BRAIN, "state", "embed2.json")   # carte SÉMANTIQUE (Étage 1), calculée par brain_embed2.py
 COACT = os.path.join(BRAIN, "state", "coactivation.json")  # mémoire de travail (Étage 2), calculée par coactivation.py
@@ -172,7 +172,8 @@ def clean_body(text):
 
 def scan():
     nodes = {}      # id -> {id, name, domain, group, desc, file}
-    raw_links = []  # (src_id, target_name)
+    raw_links = []   # (src_id, target_name)
+    types_liens = {}  # (src_id, target_name) -> "base_sur" | "contredit" | "remplace"
     embed2 = load_embed2()         # positions sémantiques par chemin de fiche (Étage 1)
     heat, coact_edges, live, live_window_min = load_coact()   # chaleur + liens d'usage + activité en direct (Étage 2)
     challenges = load_challenges()             # avis du challenger par fiche (Étage 3)
@@ -233,6 +234,12 @@ def scan():
                 # liens sortants (dédupliqués plus bas)
                 for tgt in set(LINK.findall(text)):
                     raw_links.append((nid, tgt.strip()))
+                # relations TYPÉES du frontmatter (cf. jardinage-regles §4 bis).
+                # Elles n'ajoutent pas d'arête : elles QUALIFIENT celle qui existe déjà,
+                # puisque la convention impose de garder le [[slug]] dans le corps.
+                for typ, cibles in _relations(text).items():
+                    for c in cibles:
+                        types_liens[(nid, c)] = typ
 
     # ne garde que les liens dont la cible est une fiche connue (pas les [[à écrire]])
     ids = set(nodes)
@@ -241,7 +248,11 @@ def scan():
     for src, tgt in raw_links:
         if tgt in ids and src != tgt and (src, tgt) not in seen and (tgt, src) not in seen:
             seen.add((src, tgt))
-            links.append({"source": src, "target": tgt})
+            arete = {"source": src, "target": tgt}
+            typ = types_liens.get((src, tgt)) or types_liens.get((tgt, src))
+            if typ:
+                arete["type"] = typ
+            links.append(arete)
 
     # ---------- APPARTENANCE (modèle continent/ville/frontière) ----------
     # « villes » = les sous-dossiers du domaine projects (chaque projet est une ville).
@@ -303,6 +314,27 @@ def scan():
         # liens d'USAGE (co-activation) : fiches activées ensemble en session, ≠ liens déclarés (Étage 2)
         "coact": [e for e in coact_edges if e[0] in ids and e[1] in ids],
     }
+
+
+TYPES_RELATION = ("base_sur", "contredit", "remplace")
+_REL_BLOC = re.compile(r"^relations:\s*$(.*?)(?=^\S|\Z)", re.M | re.S)
+_REL_LIGNE = re.compile(r"^\s+(\w+)\s*:\s*\[([^\]]*)\]", re.M)
+
+
+def _relations(text):
+    """Lit le bloc `relations:` du frontmatter. Silencieux si absent ou mal formé —
+    un frontmatter bancal ne doit jamais faire tomber l'export du graphe."""
+    fm = re.match(r"^---\n(.*?)\n---", text, re.S)
+    if not fm:
+        return {}
+    bloc = _REL_BLOC.search(fm.group(1) + "\n")
+    if not bloc:
+        return {}
+    out = {}
+    for typ, cibles in _REL_LIGNE.findall(bloc.group(1)):
+        if typ in TYPES_RELATION:
+            out[typ] = [c.strip().strip('"\'') for c in cibles.split(",") if c.strip()]
+    return out
 
 
 def main():

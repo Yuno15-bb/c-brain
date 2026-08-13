@@ -10,8 +10,9 @@ Signal fondé sur l'usage RÉEL, pas l'introspection. Sort toujours 0.
 """
 import sys, os, json, time
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 LOG = os.path.join(BRAIN, "state", "read_log.jsonl")
+STRUCTURAL_MAPS = {"MEMORY.md", os.path.join("lessons", "INDEX.md")}
 
 
 def main():
@@ -28,7 +29,7 @@ def main():
     if not real.startswith(BRAIN + os.sep) or not real.endswith(".md"):
         return
     rel = os.path.relpath(real, BRAIN)
-    if rel == "MEMORY.md" or rel.split(os.sep)[0] not in ("projects", "lessons", "life", "meta"):
+    if rel in STRUCTURAL_MAPS or rel.split(os.sep)[0] not in ("projects", "lessons", "life", "meta"):
         return
     try:
         os.makedirs(os.path.dirname(LOG), exist_ok=True)
@@ -46,7 +47,9 @@ def refresh_live():
     n'apparaîtrait qu'à la prochaine écriture de fiche ou à la fin de session — donc jamais en direct.
     Best-effort et silencieux : un échec ici ne doit rien casser du hook."""
     import subprocess
-    for script in ("coactivation.py", "graph_export.py"):
+    # recall_feedback : ferme la boucle usage → classement. Recalcule ici, au moment
+    # ou une lecture vient d'avoir lieu, plutot que d'ajouter une tache periodique.
+    for script in ("coactivation.py", "graph_export.py", "recall_feedback.py"):
         try:
             subprocess.run([sys.executable, os.path.join(BRAIN, "hooks", script)],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8)

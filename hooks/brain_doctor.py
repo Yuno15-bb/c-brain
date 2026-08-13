@@ -6,8 +6,9 @@ Vérifie, sans rien modifier :
   2. fiches orphelines (jamais ciblées par un lien),
   3. frontmatter complet (name / description / metadata.type) et name == nom de fichier,
   4. convention de nom kebab-case,
-  5. présence dans l'index MEMORY.md,
-  6. drift git (modifs non commitées).
+  5. présence dans la carte MEMORY.md + lessons/INDEX.md,
+  6. taille de MEMORY.md sous le seuil de chargement sûr,
+  7. drift git (modifs non commitées).
 
 Usage :
   brain_doctor.py            → rapport lisible + exit 0 (sain) / 1 (anomalies)
@@ -16,14 +17,17 @@ Usage :
 """
 import os, re, sys, json, subprocess, glob
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 MEMORY = os.path.join(BRAIN, "MEMORY.md")
+LESSONS_INDEX = os.path.join(BRAIN, "lessons", "INDEX.md")
+MEMORY_WARN_BYTES = 20_000
+STRUCTURAL_MAPS = {os.path.join("lessons", "INDEX.md")}
 LINKED_DIRS = ("projects", "lessons", "life", "meta")           # zones tissées
 # skip cohérent avec brain_recall/brain_embed : segments de DOSSIER (set) + préfixes (startswith).
 # L'ancien `"sessions/archive" in parts` (token multi-segment vs segment unique) ne matchait JAMAIS
 # → les ~130 notes d'archive + TIMELINE étaient comptées comme « fiches », polluant le compteur et
 # la courbe metrics.jsonl. cf. [[scan-skip-par-segment-pas-substring]]
-SKIP_DIRS = {".git", "node_modules", "capsule", "corpus", "audits"}
+SKIP_DIRS = {".git", "node_modules", "capsule", "corpus", "audits", "state"}
 SKIP_PREFIX = ("sessions",)   # toute la couche d'archive/timeline (≠ savoir tissé)
 # tokens qui apparaissent comme [[...]] mais sont des EXEMPLES de doc, pas des liens
 EXAMPLE_WHITELIST = {"slug", "nom-du-fichier", "exemples", "lien", "liens",
@@ -76,13 +80,18 @@ def frontmatter(text):
 
 def main():
     files = md_files()
+    checked_files = [
+        f for f in files if os.path.relpath(f, BRAIN) not in STRUCTURAL_MAPS
+    ]
     slugs = {os.path.splitext(os.path.basename(f))[0] for f in files}
-    memory = read(MEMORY)
+    memory = read(MEMORY) + "\n" + read(LESSONS_INDEX)
 
     all_links = set()
     problems = {"liens_morts": [], "orphelins": [], "frontmatter": [],
-                "nommage": [], "hors_index": []}
+                "nommage": [], "hors_index": [], "memory_trop_lourd": []}
 
+    # Les cartes structurelles contribuent les liens qu'elles portent, sans devenir
+    # elles-mêmes des fiches soumises aux invariants de frontmatter/nommage.
     for f in files:
         txt = read(f)
         all_links |= extract_links(txt)
@@ -93,7 +102,7 @@ def main():
             continue
         problems["liens_morts"].append(l)
 
-    for f in files:
+    for f in checked_files:
         rel = os.path.relpath(f, BRAIN)
         base = os.path.splitext(os.path.basename(f))[0]
         zone = rel.split(os.sep)[0]
@@ -118,11 +127,21 @@ def main():
             if base not in INDEX_EXEMPT and base not in all_links:
                 problems["orphelins"].append(base)
 
-            # 5. présence dans l'index MEMORY.md (par chemin ou par [[name]])
+            # 5. présence dans la carte (MEMORY.md + lessons/INDEX.md)
             if base not in INDEX_EXEMPT and base not in memory and rel not in memory:
                 problems["hors_index"].append(base)
 
-    # 6. drift git
+    # 6. garde-fou de chargement : alerte avant la limite effective (~24,4 ko).
+    try:
+        memory_bytes = os.path.getsize(MEMORY)
+    except OSError:
+        memory_bytes = 0
+    if memory_bytes > MEMORY_WARN_BYTES:
+        problems["memory_trop_lourd"].append(
+            f"MEMORY.md : {memory_bytes} octets > {MEMORY_WARN_BYTES}"
+        )
+
+    # 7. drift git
     drift = []
     try:
         r = subprocess.run(["git", "-C", BRAIN, "status", "--porcelain"],
@@ -132,8 +151,9 @@ def main():
         pass
 
     total = sum(len(v) for v in problems.values())
-    report = {"ok": total == 0, "total": total, "fiches": len(files),
-              "liens": len(all_links), "drift_git": len(drift), **problems}
+    report = {"ok": total == 0, "total": total, "fiches": len(checked_files),
+              "liens": len(all_links), "memory_bytes": memory_bytes,
+              "drift_git": len(drift), **problems}
 
     if "--json" in sys.argv:
         try:
@@ -145,8 +165,8 @@ def main():
         # historisation : une ligne compacte par run → tendance lisible dans le temps
         try:
             import time
-            lessons = len([f for f in files if os.path.relpath(f, BRAIN).startswith("lessons")])
-            metric = {"ts": int(time.time()), "fiches": len(files), "lecons": lessons,
+            lessons = len([f for f in checked_files if os.path.relpath(f, BRAIN).startswith("lessons")])
+            metric = {"ts": int(time.time()), "fiches": len(checked_files), "lecons": lessons,
                       "liens": len(all_links), "liens_morts": len(problems["liens_morts"]),
                       "orphelins": len(problems["orphelins"]),
                       "hors_index": len(problems["hors_index"]), "ok": report["ok"]}
@@ -161,7 +181,8 @@ def main():
               f"{len(drift)} modif(s) non commitée(s)")
         labels = {"liens_morts": "Liens morts", "orphelins": "Orphelins",
                   "frontmatter": "Frontmatter", "nommage": "Nommage",
-                  "hors_index": "Hors index"}
+                  "hors_index": "Hors carte",
+                  "memory_trop_lourd": "MEMORY.md trop lourd"}
         for k, lab in labels.items():
             if problems[k]:
                 print(f"  ⚠️  {lab} ({len(problems[k])}): " + ", ".join(map(str, problems[k][:12])))

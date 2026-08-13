@@ -66,11 +66,14 @@
      une interface ; elle épouse l'objet, elle ne le détoure pas. Et elle donne
      le contraste que le texte ne peut pas se donner à lui-même, sur un bureau
      clair comme sur un bureau sombre. */
-  #dit { position:absolute; left:50%; bottom:11px; transform:translateX(-50%);
+  #dit { position:absolute; left:50%; bottom:14.5px; transform:translateX(-50%);
          white-space:nowrap; color:rgba(255,255,255,.95);
-         font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
+         /* 2026-08-08 — +1,5 px sur les deux lignes à la demande de l'auteur. Le
+            libellé monte AUSSI : ne grossir que la ligne du dessous inverserait
+            la hiérarchie que la casse est seule à porter. */
+         font:600 9px/1.2 ui-sans-serif,-apple-system,sans-serif;
          letter-spacing:1.4px; text-indent:1.4px;
-         /* ⚠ L'OMBRE PORTÉE A ÉTÉ RETIRÉE (2026-08-04, demande de l'utilisateur :
+         /* ⚠ L'OMBRE PORTÉE A ÉTÉ RETIRÉE (2026-08-04, demande de l'auteur :
             « supprime l'ombre noire sous les WORKING / SYNTHESIZING »).
             C'était une ellipse sombre de 126 px posée derrière le libellé pour
             lui donner du contraste sur n'importe quel bureau. Elle tenait ce
@@ -97,22 +100,39 @@
        étiquette. Si les deux lignes avaient la même graisse et les mêmes
        majuscules, on lirait un bloc de deux libellés et le repère se perdrait.
        La hiérarchie se fait ici par la casse et la clarté, pas par la taille —
-       à 6 px, réduire encore rendrait le texte illisible.
+       la taille reste toutefois plancher, voir ci-dessous.
      ⚠ 146 px de large maximum, coupé par des points de suspension : un slug de
-       fiche fait couramment 60 caractères, et la fenêtre en fait 150. */
-  #fiche { position:absolute; left:50%; bottom:2px; transform:translateX(-50%);
+       fiche fait couramment 60 caractères, et la fenêtre en fait 150.
+     ⚠ 2026-08-08 — « on ne distingue pas l'écriture sous le WORKING » (l'auteur,
+       capture du vrai bureau). Trois causes cumulées, toutes corrigées ici :
+         · 6 px en graisse 500 : trop peu de matière par glyphe une fois
+           l'anticrénelage passé ;
+         · aucune séparation d'avec le fond — le texte du bureau traverse
+           ENTRE les lettres et brouille le mot. Le libellé du dessus y échappe
+           par ses capitales et son interlettrage, pas par sa taille ;
+         · collée à 2 px du bord bas, la ligne tombait pile dans la ligne de
+           texte du bureau qui suit.
+       Réponse : 7 px / 600, et un halo sombre à plusieurs couches SERRÉ sur les
+       glyphes. La hiérarchie tient toujours — capitales + interlettrage en
+       haut, casse normale en bas — donc 7 px ne fait pas des deux lignes un
+       bloc de deux libellés. */
+  #fiche { position:absolute; left:50%; bottom:3.5px; transform:translateX(-50%);
            max-width:146px; overflow:hidden; text-overflow:ellipsis;
            white-space:nowrap; text-align:center;
-           color:rgba(255,255,255,.92);
-           font:500 6px/1.25 ui-sans-serif,-apple-system,sans-serif;
+           color:#fff; letter-spacing:.1px;
+           font:600 8.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
            /* ⚠ Ombre PLUS APPUYÉE que celle du libellé, à l'inverse de ce que
               la hiérarchie laisserait croire : cette ligne est plus fine et
               plus longue, donc elle a moins de matière pour se détacher. Vue
               sur planche à fond clair, la version douce se noyait dans le
               texte de bureau derrière. Le rang se lit à la casse, pas à la
-              faiblesse du contraste. */
-           text-shadow:0 1px 2px rgba(4,7,12,.95),
-                       0 0 3px rgba(4,7,12,.75);
+              faiblesse du contraste.
+              Les deux couches serrées (1 px et 2 px) éteignent le fond entre
+              les lettres ; la troisième, large et faible, décolle le mot du
+              bureau sans dessiner de zone — une ombre, jamais un contour. */
+           text-shadow:0 1px 1.5px rgba(4,7,12,1),
+                       0 0 2px rgba(4,7,12,1),
+                       0 0 5px rgba(4,7,12,.8);
            opacity:0; transition:opacity .28s ease; pointer-events:none; }
   #fiche.vu { opacity:1; }
   /* Les trois points disent que ça CONTINUE — une passe d'agent dure des
@@ -142,7 +162,7 @@
      pavé se dimensionne sur le PLUS ÉTROIT, sinon il bave sur le bureau dans
      les états les plus fins — et c'est là qu'on le remarque, parce que le texte
      vert flotte alors dans le vide. 78 px laisse la marge du dégradé. */
-  /* ⚠ `mix-blend-mode:screen` RETIRÉ (2026-08-04), retour utilisateur « l'écriture
+  /* ⚠ `mix-blend-mode:screen` RETIRÉ (2026-08-04), retour de l'auteur « l'écriture
      en arrière-plan n'est pas assez claire ». `screen` ne peut qu'ÉCLAIRCIR :
      sur les crêtes claires de la matière il n'avait presque plus rien à
      ajouter, et le verre étant désormais traversant, le texte se retrouve
@@ -465,7 +485,21 @@ function lireFlux(etat) {
     dernierFichier = j.rel || j.file || dernierFichier;
     out.push({ t: '── ' + (j.rel || j.file || '?'), c: 'tete' });
     for (const d of j.diff) {
-      const t = d.replace(/\t/g, '  ').replace(/\s+$/, '');
+      // ⚠ L'INDENTATION DÉCENTRAIT TOUT LE PAVÉ (2026-08-08). Les lignes sont
+      //   CENTRÉES dans le disque, et `white-space:pre` conserve les espaces de
+      //   tête : une ligne indentée de douze espaces se centre AVEC eux, donc
+      //   son texte part vers la droite et sort du masque, pendant que la moitié
+      //   gauche du pavé reste vide. Visible dès qu'on regarde un fichier de
+      //   code profondément imbriqué — un shader, typiquement. On garde deux
+      //   espaces : assez pour voir qu'il y a un niveau, pas assez pour pousser
+      //   la ligne hors du disque. Et ça rend aussi 10 caractères utiles sur 19.
+      // ⚠ LE SIGNE DE DIFF PASSE AVANT L'INDENTATION — « +          vec3 x ». Un
+      //   premier essai n'ancrait le motif que sur l'espace (`^ {3,}`) : il ne
+      //   matchait donc AUCUNE ligne ajoutée ou retirée, c'est-à-dire presque
+      //   tout le pavé, et la planche est revenue identique. Le signe se capture
+      //   et se repose, sinon `classe()` ne reconnaît plus la ligne.
+      const t = d.replace(/\t/g, '  ').replace(/\s+$/, '')
+                 .replace(/^([+-]?) {2,}/, '$1 ');
       if (!t) continue;
       out.push({ t: t.slice(0, LARGEUR), c: classe(t) });
     }
