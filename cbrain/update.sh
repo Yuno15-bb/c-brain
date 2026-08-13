@@ -29,7 +29,8 @@ for a in "$@"; do
     --check) MODE="check" ;;
     --rollback) MODE="rollback" ;;
     --force) MODE="force" ;;
-    *) echo "Usage : brain update [--check] [--rollback] [--force]"; exit 1 ;;
+    --passer-en-anglais|--switch-en) MODE="switch" ;;
+    *) echo "Usage : brain update [--check] [--rollback] [--force] [--passer-en-anglais]"; exit 1 ;;
   esac
 done
 
@@ -65,8 +66,16 @@ current() { git -C "$ENGINE" describe --tags --exact-match 2>/dev/null || git -C
 # pas arriver ici : les deux branches divergent par construction, `main` étant
 # la traduction de `fr`. Si elles convergeaient un jour, il faudrait une famille
 # ENREGISTRÉE au lieu d'une famille déduite.
+# ⚠ FAMILLE ENREGISTRÉE — posée le 2026-08-13 avec la fin de la famille `-fr`.
+# La déduction ci-dessous lit la famille sur le tag INSTALLÉ. Elle est donc
+# incapable d'enregistrer un choix : une installation française qui bascule en
+# anglais retomberait sur `-fr` au moindre doute. Le fichier tranche, et il
+# n'existe que si quelqu'un l'a écrit — personne ne bascule tout seul.
+FAMILLE_FICHIER="$STATE/tag-family"
+
 family() {
   local tag branch
+  if [ -f "$FAMILLE_FICHIER" ]; then cat "$FAMILLE_FICHIER"; return; fi
   tag="$(git -C "$ENGINE" describe --tags --exact-match 2>/dev/null || true)"
   case "$tag" in
     *-fr) echo "-fr"; return ;;
@@ -90,6 +99,58 @@ latest_tag() {
   # vide qui, lui, gère déjà le cas proprement.
   git -C "$ENGINE" tag -l 'v*' | grep -E "$rx" | sort -V | tail -1 || true
 }
+
+# ─── Fin de la famille française ──────────────────────────────────────────
+#
+# POURQUOI CE BLOC EXISTE. `fr` a cessé d'être un produit le 2026-08-13 :
+# `publish.sh` y refuse tout tag. Or `latest_tag()` filtre PAR FAMILLE — une
+# installation `-fr` ne verra donc jamais un tag nu, et `brain update` lui
+# répondra « déjà à jour (v1.27.0-fr) » jusqu'à la fin des temps. Pas « la
+# famille s'arrête », pas « voici la suite » : un vert qui ment, et invisible
+# depuis chez l'auteur.
+#
+# Or le `update.sh` d'une install figée est figé lui aussi : AUCUN correctif
+# futur ne peut l'atteindre. Le seul canal qui reste est une dernière release
+# `-fr` — celle-ci — dont le CONTENU porte la bascule. Une install à
+# v1.27.0-fr voit v1.28.0-fr par sa propre logique de famille, l'installe
+# normalement, et se retrouve avec ce bloc en place.
+#
+# La bascule n'est jamais automatique : elle CHANGE LA LANGUE de l'outil, et
+# c'est exactement le bug que `tests/update_tag_family.sh` existe pour tenir.
+# On informe, l'utilisateur décide.
+version_nue() {   # la version la plus récente de la famille NUE, ou vide
+  git -C "$ENGINE" tag -l 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true
+}
+
+fin_de_famille() {   # affiche l'avis si la famille -fr est close pour cette install
+  [ "$(family)" = "-fr" ] || return 0
+  # ⚠ LA BONNE QUESTION est « ma famille a-t-elle encore quelque chose pour moi ? »,
+  #   pas « la famille anglaise est-elle plus récente ? ». Une install à
+  #   v1.27.0-fr qui a encore v1.28.0-fr devant elle n'est PAS en fin de famille :
+  #   lui parler de bascule la ferait sortir d'un arbre encore vivant.
+  [ "$(latest_tag)" = "$CUR" ] || return 0
+  local nue cur_nu
+  nue="$(version_nue)"
+  [ -n "$nue" ] || return 0                     # aucune famille nue → rien à proposer
+  cur_nu="${CUR%-fr}"
+  echo
+  echo "  ℹ️  $CUR est la DERNIÈRE version française — la famille s'arrête ici."
+  if [ "$cur_nu" != "$nue" ] && \
+     [ "$(printf '%s\n%s\n' "$cur_nu" "$nue" | sort -V | tail -1)" = "$nue" ]; then
+    echo "      Une version plus récente existe déjà en anglais : $nue"
+  else
+    echo "      La suite est publiée en anglais seulement (dernière en date : $nue)."
+  fi
+  echo "      Tes fiches ne bougent pas : seule la langue du MOTEUR change."
+  echo "      → brain update --passer-en-anglais"
+}
+
+if [ "$MODE" = "switch" ]; then
+  mkdir -p "$STATE"
+  : > "$FAMILLE_FICHIER"            # famille nue = suffixe vide, choix ENREGISTRÉ
+  echo "✅ Famille anglaise enregistrée. Mise à jour en cours…"
+  MODE="update"
+fi
 
 # ─── Retour arrière ───────────────────────────────────────────────────────
 if [ "$MODE" = "rollback" ]; then
@@ -124,6 +185,7 @@ NEW="$(latest_tag)"
 
 if [ "$CUR" = "$NEW" ] && [ "$MODE" != "force" ]; then
   say "déjà à jour ($NEW)."
+  fin_de_famille                    # « à jour » dans une famille close doit le DIRE
   exit 0
 fi
 
