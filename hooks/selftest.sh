@@ -67,12 +67,29 @@ python3 tests/invariants_brain.py >/dev/null 2>&1 \
 #    bug is THE VERY ONE THAT CREATED THIS SELFTEST, and it announced "12/12 OK".
 #    The lesson is in the criterion: "exits 0" does not test a command whose job is to DISPLAY.
 #    So we assert on the OUTPUT, and on the ABSENCE of side effects.
+#    ⚠ TWO FAULTS IN THIS BLOCK, PAID FOR IN CI ON 2026-08-13:
+#      · it assumed `./brain` inside the trunk. That is true FOR THE AUTHOR, whose trunk IS
+#        the repository. After a real install there is no `trunk/brain`: install.sh links
+#        `~/.c-brain/engine/brain` to `~/.local/bin/brain`. So the CLI is RESOLVED, never
+#        guessed.
+#      · `$(./brain 2>&1)` captured the shell's "No such file or directory" — so the
+#        assertion "it produces output" went GREEN on a MISSING command. That is exactly
+#        the fault this block exists to catch, committed inside the block itself.
+#        We read stdout ALONE, and we require exit 0 as well.
+BRAIN_CLI=""
+for c in "$BRAIN/brain" "$(command -v brain 2>/dev/null || true)"; do
+  [ -n "$c" ] && [ -x "$c" ] && { BRAIN_CLI="$c"; break; }
+done
+if [ -z "$BRAIN_CLI" ]; then
+  ko "brain CLI not found (neither $BRAIN/brain nor on PATH) — the front door is not being tested"
+else
 before=$(cat state/status.json 2>/dev/null)
 for c in "" next; do
-  out=$(./brain $c 2>&1)
-  [ -n "$out" ] \
+  # stdout ALONE: an error message on stderr must NEVER count as output.
+  out=$("$BRAIN_CLI" $c 2>/dev/null); rc=$?
+  [ $rc -eq 0 ] && [ -n "$out" ] \
     && ok "brain ${c:-status} produces output ($(echo "$out" | wc -l | tr -d ' ') line(s))" \
-    || ko "brain ${c:-status} prints NOTHING — a silent display command is broken, even at exit 0"
+    || ko "brain ${c:-status}: exit $rc, $([ -n "$out" ] && echo 'non-empty output' || echo 'NOTHING on stdout') — a silent display command is broken, even at exit 0"
 done
 # a READ command must never mutate the state the capsule reads
 [ "$(cat state/status.json 2>/dev/null)" = "$before" ] \
@@ -84,9 +101,9 @@ python3 hooks/brain_status.py bogus-state >/dev/null 2>&1
   && ok "brain_status refuses an unknown state (exit 2, file intact)" \
   || ko "brain_status accepted an unknown state — any typo breaks the capsule"
 # do all the subcommands announced in the usage really exist in the case?
-if python3 - <<'PYEOF'
+if BRAIN_CLI="$BRAIN_CLI" python3 - <<'PYEOF'
 import re, subprocess, sys, os
-brain = os.path.expanduser("~/.c-brain/trunk/brain")
+brain = os.environ["BRAIN_CLI"]          # resolved by the script, never guessed
 usage = subprocess.run([brain, "no-such-command"], capture_output=True, text=True)
 m = re.search(r"brain <([^>]*)>", usage.stdout + usage.stderr)
 announced = set(m.group(1).split("|")) if m else set()
@@ -104,6 +121,7 @@ print(f"{len(announced)} subcommands announced, all implemented")
 PYEOF
 then ok "usage <-> case: no subcommand announced into the void"
 else ko "brain's usage announces a subcommand that does not exist (this is THE kind of gap that created the 2026-06-22 bug)"
+fi
 fi
 
 echo

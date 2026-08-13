@@ -81,7 +81,24 @@ _SUFFIXES = sorted((
 _MIN_STEM = 4            # below this, the stem no longer means anything
 
 
+# Memoised: a corpus repeats its vocabulary relentlessly — 835 distinct tokens for
+# 8,013 occurrences in one file, so 90% of the calls below are redundant. The cost
+# of stemming is paid on the COLD index build, which is the first prompt after any
+# note changes, and tests/recall_benchmark.py gates that time. The dictionary is
+# bounded by the trunk's vocabulary, not by its size in bytes: it stops growing
+# long before the corpus does.
+_STEM_CACHE = {}
+
+
 def stem(t):
+    cached = _STEM_CACHE.get(t)
+    if cached is not None:
+        return cached
+    _STEM_CACHE[t] = s = _stem(t)
+    return s
+
+
+def _stem(t):
     if len(t) <= 4:
         return t
     # Plural: the "s" only. Stripping a trailing "x" targeted the French plurals in
@@ -114,14 +131,18 @@ _ALIAS = {
     r"mise en production": "deploy",
     r"\bmemoire cache\b": "cache",
 }
-_ALIAS_RE = [(re.compile(k), v) for k, v in
-             sorted(_ALIAS.items(), key=lambda kv: -len(kv[0]))]
+# ONE pass, not one per pair. Seven separate `sub()` calls walked the whole
+# document seven times; a single alternation walks it once and dispatches on the
+# group that matched. The longest pattern still comes first — Python tries the
+# alternatives left to right at each position, so the order that made the
+# sequential version correct keeps the combined one correct.
+_ALIAS_PAIRS = sorted(_ALIAS.items(), key=lambda kv: -len(kv[0]))
+_ALIAS_RE = re.compile("|".join(f"({k})" for k, _ in _ALIAS_PAIRS))
+_ALIAS_CANON = [v for _, v in _ALIAS_PAIRS]
 
 
 def apply_aliases(txt):
-    for pattern, canonical in _ALIAS_RE:
-        txt = pattern.sub(canonical, txt)
-    return txt
+    return _ALIAS_RE.sub(lambda m: _ALIAS_CANON[m.lastindex - 1], txt)
 
 
 def tokenize(text):
