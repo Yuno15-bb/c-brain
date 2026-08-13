@@ -127,11 +127,7 @@ def _process_age(pid):
 def capsule_alive(pids):
     """True when a WINDOW is beating. Otherwise the process is a zombie to replace.
 
-    ⚠ Three cautions, without which this check would kill healthy capsules:
-      · NEVER BEATEN != ZOMBIE. `capsule/main.js` is FROZEN out of the sync (V2
-        rework): this package ships the check WITHOUT the emitter. Without this
-        guard, every capsule here would be declared dead past the grace delay and
-        killed IN A LOOP. We only judge what has already beaten and then gone quiet;
+    ⚠ Two cautions, without which this check would kill healthy capsules:
       · a missing beat on a YOUNG process is not a zombie, it is a startup in
         progress (STARTUP_GRACE);
       · in doubt — unreadable age, access error — we answer ALIVE. A false zombie
@@ -140,7 +136,13 @@ def capsule_alive(pids):
     try:
         alive = os.path.join(BRAIN, "state", "capsule-alive")
         if not os.path.exists(alive):
-            return True                      # nothing ever beat: we do not judge
+            # ⚠ NO beat has EVER been written. This is not a zombie, it is a
+            #   capsule that cannot beat: `capsule/main.js` is FROZEN out of the
+            #   sync (V2 rework), so the public package ships this check WITHOUT
+            #   the emitter. Without this guard, every capsule here would be
+            #   declared dead past the grace delay and killed in a loop, every
+            #   single pass. We only judge what has ALREADY beaten and gone quiet.
+            return True
         if time.time() - os.path.getmtime(alive) < HEARTBEAT_MAX:
             return True
         ages = [a for a in (_process_age(p) for p in pids) if a is not None]
@@ -303,10 +305,23 @@ def launch_agent(sid, n, to_distill):
     base = lambda m: (f'"{claude}" -p --model {m} --output-format json '
                       f'--dangerously-skip-permissions')
     pulse = lambda act, det: f'"{py}" "{status_cli}" busy {act} "{det}"'
-    # MECHANICAL commit (no LLM): author "C Brain", never breaks when there is nothing to commit.
-    commit = (f'git -C "{BRAIN}" add -A && '
-              f'git -C "{BRAIN}" -c user.name="C Brain" -c user.email=brain@local '
-              f'commit -q -m "auto: maintenance ($(date \'+%Y-%m-%d %H:%M\'))" || true')
+    # MECHANICAL save (no LLM), wired here on 2026-08-13.
+    # Before: `git add -A` plus one catch-all commit. That `add -A` is what
+    # drowned 19 files of work in progress in e61fd01 (03/08), and 612 commits of
+    # that kind sleep in the history. We now commit ZONE BY ZONE: the trunk's
+    # pre-commit hook already refuses mixed commits, so we lean on it instead of
+    # working around it.
+    # TWO LINES, AND THE SPLIT IS DELIBERATE:
+    #   · `commit_par_zone` SHIPS — it commits LOCALLY, on everyone's machine.
+    #   · `tools/sync_depots.py` exists ONLY on the author's machine (`tools/` is
+    #     not in sync.sh's whitelist). That one pushes, and measures the public
+    #     package. A user who put a remote on their trunk never asked for their
+    #     notes to leave at every session end — so the package contains NO push
+    #     at all, and the file simply being absent is enough for the line to do
+    #     nothing there.
+    save = (f'"{py}" "{BRAIN}/hooks/commit_par_zone.py" || true\n'
+            f'[ -f "{BRAIN}/tools/sync_depots.py" ] && '
+            f'"{py}" "{BRAIN}/tools/sync_depots.py" --auto || true')
 
     # False-positive guard (OS crash / SIGKILL of the `claude` binary BEFORE it writes):
     # `interpret` reads the LAST line of cost.jsonl. If claude dies without writing,
@@ -385,10 +400,10 @@ def launch_agent(sid, n, to_distill):
     # logs de recall/lecture, AVANT graph_export (qui lit coactivation.json). Pur stdlib.
     lines.append(f'"{py}" "{coact_cli}" >> "{LOG}" 2>&1 || true')
     lines.append(f'"{py}" "{graph_cli}" >> "{LOG}" 2>&1 || true')
-    # commit + idle + release : TOUJOURS, quoi qu'il arrive au-dessus.
+    # save + idle + release: ALWAYS, whatever happened above.
     lines.append(pulse("committing", "Saving to git"))
-    lines.append(commit)
-    lines.append('kill "$__HB" >/dev/null 2>&1 || true')   # stoppe le heartbeat AVANT idle
+    lines.append(save)
+    lines.append('kill "$__HB" >/dev/null 2>&1 || true')   # stop the heartbeat BEFORE idle
     lines.append(f'"{py}" "{status_cli}" idle')
     lines.append(f'"{py}" "{guard_cli}" release')
     wrapper = "\n".join(lines)

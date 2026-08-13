@@ -136,12 +136,69 @@ def account_fingerprint() -> str:
 
 
 # --- C. Preflight: are we allowed to spend tokens right now? -----
-def preflight_ok() -> bool:
-    """Consumes NO token: reads a quota marker left by a previous run."""
+PROBE_INTERVAL = 900            # 15 min between two probes, asked for by the author on 2026-08-13
+
+
+def preflight_ok(probe: bool = True) -> bool:
+    """The right to spend is no longer GUESSED, it is ASKED for.
+
+    Not blocked → no call, no cost (the ordinary case).
+
+    Blocked → we no longer merely wait out an assumed delay, because that delay
+    cannot know the user has just topped up their cap or switched accounts (lived
+    on 2026-08-13: cap raised at 08:35, maintenance frozen for nothing until 09:32,
+    unblocked by hand). Two checks:
+
+      1. the account changed (different token) → immediate green light, FREE;
+      2. otherwise, at most every 15 min, a ONE-token probe (~$0.00003) asks the
+         API whether a real request goes through (cf. quota_probe).
+
+    This is NOT the dead loop of [[account-quota-resilience]] coming back: what
+    looped there was restarting a FULL AGENT (~$1) on the expiry of a guessed
+    delay. Here the repetition is a near-free probe, and the agent only starts on
+    an OBSERVED green light.
+
+    `probe=False` for a caller that wants the old, purely local behaviour."""
     q = _rj(QUOTA, None)
-    if q and time.time() < q.get("blocked_until", 0):
-        return False                         # quota spent, reset not reached yet
-    return True
+    if not q or time.time() >= q.get("blocked_until", 0):
+        return True                          # not blocked: nothing to ask
+    if not probe:
+        return False
+
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import quota_probe as qp
+    except Exception:
+        return False                         # probe unavailable → old behaviour
+
+    # 1. Account switch: the token changes the second the user switches over.
+    fp = qp.token_fingerprint()
+    if fp and q.get("fingerprint") and fp != q["fingerprint"]:
+        _wj(QUOTA, {"blocked_until": 0, "family": None, "failures": 0,
+                    "msg": "ok — account changed", "fingerprint": fp,
+                    "last_probe": time.time()})
+        return True
+
+    # 2. Cadence: one probe at most every 15 min.
+    if time.time() - (q.get("last_probe") or 0) < PROBE_INTERVAL:
+        return False
+    v = qp.probe()
+    if v["ok"]:
+        _wj(QUOTA, {"blocked_until": 0, "family": None, "failures": 0, "msg": "ok",
+                    "fingerprint": v["fingerprint"], "last_probe": v["ts"],
+                    "limits": v["limits"]})
+        return True
+
+    q["last_probe"] = v["ts"]
+    q["fingerprint"] = v["fingerprint"] or q.get("fingerprint", "")
+    q["probe_reason"] = v["reason"]
+    q["limits"] = v["limits"]
+    # The API gives the EXACT time of the return: it replaces the guessed backoff.
+    # Except on 401 (stale token): that is not a verdict about credit.
+    if v["http"] not in (None, 401) and v.get("reset"):
+        q["blocked_until"] = v["reset"]
+    _wj(QUOTA, q)
+    return False
 
 
 # Progressive backoff when the message does NOT say when it restarts (in hours).
@@ -220,9 +277,21 @@ def interpret_result(last_cost_line: str, sid: str, is_distill: bool = True) -> 
             prev = _rj(QUOTA, None) or {}
             fam = _limit_family(res)
             failures = (prev.get("failures", 0) + 1) if prev.get("family") == fam else 1
+            # The fingerprint of the blocked account: if the user switches to another
+            # account, preflight_ok sees it in the token and restarts at once, without
+            # waiting out the backoff. The backoff stays as the net for when the probe
+            # is unreachable; the first probe (≤ 15 min) replaces it with the API's
+            # exact time.
+            try:
+                sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                import quota_probe as qp
+                fp = qp.token_fingerprint()
+            except Exception:
+                fp = ""
             _wj(QUOTA, {"blocked_until": _parse_reset_epoch(res, failures - 1),
                         "family": fam, "failures": failures,
                         "since": prev.get("since") if prev.get("family") == fam else time.time(),
+                        "fingerprint": fp, "last_probe": 0,
                         "msg": res[:200]})
         return False
     _wj(LOGIN, {"logged_out": False, "ts": time.time()})   # run OK → the session was authenticated
