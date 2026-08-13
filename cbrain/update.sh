@@ -61,8 +61,17 @@ current() { git -C "$ENGINE" describe --tags --exact-match 2>/dev/null || git -C
 # commit, where `--exact-match` picks one arbitrarily. That cannot happen here:
 # the two branches diverge by construction, `main` being a translation of `fr`.
 # If they ever converge, this needs a recorded family instead of a derived one.
+# ⚠ RECORDED FAMILY — added on 2026-08-13 together with the end of the `-fr`
+# family. The derivation below reads the family off the INSTALLED tag, so it
+# cannot remember a choice: a French installation that switched to English
+# would fall back to `-fr` at the first doubt. The file settles it, and it only
+# exists if somebody wrote it — nobody switches on their own. This is the
+# "recorded family instead of a derived one" the note above already called for.
+FAMILY_FILE="$STATE/tag-family"
+
 family() {
   local tag branch
+  if [ -f "$FAMILY_FILE" ]; then cat "$FAMILY_FILE"; return; fi
   tag="$(git -C "$ENGINE" describe --tags --exact-match 2>/dev/null || true)"
   case "$tag" in
     *-fr) echo "-fr"; return ;;

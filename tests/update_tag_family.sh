@@ -50,7 +50,12 @@ naive="$(git tag -l 'v*' | sort -V | tail -1)"
 # Load the real functions from update.sh rather than re-implementing them —
 # a copy in the test would keep passing after the shipped code was broken.
 ENGINE="$T/engine"
-eval "$(sed -n '/^family() {/,/^}/p;/^latest_tag() {/,/^}/p' "$ROOT/cbrain/update.sh")"
+# STATE and FAMILY_FILE are pulled in too: `family()` reads the recorded family
+# BEFORE deriving one, and a harness that omitted it would test a version of the
+# function the shipped script never runs — the exact copy-drift this eval avoids.
+STATE="$T/state"
+mkdir -p "$STATE"
+eval "$(sed -n '/^FAMILY_FILE=/p;/^family() {/,/^}/p;/^latest_tag() {/,/^}/p' "$ROOT/cbrain/update.sh")"
 
 check() {  # check <label> <checkout> <expected>
   git -C "$ENGINE" checkout -q "$2"
@@ -68,6 +73,26 @@ check "English install (on v1.17.0)"  v1.17.0     v1.18.0
 check "French install (on v1.17.0-fr)" v1.17.0-fr v1.18.0-fr
 check "fresh clone of branch fr"       fr         v1.18.0-fr
 check "fresh clone of branch main"     main       v1.18.0
+
+echo "▸ a recorded family wins over the derived one, and only when it exists"
+# The end of the `-fr` family (2026-08-13) rests entirely on this: a French
+# install that switches to English sits on a `-fr` TAG, so derivation would send
+# it straight back to the French tree at the next update. The recorded choice is
+# what makes the switch hold.
+git -C "$ENGINE" checkout -q v1.17.0-fr
+printf '' > "$STATE/tag-family"                 # recorded: the bare family
+check_recorded() {  # check_recorded <label> <expected>
+  local got; got="$(latest_tag)"
+  if [ "$got" = "$2" ]; then
+    echo "  ✅ $1 → $got"
+  else
+    echo "  ❌ $1 → got '$got', expected '$2'"
+    FAILS=$((FAILS + 1))
+  fi
+}
+check_recorded "French tag + recorded English → English" v1.18.0
+rm -f "$STATE/tag-family"
+check_recorded "file removed → back to derivation"       v1.18.0-fr
 
 echo "▸ a repository with no tag at all does not crash"
 git -C "$ENGINE" tag -d $(git -C "$ENGINE" tag) >/dev/null 2>&1
