@@ -18,7 +18,7 @@ Garde-fous quotas/boucles :
 
 Sort toujours 0.
 """
-import os, sys, re, json, shutil, subprocess
+import os, sys, re, json, time, shutil, subprocess
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from brain_status import write_status
@@ -80,6 +80,66 @@ def manual_saves_for(sid):
         pass
     return out
 
+# La capsule prouve qu'elle a une FENÊTRE en touchant state/capsule-alive toutes
+# les 5 s (cf. capsule/main.js). Chercher un PROCESS ne prouve rien : le
+# 2026-08-13, un Electron vieux de deux jours sans fenêtre s'est fait prendre
+# pour une capsule ouverte, et bloquait donc son propre remplacement à chaque
+# démarrage de session — silencieusement, puisque l'écriture du statut marchait.
+MOTIF_CAPSULE = "c-brain/trunk/capsule/node_modules/electron"
+BATTEMENT_MAX = 60          # 12 battements manqués : on ne réagit pas sur un hoquet
+GRACE_DEMARRAGE = 90        # une capsule qui vient de partir n'a pas encore battu
+
+
+def _age_process(pid):
+    """Secondes depuis le lancement du process, ou None si illisible.
+
+    ⚠ `etimes` (secondes brutes) est une extension GNU : macOS ne la connaît PAS
+    et `ps` répond en imprimant sa LISTE DE MOTS-CLÉS, sur sa sortie standard et
+    en code 0. Un `int(out)` échoue donc silencieusement, `_age_process` renvoyait
+    None pour tout le monde, et le contrôle de zombie répondait « vivante »
+    quoi qu'il arrive — un garde-fou mort-né. On lit `etime`, portable, et on le
+    parse : [[jj-]hh:]mm:ss."""
+    try:
+        out = subprocess.run(["ps", "-p", str(pid), "-o", "etime="],
+                             capture_output=True, text=True, timeout=5).stdout.strip()
+        if not out or " " in out:            # sortie inattendue (liste de mots-clés)
+            return None
+        jours, _, reste = out.rpartition("-")
+        parts = [int(x) for x in reste.split(":")]
+        while len(parts) < 3:
+            parts.insert(0, 0)
+        h, m, sec = parts[-3:]
+        return (int(jours or 0) * 86400) + h * 3600 + m * 60 + sec
+    except Exception:
+        return None
+
+
+def capsule_vivante(pids):
+    """True si une FENÊTRE bat. Sinon le process est un zombie à remplacer.
+
+    ⚠ Trois prudences, sans quoi ce contrôle tuerait des capsules saines :
+      · JAMAIS BATTU ≠ ZOMBIE. `capsule/main.js` est GELÉ hors sync (refonte V2) :
+        ce paquet embarque le contrôle SANS l'émetteur. Sans ce garde, chaque
+        capsule y serait déclarée morte passé le délai de grâce et tuée EN BOUCLE ;
+      · un battement absent sur un process JEUNE n'est pas un zombie, c'est un
+        démarrage en cours (GRACE_DEMARRAGE) ;
+      · en cas de doute — âge illisible, erreur d'accès — on répond VIVANTE. Un
+        faux zombie relance une capsule pour rien ; un faux vivant ne coûte qu'un
+        tour de plus. Le doute ne doit pas tuer."""
+    try:
+        alive = os.path.join(BRAIN, "state", "capsule-alive")
+        if not os.path.exists(alive):
+            return True                      # rien n'a jamais battu : on ne juge pas
+        if time.time() - os.path.getmtime(alive) < BATTEMENT_MAX:
+            return True
+        ages = [a for a in (_age_process(p) for p in pids) if a is not None]
+        if not ages:
+            return True                      # illisible → on ne touche à rien
+        return min(ages) < GRACE_DEMARRAGE   # jeune → il démarre, pas un zombie
+    except Exception:
+        return True
+
+
 def ensure_capsule():
     """Ouvre la capsule Tamagotchi si elle n'est pas déjà en cours (réveil des agents).
 
@@ -96,10 +156,16 @@ def ensure_capsule():
             return
         # le vrai process tourne sous .../node_modules/electron/dist/... (le .bin/electron
         # n'est qu'un symlink), donc on matche le chemin du projet, pas le symlink.
-        r = subprocess.run(["pgrep", "-f", "c-brain/trunk/capsule/node_modules/electron"],
+        r = subprocess.run(["pgrep", "-f", MOTIF_CAPSULE],
                            capture_output=True, text=True)
         if r.stdout.strip():
-            return  # déjà ouverte
+            if capsule_vivante(r.stdout.split()):
+                return                       # vraiment ouverte : une fenêtre bat
+            # ZOMBIE : le process vit, sa fenêtre non. On le remplace au lieu de
+            # le prendre pour une capsule saine — c'est ce qui l'a laissée
+            # invisible deux jours le 2026-08-13.
+            subprocess.run(["pkill", "-f", MOTIF_CAPSULE], capture_output=True)
+            time.sleep(1)
         env = dict(os.environ)
         # Sans ça, le lancement automatique ouvrait la V1 (la créature), pas
         # l'ORBE : seul un lancement manuel avec CAPSULE_SOLO=1 la montrait.
