@@ -364,9 +364,9 @@
       "files": [
         "agents/*.md"
       ],
-      "pattern": "\\[\\[(?:audit-exhaustif-invariants|claude-brain-volet-2|claude-brain|disque-plein-symptomes-caches|electron-hud-backgroundthrottling-saccade|electron-zombie-process-cleanup|jardinage-regles|nettoyage-disque-methode-reversible|pas-de-journee-sans-commit|verifier-le-code-jamais-supposer|webgl-shader-wallpaper-gpu-overheating)\\]\\]",
-      "_note": "SEULEMENT ces 11 slugs. Les liens entre agents ([[jardinier]], [[distillateur]]…) et les gabarits ([[slug]], [[lien]]) restent : leurs cibles existent, ou ce sont des exemples de format.",
-      "why": "Les agents citaient les fiches de l'auteur. Chez un nouvel utilisateur, ce sont 11 liens MORTS et `brain doctor` sort rouge dès l'installation. La consigne est conservée en clair — on perd le lien, pas le conseil.",
+      "pattern": "\\[\\[(?:brain-boucles-mortes-2026-08-12|cwc-workshops-integration|audit-exhaustif-invariants|claude-brain-volet-2|claude-brain|disque-plein-symptomes-caches|electron-hud-backgroundthrottling-saccade|electron-zombie-process-cleanup|jardinage-regles|nettoyage-disque-methode-reversible|pas-de-journee-sans-commit|verifier-le-code-jamais-supposer|webgl-shader-wallpaper-gpu-overheating)\\]\\]",
+      "_note": "SEULEMENT ces 13 slugs. Les liens entre agents ([[jardinier]], [[distillateur]]…) et les gabarits ([[slug]], [[lien]]) restent : leurs cibles existent, ou ce sont des exemples de format.",
+      "why": "Les agents citaient les fiches de l'auteur. Chez un nouvel utilisateur, ce sont 11 liens MORTS et `brain doctor` sort rouge dès l'installation. La consigne est conservée en clair — on perd le lien, pas le conseil. ⚠ Toute fiche de l'auteur citée dans un agent DOIT être ajoutée ici au moment où on l'écrit : un lien oublié ne casse rien à la source (la cible existe) et ne devient mort qu'une fois publié — personne ne le voit avant l'installation d'un tiers.",
       "replace_map": {
         "[[audit-exhaustif-invariants]]": "« un audit, ce sont des invariants EXÉCUTÉS »",
         "[[claude-brain]]": "la doc du tronc",
@@ -378,9 +378,11 @@
         "[[nettoyage-disque-methode-reversible]]": "« ménage disque : toujours réversible »",
         "[[pas-de-journee-sans-commit]]": "« pas de journée sans commit »",
         "[[verifier-le-code-jamais-supposer]]": "« vérifier le code, jamais supposer »",
-        "[[webgl-shader-wallpaper-gpu-overheating]]": "« un shader WebGL en fond d'écran fait chauffer le GPU »"
+        "[[webgl-shader-wallpaper-gpu-overheating]]": "« un shader WebGL en fond d'écran fait chauffer le GPU »",
+        "[[brain-boucles-mortes-2026-08-12]]": "« une boucle morte : un capteur qui constate sans jamais agir »",
+        "[[cwc-workshops-integration]]": "l'atelier « agents that remember » d'Anthropic"
       },
-      "expect": 17
+      "expect": 19
     },
     {
       "id": "exemple-born-from",

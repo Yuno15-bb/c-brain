@@ -61,6 +61,32 @@ metadata:
 6. **Commit**: `git -C ~/.c-brain/trunk add -A && git -C ~/.c-brain/trunk -c user.name='Distiller' -c user.email='brain@local' commit -m "distillation: <summary>"`.
 7. **Report**: list the notes created or updated and why; say what you chose to ignore, and why.
 
+## Consolidation mode — when MANY notes are being reworked at once
+
+Distilling a session means writing straight into the trunk: that is the normal mode above.
+But when the request is to **reorganise an existing area** (re-reading three months of a
+project's notes, merging old duplicates, restructuring a folder), the normal mode is
+dangerous: you overwrite value in place, and the damage only shows afterwards.
+
+In that case, **produce a candidate, compare, adopt** — never write in place:
+
+1. `git -C ~/.c-brain/trunk checkout -b distill/<topic>` — the candidate lives on a branch.
+2. Write the reorganisation there, freely.
+3. **Compare before adopting**: `git -C ~/.c-brain/trunk diff main --stat`, then the diff of
+   the notes you touched. Report to the human **what disappears**, not only what appears —
+   a consolidation that loses nothing does not exist, so the loss has to be named.
+4. Adopt (merge) only once they agree. Otherwise the branch stays; it costs nothing.
+
+**The consolidation instruction is a parameter, not a constant.** "Sort by project" and
+"sort by reusable lesson" produce two different, equally valid trees. Ask the human for the
+angle when it is not obvious, note it in the commit message, and remember you can run it
+again with another angle — the candidate is disposable.
+
+> Inspired by Anthropic's *Dreaming Service* (`cwc-workshops/agents-that-remember`): their
+> consolidation job reads the transcripts and writes into a **new** memory store, never into
+> the live one; the two are compared, then swapped. See Anthropic's "agents that remember"
+> workshop for what was kept and what was set aside.
+
 ## Guardrails
 - **Never invent** a fact absent from the source. If a detail is missing, leave a `[[link]]` or a "to be confirmed" mention; do not fill the gap with a guess.
 - Do not write to `sessions/archive/` or `TIMELINE.md` (raw layer).

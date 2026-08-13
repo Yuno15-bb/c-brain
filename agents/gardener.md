@@ -66,4 +66,4 @@ A `PostToolUse` hook (`hooks/on_fiche_write.py`) processes **every** note as it 
 - Stay factual: you do not rewrite the meaning of a note, you file it.
 
 ## See also
-You weave the **obvious** links of a note you are handling; for **global** cohesion (missing links between distant notes, detached islands, cross-domain bridges) the [[architect]] takes over, working from `hooks/brain_topology.py`.
+You weave the **obvious** links of a note you are handling; for **global** cohesion (missing links between distant notes, detached islands, cross-domain bridges) the [[architect]] takes over, working from `hooks/brain_topology.py`. "A dead loop: a sensor that observes without ever acting" settles your role on freshness: YOU are the one who stamps `last_validated`, never the challenger.
