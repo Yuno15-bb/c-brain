@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """
-Hook SessionEnd du C Brain.
+C Brain SessionEnd hook.
 At the end of every session:
   1. refreshes the lossless index sessions/TIMELINE.md (incremental cache, fast)
   2. captures the git diff of the project worked on (cwd) into sessions/archive/
-  3. commit le tronc ~/.c-brain/trunk pour versionner la croissance
-  4. pushes to the private remote if configured (silent, non-blocking, offline is fine)
+
+⚠ This hook no longer writes to git. Steps 3 (commit the trunk) and 4 (push to
+the remote) were cut on 2026-08-03 — see `commit_brain()`, which keeps the detail
+and the condition for their return. They stayed announced here for ten days after
+being removed: this docstring is the first screen anyone opening the file reads,
+and it promised a backup that no longer existed. Remote backup is handled by the
+encrypted vault, not by this hook.
 
 Golden rule: NEVER block or fail the session. Always exits 0.
 """
