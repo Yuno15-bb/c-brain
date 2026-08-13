@@ -123,6 +123,20 @@
       "why": "Côté capsule, le tronc est dérivé de homedir() en segments. C'est ce chemin qui décide si la capsule surveille le state de l'UTILISATEUR ou celui du moteur. — expect passé de 3 à 2 le 2026-07-30 : la 3ᵉ occurrence vivait dans capsule/main.js, GELÉ hors sync tant que la refonte V2 est en chantier (voir sync.sh §4 et _regles_gelees). Le fichier du paquet porte déjà le bon chemin en dur. À remonter à 3 quand main.js repasse dans le sync."
     },
     {
+      "id": "banc-chemins-shell",
+      "files": [
+        "capsule/banc/*.sh"
+      ],
+      "pattern": "(?:\\$HOME/claude-brain/hooks|claude-brain/capsule)",
+      "replace_map": {
+        "$HOME/claude-brain/hooks": "$HOME/.c-brain/trunk/hooks",
+        "claude-brain/capsule": "c-brain/trunk/capsule"
+      },
+      "expect": 2,
+      "_note": "Ajoutee le 2026-08-04 avec banc/cycle.sh, le premier script SHELL du banc. `tronc-chemin-shell` ne vise que `hooks/*.sh` et `brain` — volontairement, pour ne pas reecrire sync.sh/publish.sh qui visent le Brain vivant de l'auteur. Le banc tombait donc dans le trou : le script est parti en public avec `$HOME/claude-brain/hooks/`, un chemin qui n'existe chez personne d'autre. Chez l'utilisateur le moteur est LIE dans le tronc (`install.sh`), donc la cible est bien `trunk`, pas `engine`. ⚠ SUPPRIMEE PAR ERREUR le 2026-08-13 (cd00bc3) : cycle.sh est aussitot reparti en public avec le chemin prive. Une regle de generalisation qu'on retire ne laisse aucune trace rouge — aucun test ne lit un chemin dans un commentaire. Rearmee le 2026-08-13.",
+      "why": "Un script du banc livre avec le chemin du tronc prive de l'auteur ne tourne chez personne."
+    },
+    {
       "id": "tronc-chemin-shell",
       "files": [
         "hooks/*.sh",
@@ -422,10 +436,11 @@
         "skeleton/**/*.md",
         "brain"
       ],
-      "pattern": "Dylan",
+      "pattern": "Dylan(?! Peellaert)",
       "replace": "l'auteur",
       "expect": 1,
-      "why": "FILET DE SÉCURITÉ, en DERNIER. Les règles fines réécrivent des tournures précises ; ce filet attrape le nom nu là où il reste. Ajouté le 2026-08-13 : 9 mentions étaient apparues dans des commentaires écrits depuis le sync précédent (« demande de X », « retour de X », « constat de X »). Une règle par tournure est perdue d'avance : il s'en écrit une nouvelle à chaque session. `expect` étant un MINIMUM, ce filet ne fait jamais échouer la passe."
+      "why": "FILET DE SÉCURITÉ, en DERNIER. Les règles fines réécrivent des tournures précises ; ce filet attrape le nom nu là où il reste. Ajouté le 2026-08-13 : 9 mentions étaient apparues dans des commentaires écrits depuis le sync précédent (« demande de X », « retour de X », « constat de X »). Une règle par tournure est perdue d'avance : il s'en écrit une nouvelle à chaque session. `expect` étant un MINIMUM, ce filet ne fait jamais échouer la passe.",
+      "_note": "⚠ `(?! Peellaert)` : le filet a REECRIT la ligne de copyright de tests/recall_cache.py et tests/recall_benchmark.py en « Copyright (c) 2026 l'auteur Peellaert » — Apache 2.0 EXIGE le nom du titulaire, et un nom a moitie remplace n'est ni le vrai nom ni un anonymat. leakcheck ne l'a pas vu : il exempte justement les lignes de copyright de ce marqueur. Les deux outils se completent — ce que ce negatif laisse passer hors ligne de copyright, leakcheck le signale."
     }
   ],
   "_regles_gelees": [
