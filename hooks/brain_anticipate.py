@@ -62,9 +62,17 @@ def collect():
 
 def main():
     items = collect()[:4]
-    if not items:
-        return
     mode_hook = "--hook" in sys.argv
+    if not items:
+        # En HOOK, ne rien dire : un tronc vide ne doit pas ajouter une ligne à
+        # chaque prompt. En COMMANDE, le dire — `brain next` est une commande
+        # d'affichage, et une commande d'affichage qui n'imprime rien ne se
+        # distingue pas d'une commande cassée. C'est exactement ce silence que
+        # le §8 du selftest sort en rouge sur un tronc neuf, où n'avoir aucun
+        # point de reprise est l'état NORMAL.
+        if not mode_hook:
+            print("🧭 Aucun point de reprise en attente.")
+        return
     if mode_hook:
         print("<brain-reprises> Points de reprise en attente (tes fiches projet, "
               "du plus récent au plus ancien) — propose de continuer si pertinent :")
