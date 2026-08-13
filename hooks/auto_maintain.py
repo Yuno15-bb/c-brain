@@ -18,7 +18,7 @@ Garde-fous quotas/boucles :
 
 Sort toujours 0.
 """
-import os, sys, re, json, shutil, subprocess
+import os, sys, re, json, time, shutil, subprocess
 
 def _transcripts_key() -> str:
     """The folder name Claude Code uses for this HOME, under ~/.claude/projects.
@@ -91,6 +91,66 @@ def manual_saves_for(sid):
         pass
     return out
 
+# The capsule proves it has a WINDOW by touching state/capsule-alive every 5 s
+# (cf. capsule/main.js). Looking for a PROCESS proves nothing: on 2026-08-13 a
+# two-day-old Electron with no window was taken for an open capsule, and so
+# blocked its own replacement at every session start — silently, since writing
+# the status still worked perfectly.
+MOTIF_CAPSULE = "c-brain/trunk/capsule/node_modules/electron"
+HEARTBEAT_MAX = 60          # 12 missed beats: we do not react to a hiccup
+STARTUP_GRACE = 90          # a capsule that just started has not beaten yet
+
+
+def _process_age(pid):
+    """Seconds since the process started, or None when unreadable.
+
+    ⚠ `etimes` (raw seconds) is a GNU extension: macOS does NOT know it, and `ps`
+    answers by printing its LIST OF KEYWORDS, on stdout, with exit code 0. So an
+    `int(out)` fails silently, `_process_age` returned None for everyone, and the
+    zombie check answered "alive" no matter what — a stillborn guard. We read
+    `etime`, which is portable, and parse it: [[dd-]hh:]mm:ss."""
+    try:
+        out = subprocess.run(["ps", "-p", str(pid), "-o", "etime="],
+                             capture_output=True, text=True, timeout=5).stdout.strip()
+        if not out or " " in out:            # unexpected output (keyword list)
+            return None
+        days, _, rest = out.rpartition("-")
+        parts = [int(x) for x in rest.split(":")]
+        while len(parts) < 3:
+            parts.insert(0, 0)
+        h, m, sec = parts[-3:]
+        return (int(days or 0) * 86400) + h * 3600 + m * 60 + sec
+    except Exception:
+        return None
+
+
+def capsule_alive(pids):
+    """True when a WINDOW is beating. Otherwise the process is a zombie to replace.
+
+    ⚠ Three cautions, without which this check would kill healthy capsules:
+      · NEVER BEATEN != ZOMBIE. `capsule/main.js` is FROZEN out of the sync (V2
+        rework): this package ships the check WITHOUT the emitter. Without this
+        guard, every capsule here would be declared dead past the grace delay and
+        killed IN A LOOP. We only judge what has already beaten and then gone quiet;
+      · a missing beat on a YOUNG process is not a zombie, it is a startup in
+        progress (STARTUP_GRACE);
+      · in doubt — unreadable age, access error — we answer ALIVE. A false zombie
+        restarts a capsule for nothing; a false alive only costs one more round.
+        Doubt must not kill."""
+    try:
+        alive = os.path.join(BRAIN, "state", "capsule-alive")
+        if not os.path.exists(alive):
+            return True                      # nothing ever beat: we do not judge
+        if time.time() - os.path.getmtime(alive) < HEARTBEAT_MAX:
+            return True
+        ages = [a for a in (_process_age(p) for p in pids) if a is not None]
+        if not ages:
+            return True                      # unreadable → we touch nothing
+        return min(ages) < STARTUP_GRACE     # young → starting up, not a zombie
+    except Exception:
+        return True
+
+
 def ensure_capsule():
     """Opens the capsule if it is not already running (the agents are waking up).
 
@@ -107,10 +167,16 @@ def ensure_capsule():
             return
         # le vrai process tourne sous .../node_modules/electron/dist/... (le .bin/electron
         # n'est qu'un symlink), donc on matche le chemin du projet, pas le symlink.
-        r = subprocess.run(["pgrep", "-f", "c-brain/trunk/capsule/node_modules/electron"],
+        r = subprocess.run(["pgrep", "-f", MOTIF_CAPSULE],
                            capture_output=True, text=True)
         if r.stdout.strip():
-            return  # already open
+            if capsule_alive(r.stdout.split()):
+                return                       # really open: a window is beating
+            # ZOMBIE: the process lives, its window does not. We replace it rather
+            # than take it for a healthy capsule — that is what left the author's
+            # orb invisible for two days on 2026-08-13.
+            subprocess.run(["pkill", "-f", MOTIF_CAPSULE], capture_output=True)
+            time.sleep(1)
         subprocess.Popen([elec, "."], cwd=cap,
                          stdin=subprocess.DEVNULL,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
