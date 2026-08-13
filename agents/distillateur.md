@@ -61,6 +61,33 @@ metadata:
 6. **Commiter** : `git -C ~/.c-brain/trunk add -A && git -C ~/.c-brain/trunk -c user.name='Distillateur' -c user.email='brain@local' commit -m "distillation: <résumé>"`.
 7. **Rapporter** : liste les fiches créées/mises à jour et pourquoi ; signale ce que tu as choisi d'ignorer (et pourquoi).
 
+## Mode consolidation — quand on retouche BEAUCOUP de fiches d'un coup
+
+Distiller une session = écrire directement dans le tronc, c'est le mode normal ci-dessus.
+Mais quand la demande est de **réorganiser un pan existant** (relire 3 mois de fiches d'un
+projet, fusionner des doublons anciens, restructurer un dossier), le mode normal est
+dangereux : on écrase de la valeur en place, et on ne voit le dégât qu'après.
+
+Dans ce cas, **produire un candidat, comparer, adopter** — jamais écrire en place :
+
+1. `git -C ~/.c-brain/trunk checkout -b distill/<sujet>` — le candidat vit sur une branche.
+2. Écrire la réorganisation là, librement.
+3. **Comparer avant d'adopter** : `git -C ~/.c-brain/trunk diff main --stat` puis le diff
+   des fiches touchées. Rapporter à l'humain **ce qui disparaît**, pas seulement ce qui
+   apparaît — une consolidation qui ne perd rien n'existe pas, il faut nommer la perte.
+4. Adopter (merge) seulement après accord. Sinon la branche reste, elle ne coûte rien.
+
+**L'instruction de consolidation est un paramètre, pas une constante.** « Range par
+projet » et « range par leçon réutilisable » produisent deux arbres différents et
+également valides. Demander l'angle à l'humain quand il n'est pas évident, le noter dans
+le message de commit, et savoir qu'on peut relancer avec un autre angle — le candidat est
+jetable.
+
+> Inspiré du *Dreaming Service* d'Anthropic (`cwc-workshops/agents-that-remember`) : leur
+> job de consolidation lit les transcripts et écrit dans un **nouveau** magasin mémoire,
+> jamais dans le magasin vivant ; on compare les deux, puis on bascule. Voir
+> [[cwc-workshops-integration]] pour ce qui a été retenu et ce qui a été écarté.
+
 ## Garde-fous
 - **N'invente jamais** un fait absent de la source. Si un détail manque, laisse un `[[lien]]` ou une mention « à confirmer », ne comble pas par hypothèse.
 - Ne touche pas à `sessions/archive/` ni `TIMELINE.md` en écriture (couche brute).

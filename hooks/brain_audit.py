@@ -142,11 +142,31 @@ def main():
                 print(f"     {sid[:8]}")
 
         if d["post_infra"]:
+            # Depuis le 2026-08-13, cette liste n'est plus seulement CONSTATÉE : le
+            # launchd la draine (une par heure, cf. resume_pending.arriere_a_rattraper).
+            # On dit donc le sort réservé à chaque ligne, sinon l'affichage laisse
+            # croire à un arriéré qui dort — ce qu'il a fait pendant trois semaines.
+            try:
+                import resume_pending as rp
+                journal = rp._journal()
+                garde, mini, maxi = rp.GARDE_SESSION_OUVERTE, rp.MIN_LIGNES_ARRIERE, rp.MAX_TENTATIVES
+            except Exception:
+                journal, garde, mini, maxi = {}, 2 * 3600, 60, 2
+
+            def _sort(t):
+                if journal.get(t["sid"], {}).get("essais", 0) >= maxi:
+                    return "abandonnée (2 échecs)"
+                if t["n"] < mini:
+                    return "trop courte, ignorée"
+                if time.time() - t["mtime"] < garde:
+                    return "session peut-être ouverte"
+                return "sera rattrapée"
+
             print(f"\n  🟠 Sessions substantielles non distillées DEPUIS le système auto "
-                  f"({len(d['post_infra'])}) — vraies candidates au rattrapage :")
+                  f"({len(d['post_infra'])}) — drainées 1/heure par launchd :")
             for t in d["post_infra"]:
                 when = time.strftime("%m-%d %H:%M", time.localtime(t["mtime"]))
-                print(f"     {when}  {t['n']:>5} lignes  {t['sid'][:8]}")
+                print(f"     {when}  {t['n']:>5} lignes  {t['sid'][:8]}  → {_sort(t)}")
         else:
             print(f"\n  ✅ Aucune session non distillée depuis le système auto.")
 

@@ -125,12 +125,69 @@ def account_fingerprint() -> str:
 
 
 # --- C. Preflight : a-t-on le droit de dépenser des tokens maintenant ? -----
-def preflight_ok() -> bool:
-    """Ne consomme AUCUN token : lit un marqueur de quota posé par un run précédent."""
+SONDE_INTERVALLE = 900          # 15 min entre deux sondes, demandé par l'auteur le 2026-08-13
+
+
+def preflight_ok(sonder: bool = True) -> bool:
+    """Le droit de dépenser ne se DEVINE plus, il se DEMANDE.
+
+    Non bloqué → aucun appel, aucun coût (cas ordinaire).
+
+    Bloqué → on ne se contente plus d'attendre la fin d'un délai supposé, parce que
+    ce délai ne peut pas savoir que l'utilisateur vient de recharger son plafond ou de
+    changer de compte (vécu le 2026-08-13 : plafond relevé à 08:35, maintenance
+    gelée pour rien jusqu'à 09:32, déblocage à la main). Deux vérifications :
+
+      1. le compte a changé (jeton différent) → feu vert immédiat, GRATUIT ;
+      2. sinon, au plus toutes les 15 min, une sonde d'UN token (~0,00003 $)
+         demande à l'API si une vraie requête passe (cf. quota_probe).
+
+    Ce n'est PAS le retour de la boucle morte de [[account-quota-resilience]] :
+    ce qui bouclait là-bas, c'était le relancement d'un AGENT COMPLET (~1 $) sur
+    l'expiration d'un délai deviné. Ici la répétition porte sur une sonde
+    quasi gratuite, et l'agent ne part que sur un feu vert OBSERVÉ.
+
+    `sonder=False` pour un appelant qui veut l'ancien comportement purement local."""
     q = _rj(QUOTA, None)
-    if q and time.time() < q.get("blocked_until", 0):
-        return False                         # quota épuisé, reset pas encore atteint
-    return True
+    if not q or time.time() >= q.get("blocked_until", 0):
+        return True                          # pas bloqué : rien à demander
+    if not sonder:
+        return False
+
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import quota_probe as qp
+    except Exception:
+        return False                         # sonde indisponible → ancien comportement
+
+    # 1. Changement de compte : le jeton change à la seconde où l'auteur bascule.
+    emp = qp.empreinte_compte()
+    if emp and q.get("empreinte") and emp != q["empreinte"]:
+        _wj(QUOTA, {"blocked_until": 0, "famille": None, "echecs": 0,
+                    "msg": "ok — compte changé", "empreinte": emp,
+                    "derniere_sonde": time.time()})
+        return True
+
+    # 2. Cadence : une sonde au plus toutes les 15 min.
+    if time.time() - (q.get("derniere_sonde") or 0) < SONDE_INTERVALLE:
+        return False
+    v = qp.sonde()
+    if v["ok"]:
+        _wj(QUOTA, {"blocked_until": 0, "famille": None, "echecs": 0, "msg": "ok",
+                    "empreinte": v["empreinte"], "derniere_sonde": v["ts"],
+                    "limites": v["limites"]})
+        return True
+
+    q["derniere_sonde"] = v["ts"]
+    q["empreinte"] = v["empreinte"] or q.get("empreinte", "")
+    q["sonde_motif"] = v["motif"]
+    q["limites"] = v["limites"]
+    # L'API donne l'heure EXACTE du retour : elle remplace le recul deviné.
+    # Sauf sur 401 (jeton périmé) : ce n'est pas un verdict sur le crédit.
+    if v["http"] not in (None, 401) and v.get("reset"):
+        q["blocked_until"] = v["reset"]
+    _wj(QUOTA, q)
+    return False
 
 
 # Recul progressif quand le message ne dit PAS quand ça repart (heures).
@@ -210,9 +267,20 @@ def interpret_result(last_cost_line: str, sid: str, is_distill: bool = True) -> 
             prec = _rj(QUOTA, None) or {}
             fam = _famille_limite(res)
             echecs = (prec.get("echecs", 0) + 1) if prec.get("famille") == fam else 1
+            # L'empreinte du compte bloqué : si l'auteur bascule sur un autre compte,
+            # preflight_ok le voit au jeton et repart aussitôt, sans attendre le
+            # recul. Le recul reste le filet quand la sonde est injoignable ; la
+            # première sonde (≤ 15 min) le remplacera par l'heure exacte de l'API.
+            try:
+                sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                import quota_probe as qp
+                emp = qp.empreinte_compte()
+            except Exception:
+                emp = ""
             _wj(QUOTA, {"blocked_until": _parse_reset_epoch(res, echecs - 1),
                         "famille": fam, "echecs": echecs,
                         "depuis": prec.get("depuis") if prec.get("famille") == fam else time.time(),
+                        "empreinte": emp, "derniere_sonde": 0,
                         "msg": res[:200]})
         return False
     _wj(LOGIN, {"logged_out": False, "ts": time.time()})   # run OK → session bien authentifiée

@@ -117,19 +117,22 @@ def _age_process(pid):
 def capsule_vivante(pids):
     """True si une FENÊTRE bat. Sinon le process est un zombie à remplacer.
 
-    ⚠ Trois prudences, sans quoi ce contrôle tuerait des capsules saines :
-      · JAMAIS BATTU ≠ ZOMBIE. `capsule/main.js` est GELÉ hors sync (refonte V2) :
-        ce paquet embarque le contrôle SANS l'émetteur. Sans ce garde, chaque
-        capsule y serait déclarée morte passé le délai de grâce et tuée EN BOUCLE ;
+    ⚠ Deux prudences, sans quoi ce contrôle tuerait des capsules saines :
       · un battement absent sur un process JEUNE n'est pas un zombie, c'est un
         démarrage en cours (GRACE_DEMARRAGE) ;
-      · en cas de doute — âge illisible, erreur d'accès — on répond VIVANTE. Un
-        faux zombie relance une capsule pour rien ; un faux vivant ne coûte qu'un
-        tour de plus. Le doute ne doit pas tuer."""
+      · en cas de doute — âge illisible, erreur d'accès — on répond VIVANTE.
+        Un faux zombie relance une capsule pour rien ; un faux vivant, lui, ne
+        coûte qu'un tour de plus. Le doute ne doit pas tuer."""
     try:
         alive = os.path.join(BRAIN, "state", "capsule-alive")
         if not os.path.exists(alive):
-            return True                      # rien n'a jamais battu : on ne juge pas
+            # ⚠ AUCUN battement n'a JAMAIS été écrit. Ce n'est pas un zombie, c'est
+            #   une capsule qui ne sait pas battre : `capsule/main.js` est GELÉ hors
+            #   sync (refonte V2), donc le paquet public embarque ce contrôle SANS
+            #   l'émetteur. Sans ce garde, chaque capsule y serait déclarée morte
+            #   passé le délai de grâce et tuée en boucle à chaque passage.
+            #   On ne juge que ce qui a DÉJÀ battu puis s'est tu.
+            return True
         if time.time() - os.path.getmtime(alive) < BATTEMENT_MAX:
             return True
         ages = [a for a in (_age_process(p) for p in pids) if a is not None]
@@ -296,10 +299,26 @@ def launch_agent(sid, n, to_distill):
     base = lambda m: (f'"{claude}" -p --model {m} --output-format json '
                       f'--dangerously-skip-permissions')
     pulse = lambda act, det: f'"{py}" "{status_cli}" busy {act} "{det}"'
-    # commit MÉCANIQUE (pas de LLM) : auteur « C Brain », ne casse jamais si rien à committer.
-    commit = (f'git -C "{BRAIN}" add -A && '
-              f'git -C "{BRAIN}" -c user.name="C Brain" -c user.email=brain@local '
-              f'commit -q -m "auto: maintenance ($(date \'+%Y-%m-%d %H:%M\'))" || true')
+    # SAUVEGARDE MÉCANIQUE (pas de LLM), câblée ici le 2026-08-13.
+    # Avant : `git add -A` + un commit fourre-tout. C'est ce `add -A` qui a noyé
+    # 19 fichiers d'un chantier en cours dans e61fd01 (03/08), et 612 commits de
+    # ce type dorment dans l'historique. sync_depots commite ZONE PAR ZONE (le
+    # hook pre-commit du tronc refuse déjà les commits mixtes : on s'appuie
+    # dessus au lieu de le contourner) puis POUSSE le tronc — la sauvegarde hors
+    # machine que le commit local d'avant ne faisait pas.
+    # DEUX LIGNES, ET LA SÉPARATION EST DÉLIBÉRÉE :
+    #   · `commit_par_zone` est LIVRÉ — il commite en LOCAL, chez tout le monde.
+    #   · `tools/sync_depots.py` n'existe QUE chez l'auteur (`tools/` n'est pas
+    #     dans la liste blanche de sync.sh). Lui pousse, et mesure le paquet
+    #     public. Un utilisateur qui a mis un dépôt distant sur son tronc n'a
+    #     jamais demandé que ses notes y partent à chaque fin de session — donc
+    #     le paquet ne contient AUCUN push, et l'absence du fichier suffit à ce
+    #     que la ligne ne fasse rien là-bas.
+    # `--auto` = le tronc PRIVÉ seulement, jamais le dépôt public : voir le
+    # docstring de sync_depots.py, section « DEUX MODES ».
+    depots = (f'"{py}" "{BRAIN}/hooks/commit_par_zone.py" || true\n'
+              f'[ -f "{BRAIN}/tools/sync_depots.py" ] && '
+              f'"{py}" "{BRAIN}/tools/sync_depots.py" --auto || true')
 
     # Garde anti-faux-positif (crash OS / SIGKILL du binaire `claude` AVANT d'écrire) :
     # `interpret` lit la DERNIÈRE ligne de cost.jsonl. Si claude meurt sans rien écrire,
@@ -378,9 +397,9 @@ def launch_agent(sid, n, to_distill):
     # logs de recall/lecture, AVANT graph_export (qui lit coactivation.json). Pur stdlib.
     lines.append(f'"{py}" "{coact_cli}" >> "{LOG}" 2>&1 || true')
     lines.append(f'"{py}" "{graph_cli}" >> "{LOG}" 2>&1 || true')
-    # commit + idle + release : TOUJOURS, quoi qu'il arrive au-dessus.
+    # dépôts + idle + release : TOUJOURS, quoi qu'il arrive au-dessus.
     lines.append(pulse("committing", "Saving to git"))
-    lines.append(commit)
+    lines.append(depots)
     lines.append('kill "$__HB" >/dev/null 2>&1 || true')   # stoppe le heartbeat AVANT idle
     lines.append(f'"{py}" "{status_cli}" idle')
     lines.append(f'"{py}" "{guard_cli}" release')

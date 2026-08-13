@@ -43,6 +43,38 @@ case "$cmd" in
     # dernières tendances (10 derniers relevés)
     if [ -f state/metrics.jsonl ]; then tail -10 state/metrics.jsonl; else echo "(pas encore de métriques)"; fi
     ;;
+  credit|quota)
+    # « est-ce que les agents peuvent dépenser MAINTENANT ? » — sonde d'un token
+    # (~0,00003 $) qui interroge l'API au lieu de deviner. `--debloquer` efface un
+    # marqueur de blocage devenu faux (plafond rechargé, compte changé).
+    if [ "${2:-}" = "--debloquer" ]; then
+      python3 -c "
+import json, sys, time
+sys.path.insert(0, 'hooks')
+import quota_probe as qp
+v = qp.sonde()
+if not v['ok']:
+    print('⚠️  la sonde dit NON —', v['motif']); print('   marqueur laissé en place.'); raise SystemExit(7)
+json.dump({'blocked_until': 0, 'famille': None, 'echecs': 0, 'msg': 'ok — débloqué à la main',
+           'empreinte': v['empreinte'], 'derniere_sonde': v['ts'], 'limites': v['limites']},
+          open('state/quota.json', 'w'))
+print('✅ blocage levé — les agents peuvent repartir (vérifié par sonde, HTTP', str(v['http']) + ')')
+"
+    else
+      python3 hooks/quota_probe.py
+      python3 -c "
+import json, time
+try: q = json.load(open('state/quota.json'))
+except Exception: raise SystemExit
+b = q.get('blocked_until', 0)
+if b and time.time() < b:
+    print()
+    print('⛔ maintenance GELÉE localement jusqu\'à', time.strftime('%d/%m %H:%M', time.localtime(b)))
+    print('   motif :', str(q.get('msg', ''))[:100])
+    print('   la sonde retentera seule (≤ 15 min) — ou : brain credit --debloquer')
+"
+    fi
+    ;;
   push|backup)
     git add -A
     git commit -q -m "backup manuel via brain $(date +%F\ %H:%M)" || echo "(rien à committer)"
@@ -64,7 +96,8 @@ case "$cmd" in
     cat "$HOME/.c-brain/VERSION" 2>/dev/null || echo "(version inconnue)"
     ;;
   *)
-    echo "Usage : brain <status|doctor|audit|review|recall|next|coherence|utility|embed|push|metrics|selftest|backup|update|demo|version>"
+    echo "Usage : brain <status|doctor|audit|review|recall|next|coherence|utility|credit|embed|push|metrics|selftest|backup|update|demo|version>"
+    echo "        (credit : les agents peuvent-ils dépenser ? — --debloquer lève un blocage devenu faux)"
     echo "        (recall accepte --semantic pour le backend embeddings)"
     exit 1
     ;;
