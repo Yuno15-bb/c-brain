@@ -179,7 +179,23 @@ capsule_ok() {  # does Electron ACTUALLY respond?
 }
 
 if [ "$DO_CAPSULE" = "0" ]; then say "(skipped — --no-capsule)"
-elif ! command -v npm >/dev/null; then warn "npm missing — capsule not installed (everything else works)."
+elif ! command -v npm >/dev/null; then
+  # ⚠ THIS BRANCH USED TO BE ONE SILENT LINE, and it cost a first user about an
+  # hour (install report, 2026-08-13, macOS Intel with no dev tooling). Told only
+  # "npm missing", they went looking for Node themselves, landed on Homebrew —
+  # which needs an interactive sudo, then recompiled openssl@3, xz, lz4 and cmake
+  # FROM SOURCE for 38 minutes without ever reaching Node, with the fans at full
+  # tilt. Every minute of that was avoidable: the official .pkg takes two.
+  # Saying WHAT IS MISSING is not enough. A message that does not name the next
+  # step sends the reader to invent one, and they invent the expensive one.
+  warn "Node.js is missing — only the capsule (the floating orb) is skipped."
+  say  "Everything else is installed and working: hooks, agents, memory, \`brain\`."
+  say  "To get the orb later:"
+  say  "  1. install Node with the OFFICIAL package — https://nodejs.org (macOS .pkg,"
+  say  "     ~2 min, one password prompt, compiles nothing);"
+  say  "  2. re-run this installer: it is idempotent, it will only add the capsule."
+  say  "  (Homebrew works too, but on a machine without up-to-date Command Line Tools"
+  say  "   it rebuilds its dependencies from source — count 40 min instead of 2.)"
 elif [ "$DRY" = "1" ]; then say "(dry-run) would install the capsule dependencies"
 elif capsule_ok; then say "= capsule already working"
 else
@@ -293,6 +309,12 @@ echo "       brain recall cache        what recall finds"
 echo "       brain demo --remove       take them away, leaving no trace"
 echo
 echo "   brain status     where the trunk stands"
+# Said HERE, before they run it: right after an install, `brain status` reports
+# "busy / gardening". That is the first maintenance pass, and it is normal — but
+# a first user reads a machine that says "busy" for no reason as a crash. Reported
+# as such in the install report of 2026-08-13.
+echo "                    (\"busy / gardening\" just after installing is the first"
+echo "                     tidy-up pass — it is normal, and it ends on its own)"
 echo "   brain recall <q> search your memory"
 echo "   brain doctor     tree health"
 echo "   brain selftest   re-check the installation"
