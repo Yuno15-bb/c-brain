@@ -87,7 +87,55 @@ throwaway repository with both branches and holds it down in CI.
 
 ## What is not translated, on purpose
 
-`rules.json` keeps **French patterns and replacements**: they match the French
-source Brain, which is the only thing they will ever run against. Its `why`
-fields — pure documentation — are in English. The file is inert on `main`; it is
-kept there so the repo stays complete and auditable.
+Three files are **byte-identical on both branches** and stay French:
+
+| File | Why |
+|---|---|
+| `sync.sh` | it reads the author's living, French Brain |
+| `rules.json` | the French patterns are what it matches, and its prose documents them |
+| `.sync-manifest` | a fingerprint of the SOURCE, not of the package |
+
+`rules.json` is inert on `main`; it is kept there so the repo stays complete and
+auditable, and identical so that porting it is a plain `git checkout fr --`.
+
+⚠ This section used to claim the `why` fields were in English. They are not, and
+never were: 23 of the 29 carry French accents. `tests/english_only.py` skips the
+whole file, so nothing contradicted the claim — a documented fact that no check
+reads is a fact that rots.
+
+## The glossary — what the translation renames
+
+The engine is translated, and so is the vocabulary it writes to disk. A port
+that renames one side and not the other leaves the branch reading a file nobody
+writes. These are the pairs; extend the table rather than deciding again.
+
+| on `fr` | on `main` | what it is |
+|---|---|---|
+| `base_sur` / `contredit` / `remplace` | `based_on` / `contradicts` / `replaces` | typed relations in a note's front matter |
+| `recall-utilite.json` | `recall-utility.json` | state written by `recall_feedback.py` |
+| `souvent-proposee-jamais-ouverte.json` | `often-suggested-never-opened.json` | state, same writer |
+| `inacheves.json` | `unfinished.json` | state written by `brain_guard.py` |
+| `a-revalider.json` | `to-revalidate.json` | state written by `fraicheur_fiches.py` |
+| `SEUIL_JOURS` | `THRESHOLD_DAYS` | environment variable |
+| `brain_guard.py inacheves --reenfiler` | `brain_guard.py unfinished --requeue` | subcommand |
+
+**What is NOT renamed**: hook FILE names (`fraicheur_fiches.py`, `on_fiche_write.py`
+— `sync.sh` copies them by name and `hooks/hooks.json` lists them), and the front
+matter keys that were already English (`name`, `description`, `born_from`,
+`redirectsTo`, `last_validated`). Agent files ARE renamed
+(`jardinier.md` → `gardener.md`).
+
+## Two tools, one guarantee — and the gap between them
+
+`generalize.py` REWRITES what should not ship; `leakcheck.py` REFUSES what still
+should not. They are not redundant, and neither covers the other:
+
+- A rewrite rule can damage what it touches. The owner-name safety net, a bare
+  `Dylan`, turned two Apache copyright headers into `(c) 2026 l'auteur Peellaert`.
+  leakcheck could not see it — it exempts copyright lines from that very marker.
+  The pattern is now `Dylan(?! Peellaert)`, and leakcheck covers what the
+  negative lets through anywhere else.
+- **Removing a rule leaves no red trace.** `banc-chemins-shell` was dropped, and
+  `capsule/banc/cycle.sh` immediately shipped with `$HOME/claude-brain/` again —
+  the author's private path. No test reads a path inside a comment, no counter
+  moves. When you delete a rule, check by hand what it was holding.
