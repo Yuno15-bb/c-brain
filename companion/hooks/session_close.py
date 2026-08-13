@@ -37,6 +37,12 @@ def prune_old_feeds():
 
 
 def main():
+    # ANTI-RECURSION (Phase 0 of the Brain V3 RFC, 2026-08-03): a headless
+    # maintenance agent is not a work session — it must neither close a feed nor
+    # prune the pre-images of the real session in progress.
+    if os.environ.get("CLAUDE_BRAIN_GARDENING") == "1":
+        return
+
     from companion_lib import AGG, SNAP, append_event, read_hook_input
 
     data = read_hook_input()

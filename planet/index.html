@@ -97,6 +97,27 @@
 
   #hint{ position:fixed; bottom:14px; right:16px; font-size:10px; opacity:.5; text-align:right; line-height:1.6; }
 
+  /* ── SMALL SCREEN (phone, through `distant/`) ──────────────────────────────
+     The planet was born on a 27-inch display: its panels sit in the four
+     corners of a wide screen. At 390 px wide, the legend of the eighteen
+     regions and the mouse help cover the very globe they comment on — and the
+     help talks about the scroll wheel and hovering, two gestures that do not
+     exist on a touch screen.
+     Nothing is redrawn: below 520 px we REMOVE what is of no use there and
+     tighten the rest. None of these rules can reach the desktop. */
+  @media (max-width: 520px) {
+    #hint  { display:none; }
+    #legend{ font-size:9px; line-height:1.5; max-height:32vh; opacity:.7;
+             bottom:8px; left:10px; columns:2; column-gap:12px; }
+    #hud   { top:8px; left:10px; }
+    #title { font-size:11px; }
+    #counts, #viewtag, #livenow, #session { font-size:9.5px; }
+    #modes { flex-wrap:wrap; }
+    /* the hovered note becomes a sheet at the bottom, not a right-hand column */
+    #tip   { right:8px; left:8px; width:auto; max-width:none; top:auto; bottom:8px;
+             transform:none; font-size:12px; }
+  }
+
   /* replayable 3D viewer */
   #viewer{ position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
     background:radial-gradient(ellipse at center, rgba(16,20,30,0.96), rgba(3,4,7,0.985)); }

@@ -16,21 +16,28 @@ Usage :
 import os, re, sys, json, math, glob, hashlib, unicodedata
 from collections import Counter
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 # the RAW/infra layers are excluded from recall — recall must surface DISTILLED knowledge
-# (projects/lessons/meta/life/agents), pas l'archive ni le corpus froid des 4 comptes.
-#   • sessions/ : TIMELINE.md = index de 80+ sessions, si long qu'il matche presque tout → bruit.
+# (projects/lessons/meta/life), not the agent catalogues, not state, not the cold corpus.
+#   • sessions/ : TIMELINE.md = an index of 80+ sessions, so long it matches almost anything → noise.
 #   • corpus/   : the cold layer (thousands of imported conversations) → would drown the top-k.
 # Matched on folder SEGMENTS (not substrings: otherwise a note named "capsule-…" or "…-sessions"
-# would be wrongly excluded, which is exactly the old bug).
-SKIP_DIRS = {".git", "node_modules", "capsule", "corpus", "audits"}
+# would be wrongly excluded, which is exactly the old bug). cf. [[bm25-recall-exclure-index-catalogues]]
+#   • tools/    : tooling. The value bench keeps COPIES of the trunk there for its
+#     conditions; without this exclusion every note was indexed 5 times (1,573 docs
+#     instead of 312), which skews the IDF of the whole corpus and therefore every score.
+SKIP_DIRS = {
+    ".git", "node_modules", "capsule", "capsule-v2", "corpus", "audits",
+    "agents", "state", "tools",
+}
 SKIP_PREFIX = ("sessions",)
+SKIP_FILES = {"MEMORY.md", os.path.join("lessons", "INDEX.md")}
 
 
 def _skip(rel):
-    if rel == "MEMORY.md" or any(rel.startswith(p) for p in SKIP_PREFIX):
+    if rel in SKIP_FILES or any(rel.startswith(p) for p in SKIP_PREFIX):
         return True
-    dirs = rel.split(os.sep)[:-1]               # segments de DOSSIER (hors nom de fichier)
+    dirs = rel.split(os.sep)[:-1]               # FOLDER segments (excluding the file name)
     return any(d in SKIP_DIRS for d in dirs)
 STOP = set("""
 au aux avec ce ces dans de des du elle en et eux il je la le les leur lui ma mais me meme
@@ -46,8 +53,80 @@ def fold(s):
     return "".join(c for c in s if unicodedata.category(c) != "Mn")
 
 
+# Light French stemming. Without it, "ranger" and "rangement" are two tokens that are
+# strangers to each other: the query "comment ranger une fiche du brain" never touched
+# jardinage-regles.md, whose description says "rangement". BM25 was not missing the note
+# for lack of subtlety, it was missing it for lack of lexical overlap.
+#
+# Two stages, and the ORDER is the heart of the fix:
+#   1. the PLURAL first, otherwise "fiche" and "fiches" never meet ("fiches" fell on the
+#      -es rule and gave "fich", while "fiche" stayed "fiche") — it is the most frequent
+#      word in the trunk, missing it ruins everything;
+#   2. then A SINGLE suffix, longest to shortest, and only if the stem keeps at least
+#      4 letters.
+# Deliberately conservative: a greedy stemmer manufactures silent collisions that damage
+# every other query. Ambiguous suffixes are therefore absent — -re turned "mesure" into
+# "mesu", and -es/-ee duplicate stage 1.
+#
+# The stemmer is French because the TRUNK is written in French: it runs against the
+# user's notes, not against this package's own prose.
+_SUFFIXES = sorted((
+    "issement", "ellement", "ications", "ication", "atrice", "ateur", "ation",
+    "ement", "ance", "ence", "isme", "iste", "euse", "able", "ible", "aire",
+    "ite", "ive", "age", "ure", "eur",
+    # common verb forms
+    "eraient", "erions", "assent", "erais", "erait", "erons", "eront", "aient",
+    "ant", "ent", "ons", "ier", "ez", "er", "ir",
+), key=len, reverse=True)
+_MIN_STEM = 4            # below this, the stem no longer means anything
+
+
+def stem(t):
+    if len(t) <= 4:
+        return t
+    # Plural: the "s" only. Stripping a trailing "x" targeted the French plurals in
+    # -aux/-eux, but the trunk is bilingual and it MUTILATES English words:
+    # "outbox" → "outbo", "index" → "inde". The gain on "journaux" is not worth that
+    # damage; caught by this package's tests/recall_cache.py, which my own trials
+    # had not seen.
+    if t.endswith("s") and len(t) > 4:             # 1. plural
+        t = t[:-1]
+    for suf in _SUFFIXES:                          # 2. a single suffix
+        if t.endswith(suf) and len(t) - len(suf) >= _MIN_STEM:
+            return t[: -len(suf)]
+    return t
+
+
+# French ↔ English aliases. The trunk is written in both languages: "offline" is in 37
+# notes, "queue" in 27, "deploy" in 54 — but people type "hors ligne", "file d'attente",
+# "déploiement". NO stemmer crosses a TRANSLATION: measured, "l app terrain plante hors
+# ligne" left offline-first-queue-pattern beyond rank 20 with or without stemming; with
+# these aliases it climbs to rank 4.
+# Applied BEFORE stemming, so that corpus and query are normalised the same way.
+# The table is short and justified by the corpus: a pair is only added when both words
+# are really present in it — no invented vocabulary.
+_ALIAS = {
+    r"hors[- ]ligne": "offline",
+    r"file d[' ]attente": "queue",
+    r"\bsauvegarde\w*": "backup",
+    r"\bdeploiement\w*": "deploy",
+    r"\bdeploy(?:er|ee?s?)\b": "deploy",
+    r"mise en production": "deploy",
+    r"\bmemoire cache\b": "cache",
+}
+_ALIAS_RE = [(re.compile(k), v) for k, v in
+             sorted(_ALIAS.items(), key=lambda kv: -len(kv[0]))]
+
+
+def apply_aliases(txt):
+    for pattern, canonical in _ALIAS_RE:
+        txt = pattern.sub(canonical, txt)
+    return txt
+
+
 def tokenize(text):
-    return [t for t in re.findall(r"[a-z0-9]+", fold(text)) if len(t) > 2 and t not in STOP]
+    return [stem(t) for t in re.findall(r"[a-z0-9]+", apply_aliases(fold(text)))
+            if len(t) > 2 and t not in STOP]
 
 
 def strip_md(text):
@@ -127,7 +206,9 @@ def load_corpus():
 
 # Bumped whenever tokenisation or the document shape changes, so an old cache
 # is discarded instead of silently serving notes scored under the previous rules.
-_CACHE_VERSION = 1
+#   v2 (2026-08-12): stemming + FR/EN aliases in tokenize().
+#   v3 (2026-08-12): documents carry redirectsTo / relations.replaces.
+_CACHE_VERSION = 3
 
 
 def _read_corpus(files):
@@ -146,11 +227,82 @@ def _read_corpus(files):
                   ((desc.group(1) + " ") * 3 if desc else "") + body
         docs.append({
             "path": rel,
+            # succession: is this note an alias (redirectsTo) and/or does it
+            # replace others (relations.replaces)? cf. _superseded()
+            "redirects_to": _fm_field(raw, "redirectsTo"),
+            "replaces": _fm_replaces(raw),
             "name": name.group(1).strip() if name else os.path.basename(rel)[:-3],
             "desc": desc.group(1).strip() if desc else "",
             "tokens": tokenize(boosted),
         })
     return docs
+
+
+# ---------------------------------------------------------------- usage → ranking loop
+# What has ALREADY served climbs. The recall log had existed for months and nobody read it
+# back: `inject_recall.py` opened it in "a" mode and nothing ever read it — 2.3% of the
+# suggested notes were actually opened, and nothing corrected that rate.
+# The multiplier is logarithmic: 1 hit weighs a lot, the 10th almost nothing. A note used
+# 3 times must not crush lexical relevance, only break its ties.
+# α IS MEASURED, NOT PICKED AT RANDOM. There is no ground truth to optimise it against, so
+# we measure its SENSITIVITY instead. Over 10 queries, the share of the top-3 held by notes
+# with a history: α=0 → 3/30 · 0.2 → 8/30 · 0.5 → 12/30 · 1.0 → 15/30 (and only one query
+# in ten keeps its original top-3). Past ~0.3 the history dictates the ranking and the
+# lexical score is no longer the judge. 0.2 = usage breaks ties without dominating.
+ALPHA = 0.2
+RARELY_SUGGESTED = 3        # below this a note counts as "seldom seen" and earns exploration
+_UTILITY_CACHE = None
+
+
+def _utility():
+    """{path: {sugg, hit}} produced by recall_feedback.py. Loaded once per process.
+    Absent = recall behaves exactly as before: this file never causes a failure."""
+    global _UTILITY_CACHE
+    if _UTILITY_CACHE is None:
+        try:
+            with open(os.path.join(BRAIN, "state", "recall-utility.json"), encoding="utf-8") as f:
+                _UTILITY_CACHE = json.load(f)
+        except Exception:
+            _UTILITY_CACHE = {}
+    return _UTILITY_CACHE
+
+
+# ---------------------------------------------------------------- note succession
+# `redirectsTo:` ALREADY existed in the frontmatter (1 note) and was read by NOBODY: a
+# merged note therefore stayed the equal of the one replacing it in recall, and could come
+# out ahead of it. It is the same relation as `relations.replaces` in the gardening rules
+# §4 bis, seen from the other end — we read both rather than invent a competing convention.
+_FM_REPLACES = re.compile(r"^\s+replaces\s*:\s*\[([^\]]*)\]", re.M)
+
+
+def _header(raw):
+    m = re.match(r"^---\n(.*?)\n---", raw, re.S)
+    return m.group(1) if m else ""
+
+
+def _fm_field(raw, field):
+    m = re.search(rf"^\s*{field}\s*:\s*[\"']?([^\"'\n]+)[\"']?\s*$", _header(raw), re.M)
+    return m.group(1).strip() if m else None
+
+
+def _fm_replaces(raw):
+    m = _FM_REPLACES.search(_header(raw))
+    return [c.strip().strip("\"'") for c in m.group(1).split(",") if c.strip()] if m else []
+
+
+def _superseded(docs):
+    """Names of notes replaced by another — removed from recall, never from disk.
+    We only set one aside if the note that succeeds it is really present in the index:
+    otherwise a broken redirect would erase the knowledge instead of redirecting it."""
+    present = {d["name"] for d in docs}
+    dead = set()
+    for d in docs:
+        if d.get("redirects_to") and d["redirects_to"] in present:
+            dead.add(d["name"])                  # this note is an alias
+        for target in d.get("replaces") or ():
+            if target in present and d["name"] in present:
+                dead.add(target)                 # this note replaces another one
+    return dead
 
 
 class BM25:
@@ -167,7 +319,7 @@ class BM25:
                 df[t] += 1
         self.idf = {t: math.log(1 + (self.N - n + 0.5) / (n + 0.5)) for t, n in df.items()}
 
-    def search(self, query, k=5):
+    def search(self, query, k=5, feedback=True):
         q = tokenize(query)
         scored = []
         for i, d in enumerate(self.docs):
@@ -180,8 +332,37 @@ class BM25:
                 s += self.idf.get(t, 0) * (f * (self.k1 + 1)) / denom
             if s > 0:
                 scored.append((s, d))
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return scored[:k]
+        if not scored:
+            return []
+        dead = _superseded(self.docs)
+        if dead:
+            alive = [(sc, d) for sc, d in scored if d["name"] not in dead]
+            scored = alive or scored          # never an empty result because of the filter
+        util = _utility() if feedback else {}
+        adjusted = [(s * (1 + ALPHA * math.log(1 + util.get(d["path"], {}).get("hit", 0))), d)
+                    for s, d in scored]
+        adjusted.sort(key=lambda x: x[0], reverse=True)
+        if not util:
+            return adjusted[:k]
+
+        # EXPLORATION QUOTA — 1 slot in 3. Without it the loop reinforces itself: a note
+        # already opened climbs, so it is suggested more often, so it is opened more
+        # often. Rare but right notes would vanish from recall without anything ever
+        # reporting it. So we reserve slots for the SELDOM suggested.
+        n_explore = k // 3
+        kept = adjusted[:k - n_explore]
+        seen = {id(d) for _, d in kept}
+        fresh = [(s, d) for s, d in adjusted[k - n_explore:]
+                 if id(d) not in seen
+                 and util.get(d["path"], {}).get("sugg", 0) < RARELY_SUGGESTED]
+        for s, d in fresh[:n_explore]:
+            kept.append((s, d)); seen.add(id(d))
+        for s, d in adjusted[k - n_explore:]:      # not enough fresh ones: fill in normally
+            if len(kept) >= k:
+                break
+            if id(d) not in seen:
+                kept.append((s, d)); seen.add(id(d))
+        return kept[:k]
 
 
 def main():

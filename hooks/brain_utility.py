@@ -19,10 +19,11 @@ Usage : brain_utility.py [--json]   (exit 0)
 import os, sys, json, glob, time
 from collections import defaultdict
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 RECALL = os.path.join(BRAIN, "state", "recall_log.jsonl")
 READ = os.path.join(BRAIN, "state", "read_log.jsonl")
 DEAD_AGE_DAYS = 30      # a note is only "dead weight" once it is at least this old
+STRUCTURAL_MAPS = {os.path.join("lessons", "INDEX.md")}
 
 
 def all_fiches():
@@ -31,7 +32,7 @@ def all_fiches():
         rel = os.path.relpath(p, BRAIN)
         # the area allowlist (first segment) is enough and SAFE: the old `any(part in rel ...)`
         # (substring) wrongly excluded notes named "capsule-…" / "corpus-…".
-        if rel == "MEMORY.md":
+        if rel == "MEMORY.md" or rel in STRUCTURAL_MAPS:
             continue
         if rel.split(os.sep)[0] in ("projects", "lessons", "life", "meta"):
             out[rel] = os.path.getmtime(p)

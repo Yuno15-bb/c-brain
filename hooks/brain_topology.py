@@ -34,9 +34,10 @@ try:
 except Exception:
     recall = None
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 OUT = os.path.join(BRAIN, "state", "topology.json")
 DOMAINS = ("projects", "lessons", "meta", "life", "agents")
+STRUCTURAL_MAPS = {os.path.join("lessons", "INDEX.md")}
 
 LINK = re.compile(r"\[\[([^\]]+)\]\]")
 # syntax placeholders present in the agent docs — never real links
@@ -53,6 +54,8 @@ def load():
     fiches = {}
     for p in glob.glob(os.path.join(BRAIN, "**", "*.md"), recursive=True):
         rel = os.path.relpath(p, BRAIN)
+        if rel in STRUCTURAL_MAPS:
+            continue
         zone = rel.split(os.sep)[0]
         if zone not in DOMAINS:
             continue

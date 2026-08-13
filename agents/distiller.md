@@ -33,6 +33,18 @@ metadata:
 ```
 - `feedback` and `project` → add **Why:** and **How to apply:** lines.
 - Link to neighbouring notes with `[[slug]]` (link generously, even towards a note not written yet).
+- **Type the link AT THE MOMENT you lay it down**, when it falls into one of the three
+  cases — and only those. You already know why you are linking two notes while you write;
+  the cost is zero now, and nobody will recover it later. Add to the frontmatter,
+  **without removing** the `[[slug]]` from the body:
+  ```yaml
+  relations:
+    based_on:    [founding-note]     # your note PRESUPPOSES the other one
+    contradicts: [conflicting-note]  # the two cannot both be true
+    replaces:    [stale-note]        # the other is dead, yours takes over
+  ```
+  When in doubt, **leave the link bare**: a bare link means "linked", which is an honest
+  answer. A type chosen at random is worth less than no type. Detail: gardening rules §4 bis.
 
 ## Guiding principle: DISTIL, do not archive
 - A two-message session about "how do I list a folder" deserves **no** note at all.

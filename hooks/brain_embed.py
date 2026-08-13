@@ -16,7 +16,7 @@ import os, sys, re, json, glob, hashlib
 import numpy as np
 from model2vec import StaticModel
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 NPZ = os.path.join(BRAIN, "state", "embeddings.npz")
 META = os.path.join(BRAIN, "state", "embeddings.json")
 MODEL = "minishlab/potion-base-8M"
@@ -25,12 +25,16 @@ MODEL = "minishlab/potion-base-8M"
 # IMPORTANT: the SAME corpus as brain_recall (BM25) — otherwise the two backends do not see the same
 # fiches. On exclut TOUT sessions/ (TIMELINE.md = index de 130+ sessions → matche presque tout = bruit),
 # pas seulement l'archive. cf. [[bm25-recall-exclure-index-catalogues]]
-SKIP_DIRS = {".git", "node_modules", "capsule", "corpus", "audits"}
+SKIP_DIRS = {
+    ".git", "node_modules", "capsule", "capsule-v2", "corpus", "audits",
+    "agents", "state",
+}
 SKIP_PREFIX = ("sessions",)
+SKIP_FILES = {"MEMORY.md", os.path.join("lessons", "INDEX.md")}
 
 
 def _skip(rel):
-    if rel == "MEMORY.md" or any(rel.startswith(p) for p in SKIP_PREFIX):
+    if rel in SKIP_FILES or any(rel.startswith(p) for p in SKIP_PREFIX):
         return True
     dirs = rel.split(os.sep)[:-1]               # segments de DOSSIER (hors nom de fichier)
     return any(d in SKIP_DIRS for d in dirs)

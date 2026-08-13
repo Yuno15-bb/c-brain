@@ -56,10 +56,15 @@ app.whenReady().then(async () => {
        the code pad and the label, neither of which has a z-index. So every
        sheet made since 2026-08-03 shows a MUTE orb, and the pad was nearly
        "fixed" on the strength of that image. The background alone is enough
-       (z-index:-1); the two overlays are raised explicitly. */
+       (z-index:-1); the overlays are raised explicitly.
+       ⚠ 2026-08-08: #fiche was missing from the list — so the "what on" line was
+         ABSENT from every sheet, even though the bench takes care to give it a
+         real slug right underneath. A sheet that does not show the very line
+         whose legibility is being judged proves nothing. */
     document.getElementById('scene').style.zIndex = '0';
     document.getElementById('pave').style.zIndex = '2';
     document.getElementById('dit').style.zIndex = '2';
+    document.getElementById('fiche').style.zIndex = '2';
     return true; })()`);
 
   const FONDS_DEMANDES = (process.env.BANC_FONDS || 'bureau,clair,sombre').split(',');

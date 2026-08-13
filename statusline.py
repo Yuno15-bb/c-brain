@@ -1,15 +1,26 @@
 #!/usr/bin/env python3
-"""Claude Code status line: % of context left + session cost and duration.
+"""Claude Code status line: context consumed + session cost and duration.
 
 Receives Claude Code's session JSON on stdin. Computes the context
 used by re-reading the last `usage` entry of the transcript (input + cache),
-then prints the remaining %, the cost and the duration.
+then prints a warning band, the cost and the duration.
 """
 import sys, json, os, subprocess, glob, time, datetime
 
-# Limite de contexte (tokens). Opus/Sonnet = 200k. La zone "auto-compact"
-# fires roughly before the hard limit, we keep 200k as the reference.
-CTX_LIMIT = 200_000
+# Context window observed on the Claude models currently in use.
+CTX_LIMIT = 1_000_000
+
+# A single implementation of the transcript read, shared with the
+# UserPromptSubmit hook. If the Brain is unavailable, the status line stays
+# fail-open.
+BRAIN_HOOKS = os.path.expanduser("~/.c-brain/trunk/hooks")
+if BRAIN_HOOKS not in sys.path:
+    sys.path.insert(0, BRAIN_HOOKS)
+try:
+    from context_usage import read_context_tokens
+except Exception:
+    def read_context_tokens(_transcript_path):
+        return None
 
 # Conso du jour : Claude Code n'expose nulle part le vrai compteur d'abonnement,
 # on l'approxime en sommant l'usage des transcripts depuis minuit. Cache court
@@ -100,33 +111,15 @@ def today_usage():
 def c(code, s):
     return f"\033[{code}m{s}\033[0m"
 
-def read_context_tokens(transcript_path):
-    """Dernier usage du transcript = empreinte contexte courante."""
-    if not transcript_path or not os.path.exists(transcript_path):
-        return None
-    last = None
-    try:
-        with open(transcript_path, "r") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    obj = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                usage = (obj.get("message") or {}).get("usage")
-                if usage:
-                    last = usage
-    except OSError:
-        return None
-    if not last:
-        return None
-    return (
-        last.get("input_tokens", 0)
-        + last.get("cache_read_input_tokens", 0)
-        + last.get("cache_creation_input_tokens", 0)
-    )
+def context_display(used):
+    """ANSI colour + actionable label for the context consumed."""
+    if used < CTX_LIMIT * 0.15:
+        return "32", f"ctx {used//1000}k"
+    if used < CTX_LIMIT * 0.30:
+        return "33", f"ctx {used//1000}k ⚠"
+    if used <= CTX_LIMIT * 0.50:
+        return "38;5;208", f"ctx {used//1000}k ⚠⚠ /clear ?"
+    return "1;31", f"ctx {used//1000}k 🔴 EXPENSIVE ZONE"
 
 def git_branch(cwd):
     """The current git branch, or None outside a repo."""
@@ -166,14 +159,8 @@ def main():
     # --- Contexte ---
     used = read_context_tokens(data.get("transcript_path"))
     if used is not None:
-        remaining_pct = max(0, min(100, round((1 - used / CTX_LIMIT) * 100)))
-        if remaining_pct <= 15:
-            color = "1;31"   # rouge gras
-        elif remaining_pct <= 35:
-            color = "33"     # jaune
-        else:
-            color = "32"     # vert
-        parts.append(c(color, f"ctx {remaining_pct}%") + c("90", f" ({used//1000}k/{CTX_LIMIT//1000}k)"))
+        color, label = context_display(used)
+        parts.append(c(color, label))
     else:
         parts.append(c("90", "ctx —"))
 

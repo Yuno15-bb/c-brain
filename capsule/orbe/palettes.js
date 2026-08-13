@@ -13,7 +13,9 @@
 //   · l'INTENSITÉ de l'étape module la VITESSE, l'amplitude et la CLARTÉ —
 //     jamais la teinte. On reste dans la famille.
 import { hex, chromaMax } from './couleur.js';
-import { MECANIQUES } from './orbe.js';
+// ⚠ DEPUIS `mecaniques.js`, PAS `orbe.js` : importer les constantes du moteur
+//   ferait charger Three.js (1,27 Mo) à quiconque veut seulement les couleurs.
+import { MECANIQUES } from './mecaniques.js';
 
 // ⚠ TEINTES CHOISIES EN OKLCh, PAS EN RVB. 215° y est franchement TURQUOISE :
 // une famille censée être bleue virait au vert dès que la vivacité montait, et

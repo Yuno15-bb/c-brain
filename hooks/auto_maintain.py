@@ -40,7 +40,7 @@ try:
 except Exception:
     guard = None
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 MEMORY = os.path.join(BRAIN, "MEMORY.md")
 SESS = os.path.join(BRAIN, "sessions")
 INDEX = os.path.join(SESS, ".index.json")          # written by archive_session.py
@@ -201,7 +201,8 @@ def launch_agent(sid, n, to_distill):
             "extract only the DURABLE knowledge they do not already cover."
         )
     garden_task = (
-        "Empty the MEMORY.md Inbox, file each note into the right section, "
+        "Empty the MEMORY.md Inbox, file each note into the right map "
+        "(lessons into lessons/INDEX.md, other notes into MEMORY.md), "
         "deduplicate, repair and weave the [[...]] links, mask any secret, refine. "
         "Do not needlessly re-read a file already read. Do NOT commit (the shell "
         "handles it). Keep your report short."
@@ -285,7 +286,7 @@ def launch_agent(sid, n, to_distill):
         lines.append(f'"{py}" "{guard_cli}" interpret "{cost}" "{sid}" 0')
     # MECHANICAL guard after the gardener (zero LLM): the gardener is the sole judge of its own
     # pass. brain_doctor recounts the defects (dead links, orphans, front matter,
-    # off-index) RIGHT AFTER it, and records the verdict in gardening.log. It fixes
+    # off-map, MEMORY size) RIGHT AFTER it, and records the verdict in gardening.log. It fixes
     # nothing — the mechanic handles that later, through its sensor. Here we only want
     # a gardening pass that degrades the tree to be VISIBLE immediately, instead of
     # waiting up to 12 h for the mechanic's next wake-up.
@@ -350,6 +351,28 @@ def main():
     if os.environ.get("CLAUDE_BRAIN_GARDENING") == "1":
         return  # we ARE the maintenance headless run
 
+    # FREEZE ON AUTONOMOUS WRITERS (Phase 0 of the Brain V3 RFC, 2026-08-03).
+    # While Brain V3 is being built outside production, the distiller, the
+    # gardener and brain_upkeep would keep modifying the trunk — and since
+    # automatic commits were cut, they would do it WITHOUT a trace in git.
+    # The lab would then be working on a base moving underneath it, and
+    # reconciling lab and production would become impossible to reason about.
+    #
+    # The queue itself keeps filling up (capture-only): nothing is lost,
+    # everything will be distilled after the switch-over.
+    #
+    # To lift the freeze: delete ~/.c-brain/trunk/state/FREEZE
+    freeze = os.path.join(BRAIN, "state", "FREEZE")
+    if os.path.exists(freeze):
+        try:
+            data = json.loads(sys.stdin.read() or "{}")
+            sid = data.get("session_id")
+            if sid:
+                guard.enqueue(sid)  # capture-only: we note it, we do not process it
+        except Exception:
+            pass
+        return
+
     try:
         data = json.loads(sys.stdin.read() or "{}")
     except Exception:
@@ -402,7 +425,16 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        # `--capsule`: open the orb WITHOUT triggering any maintenance. Called by the
+        # SessionStart hook. Before this, ensure_capsule() had a single caller
+        # (launch_agent, at the END of a session): the orb therefore never opened
+        # while you were working — 12 h of session without ever seeing it (reported
+        # by the user, 2026-08-04). It always fades away on its own when idle, this
+        # mode forces nothing.
+        if "--capsule" in sys.argv:
+            ensure_capsule()
+        else:
+            main()
     except Exception:
         pass
     sys.exit(0)

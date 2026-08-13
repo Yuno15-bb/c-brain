@@ -10,7 +10,7 @@ Le cerveau qui tend la fiche AVANT qu'on la cherche. Sort toujours 0.
 """
 import os, re, sys, glob
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 SKIP_PARTS = (".git", "node_modules", "capsule", "sessions/archive", "corpus", "audits")
 # Strong markers (real resume points) then weak ones (generic todos).
 # BILINGUAL on purpose: these patterns match what YOU wrote in your own notes,

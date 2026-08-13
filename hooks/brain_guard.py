@@ -144,22 +144,48 @@ def preflight_ok() -> bool:
     return True
 
 
-def _parse_reset_epoch(msg: str):
-    """'... resets 2:50pm (Europe/Paris)' → best-effort epoch; defaults to +1h."""
+# Progressive backoff when the message does NOT say when it restarts (in hours).
+# Measured on 2026-08-07: "monthly spend limit" and "weekly limit" carry no reset
+# time at all. The old +1h default therefore treated a WEEKLY cap as a one-hour
+# pause: every hour the block expired, maintenance restarted, got refused, blocked
+# for another hour — in a loop all day long, never distilling anything. The defect
+# was not the queue, it was its waiting time. cf. [[account-quota-resilience]].
+_BACKOFF_H = [1, 2, 4, 8, 12, 24]
+
+
+def _limit_family(msg: str) -> str:
+    """Three families, because they do NOT restart at the same rhythm.
+    'session' carries its reset time in the message; the other two do not."""
+    m = msg.lower()
+    if "monthly spend limit" in m or "spend limit" in m:
+        return "cap"              # spend cap: monthly reset / raised by hand
+    if "weekly limit" in m or "week" in m:
+        return "weekly"           # weekly limit
+    return "session"
+
+
+def _parse_reset_epoch(msg: str, failures: int = 0):
+    """When do we restart? Two regimes:
+      - the message gives the time ('... resets 2:50pm') → we read it, it is exact;
+      - it does not (spend cap, weekly) → PROGRESSIVE backoff indexed on the number
+        of consecutive failures, never one retry per hour until the end of time.
+    `failures` = counter carried by the quota marker (0 on the first failure)."""
     try:
         m = re.search(r'resets\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)', msg, re.I)
-        if not m:
-            return time.time() + 3600
-        h = int(m.group(1)) % 12
-        if m.group(3).lower() == "pm":
-            h += 12
-        mn = int(m.group(2) or 0)
-        now = time.localtime()
-        target = list(now); target[3] = h; target[4] = mn; target[5] = 0
-        t = time.mktime(time.struct_time(tuple(target)))
-        if t < time.time():
-            t += 24 * 3600                    # reset demain
-        return t
+        if m:
+            h = int(m.group(1)) % 12
+            if m.group(3).lower() == "pm":
+                h += 12
+            mn = int(m.group(2) or 0)
+            now = time.localtime()
+            target = list(now); target[3] = h; target[4] = mn; target[5] = 0
+            t = time.mktime(time.struct_time(tuple(target)))
+            if t < time.time():
+                t += 24 * 3600                # resets tomorrow
+            return t
+        # no time in the message → progressive backoff, capped at 24 h
+        step = _BACKOFF_H[min(max(failures, 0), len(_BACKOFF_H) - 1)]
+        return time.time() + step * 3600
     except Exception:
         return time.time() + 3600
 
@@ -188,10 +214,21 @@ def interpret_result(last_cost_line: str, sid: str, is_distill: bool = True) -> 
         if is_distill:
             enqueue(sid)                      # NOT distilled → retried later
         if r.get("api_error_status") == 429 or "limit" in rl:
-            _wj(QUOTA, {"blocked_until": _parse_reset_epoch(res), "msg": res[:200]})
+            # The CONSECUTIVE failure counter drives the backoff and doubles as a
+            # sensor: without it, nothing told a "first refusal" apart from a "ninth
+            # refusal in a row", and the system restarted identically every time.
+            prev = _rj(QUOTA, None) or {}
+            fam = _limit_family(res)
+            failures = (prev.get("failures", 0) + 1) if prev.get("family") == fam else 1
+            _wj(QUOTA, {"blocked_until": _parse_reset_epoch(res, failures - 1),
+                        "family": fam, "failures": failures,
+                        "since": prev.get("since") if prev.get("family") == fam else time.time(),
+                        "msg": res[:200]})
         return False
     _wj(LOGIN, {"logged_out": False, "ts": time.time()})   # run OK → the session was authenticated
-    _wj(QUOTA, {"blocked_until": 0, "msg": "ok"})          # tokens are back → lift the block
+    # tokens are back → lift the block AND reset the failure counter, otherwise the
+    # next refusal would restart at the last backoff step.
+    _wj(QUOTA, {"blocked_until": 0, "family": None, "failures": 0, "msg": "ok"})
     return True
 
 
@@ -266,6 +303,104 @@ def dequeue_one():
     return _with_queue(m)
 
 
+# --- F. Notes whose processing is UNFINISHED -------------------------------
+# The hole the author named on 2026-08-07: the queue tracks SESSIONS, not notes.
+# A distillation killed mid-flight re-queues its session (good). But a distillation
+# that FINISHES while leaving a note half written marks the session as processed:
+# the hole becomes invisible, and no counter moves.
+# This check looks at the RESULT on disk, not at the run's exit code.
+_NOTE_SKIP = ("sessions", "corpus", "node_modules", "capsule", "capsule-v2",
+              "planet", "audits", "tools", "state", "companion", "tests", ".git")
+MIN_BODY = 120           # below this, the note carries no useful content
+
+
+def _read_note(path):
+    """(frontmatter, body) or None when the file does not have the shape of a note."""
+    try:
+        t = open(path, encoding="utf-8", errors="ignore").read()
+    except Exception:
+        return None
+    m = re.match(r'^---\s*\n(.*?)\n---\s*\n?(.*)$', t, re.S)
+    return (m.group(1), m.group(2)) if m else None
+
+
+def incomplete_notes(brain=None):
+    """Lists the notes whose processing never went all the way through.
+    Three symptoms, each observable on the file itself:
+      - no frontmatter            → writing interrupted before the header
+      - name/description missing  → header started, never filled in
+      - body < MIN_BODY           → header laid down, content never written
+    Measured on the real trunk at the time of writing: 0 notes reported out of 314.
+    A check that shouts on a healthy trunk is a check people learn to ignore."""
+    brain = brain or BRAIN
+    out = []
+    for root, dirs, files in os.walk(brain):
+        rel_root = os.path.relpath(root, brain)
+        head = rel_root.split(os.sep)[0]
+        if head in _NOTE_SKIP:
+            dirs[:] = []
+            continue
+        for f in files:
+            # MEMORY.md / INDEX.md / README.md are MAPS, not notes: by design they
+            # have no frontmatter. Reporting them is how you teach people to ignore
+            # the check.
+            if not f.endswith(".md") or f in ("MEMORY.md", "README.md", "INDEX.md"):
+                continue
+            p = os.path.join(root, f)
+            rel = os.path.relpath(p, brain)
+            fm_body = _read_note(p)
+            if fm_body is None:
+                out.append({"note": rel, "reason": "no frontmatter", "sid": None})
+                continue
+            fm, body = fm_body
+            reasons = []
+            if not re.search(r'^\s*name\s*:', fm, re.M):
+                reasons.append("name missing")
+            if not re.search(r'^\s*description\s*:', fm, re.M):
+                reasons.append("description missing")
+            if len(body.strip()) < MIN_BODY:
+                reasons.append("empty body")
+            if reasons:
+                m = re.search(r'originSessionId\s*:\s*([0-9a-fA-F-]+)', fm)
+                out.append({"note": rel, "reason": ", ".join(reasons),
+                            "sid": m.group(1) if m else None})
+    return out
+
+
+MAX_RETRIES = 2           # past this, we stop replaying and we SAY so
+
+
+def requeue_unfinished(brain=None, journal=None):
+    """Re-queues the sessions of unfinished notes that carry their origin.
+
+    ⚠ The trap closed here: a note that stays incomplete AFTER reprocessing would
+    re-queue itself on every tick of the timer — a loop burning tokens every ten
+    minutes, exactly what we are trying to avoid. Hence a per-session attempt
+    counter, capped: past it, the session is no longer replayed, it is reported.
+    A visible give-up beats an invisible loop.
+
+    Returns (notes_reported, sessions_requeued, sessions_given_up)."""
+    journal = journal or os.path.join(STATE, "unfinished.json")
+    inc = incomplete_notes(brain)
+    hist = _rj(journal, {}) or {}
+    sids = {x["sid"] for x in inc if x["sid"]}
+    requeued, given_up = 0, 0
+    for s in sids:
+        tries = hist.get(s, {}).get("tries", 0)
+        if tries >= MAX_RETRIES:
+            given_up += 1
+            continue
+        enqueue(s)
+        hist[s] = {"tries": tries + 1, "ts": time.time()}
+        requeued += 1
+    # a session whose notes became healthy again drops out of the history
+    for s in list(hist):
+        if s not in sids:
+            hist.pop(s, None)
+    _wj(journal, hist)
+    return len(inc), requeued, given_up
+
+
 # --- CLI: used by auto_maintain's shell wrapper -------------------
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
@@ -287,4 +422,19 @@ if __name__ == "__main__":
         release_lock(); sys.exit(0)
     elif cmd == "preflight":
         sys.exit(0 if preflight_ok() else 7)
+    elif cmd == "unfinished":
+        # unfinished [--requeue] → lists the notes whose processing never finished.
+        # Exit 0 when the trunk is healthy, 7 when some remain — so an automatic
+        # check can REACT instead of merely displaying.
+        inc = incomplete_notes()
+        for x in inc:
+            print(f"  ⚠ {x['note']} — {x['reason']}"
+                  + (f" (session {x['sid'][:8]})" if x["sid"] else " (origin unknown)"))
+        if "--requeue" in sys.argv:
+            n, s, giv = requeue_unfinished()
+            print(f"[brain_guard] {n} unfinished note(s), {s} session(s) re-queued"
+                  + (f", {giv} given up after {MAX_RETRIES} attempts" if giv else ""))
+        elif not inc:
+            print("[brain_guard] no unfinished note")
+        sys.exit(0 if not inc else 7)
     sys.exit(0)

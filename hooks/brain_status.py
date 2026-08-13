@@ -54,11 +54,54 @@ def touch_status():
     except Exception:
         pass
 
+STATES = ("busy", "idle")   # the 1st argument is a STATE; the activity is the 2nd
+
+
+def show_status():
+    """SHOWS the current status. NEVER writes it.
+
+    Exists since 2026-08-04. Before that: `brain status` called `brain_status.py show`,
+    but this file was only a WRITER — so "show" was taken for a state and RECORDED in
+    status.json. Result: the CLI's flagship command displayed nothing (empty output,
+    exit 0, so the `||` fallbacks in the `brain` script never fired) and corrupted, in
+    passing, the very state the capsule reads. Two faults in one line."""
+    try:
+        with open(STATUS, "r", encoding="utf-8") as f:
+            s = json.load(f)
+    except FileNotFoundError:
+        print("(no status: state/status.json is missing)")
+        return 0
+    except Exception as e:
+        print(f"(unreadable status: {e})")
+        return 1
+    age = time.time() - (s.get("ts") or 0)
+    fresh = age < 120
+    state = s.get("state") or "?"
+    if state not in STATES:
+        state += "  ⚠️ unknown state (status.json was corrupted by a faulty call)"
+    print(f"state    : {state}")
+    print(f"activity : {s.get('activity') or '—'}")
+    print(f"detail   : {s.get('detail') or '—'}")
+    print(f"source   : {s.get('source') or '—'}")
+    when = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(s.get('ts') or 0))
+    print(f"since    : {when}  ({int(age)} s — {'fresh' if fresh else 'STALE, the capsule reads it as idle'})")
+    return 0
+
+
 if __name__ == "__main__":
     a = sys.argv
-    if len(a) > 1 and a[1] == "touch":
+    cmd = a[1] if len(a) > 1 else "idle"
+    if cmd == "touch":
         touch_status()
+    elif cmd in ("show", "status"):
+        sys.exit(show_status())
+    elif cmd in STATES:
+        write_status(cmd, a[2] if len(a) > 2 else None, a[3] if len(a) > 3 else None)
     else:
-        write_status(a[1] if len(a) > 1 else "idle",
-                     a[2] if len(a) > 2 else None,
-                     a[3] if len(a) > 3 else None)
+        # REFUSE rather than record: any word at all was accepted as a state, so a typo
+        # silently poisoned the very file the capsule reads.
+        print(f"unknown state: {cmd!r} — expected {' | '.join(STATES)} (or touch / show).",
+              file=sys.stderr)
+        print("Usage: brain_status.py <busy|idle> [activity] [detail]  ·  ... touch  ·  ... show",
+              file=sys.stderr)
+        sys.exit(2)

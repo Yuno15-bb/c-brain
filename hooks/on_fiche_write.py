@@ -3,7 +3,8 @@
 PostToolUse (Write|Edit) hook — the instant mechanical guard.
 On EVERY note landing in the trunk, with no LLM, no loop and no blocking:
   1. masque tout secret en clair
-  2. guarantees the note is on the MEMORY.md map (otherwise -> the "to file" Inbox)
+  2. guarantees the note is on the MEMORY.md + lessons/INDEX.md map
+     (otherwise -> the "to file" Inbox)
   3. signale si le frontmatter manque
 
 Loop guard: this script edits files through direct Python I/O (not through the
@@ -21,6 +22,8 @@ except Exception:
 
 BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
 MEMORY = os.path.join(BRAIN, "MEMORY.md")
+LESSONS_INDEX = os.path.join(BRAIN, "lessons", "INDEX.md")
+MAP_RELS = {"MEMORY.md", os.path.join("lessons", "INDEX.md")}
 INBOX_HEADER = "## 🆕 Inbox — notes to file (auto)"
 
 SECRET = re.compile(
@@ -44,13 +47,13 @@ def main(data):
 
     # --- status pulse for the capsule (any activity on the tree) ---
     name = os.path.basename(rel)[:-3] if rel.endswith(".md") else os.path.basename(rel)
-    if rel == "MEMORY.md":
+    if rel in MAP_RELS:
         write_status("busy", "mapping", "updating the map")
     elif rel.endswith(".md") and not rel.startswith("sessions" + os.sep):
         write_status("busy", "filing", name)
 
     # exclude the map itself, the automatic archive, and non-.md files from the mechanical work
-    if rel == "MEMORY.md" or rel.startswith("sessions" + os.sep) or not rel.endswith(".md"):
+    if rel in MAP_RELS or rel.startswith("sessions" + os.sep) or not rel.endswith(".md"):
         return
     if not os.path.exists(real):
         return
@@ -104,15 +107,20 @@ def main(data):
     slug = m.group(1).strip() if m else None
     fname = os.path.basename(rel)[:-3]
 
-    # --- 2. guarantee presence on the map ---
+    # --- 2. guarantee presence on the composed map ---
     try:
         mem = open(MEMORY, encoding="utf-8").read()
     except Exception:
         return
-    linked = (rel in mem) or (fname in mem) or (slug and f"[[{slug}]]" in mem) \
-             or (slug and f"({rel})" in mem)
+    try:
+        lessons_index = open(LESSONS_INDEX, encoding="utf-8").read()
+    except Exception:
+        lessons_index = ""  # migration/recovery fallback: the Inbox stays functional
+    card = mem + "\n" + lessons_index
+    linked = (rel in card) or (fname in card) or (slug and f"[[{slug}]]" in card) \
+             or (slug and f"({rel})" in card)
     # F2 — pendant une passe de maintenance (CLAUDE_BRAIN_GARDENING=1), c'est le
-    # gardener owns the map: it files notes INTO MEMORY.md and empties
+    # gardener owns the map: it files notes into MEMORY/lessons INDEX and empties
     # the Inbox. Dropping into the Inbox in parallel would race (re-adding a note
     # fiche qu'il vient de classer). On garde le masquage des secrets et le capteur de
     # coherence (above, always active) but we skip the Inbox drop here.

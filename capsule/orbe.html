@@ -64,9 +64,12 @@
      the sphere's CAST SHADOW. A shadow belongs to the scene, not to a UI; it
      hugs the object instead of outlining it, and it supplies the contrast the
      text cannot give itself, on a light desktop as on a dark one. */
-  #dit { position:absolute; left:50%; bottom:11px; transform:translateX(-50%);
+  #dit { position:absolute; left:50%; bottom:14.5px; transform:translateX(-50%);
          white-space:nowrap; color:rgba(255,255,255,.95);
-         font:600 7.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
+         /* 2026-08-08 — +1.5 px on both lines, at the author's request. The
+            label goes up TOO: growing only the line underneath would invert the
+            hierarchy that case alone carries. */
+         font:600 9px/1.2 ui-sans-serif,-apple-system,sans-serif;
          letter-spacing:1.4px; text-indent:1.4px;
          /* ⚠ THE CAST SHADOW WAS REMOVED (2026-08-04, user request: "remove the
             black shadow under WORKING / SYNTHESIZING"). It was a 126 px dark
@@ -92,22 +95,39 @@
      ⚠ It is in normal case, with no letter-spacing: it is a TITLE, not a tag.
        Were both lines the same weight and the same caps, you would read one
        block of two labels and the landmark would be lost. The hierarchy is
-       carried by case and brightness, not by size — at 6 px, going smaller
-       would simply make it unreadable.
+       carried by case and brightness, not by size — the size does have a floor
+       though, see below.
      ⚠ 146 px wide at most, cut with an ellipsis: a note slug commonly runs to
-       60 characters, and the window is 150 px. */
-  #fiche { position:absolute; left:50%; bottom:2px; transform:translateX(-50%);
+       60 characters, and the window is 150 px.
+     ⚠ 2026-08-08 — "you cannot make out the writing under the WORKING" (the
+       author, screenshot of the real desktop). Three causes stacked, all fixed
+       here:
+         · 6 px at weight 500: too little matter per glyph once antialiasing
+           has had its way;
+         · no separation from the background — the desktop text passes BETWEEN
+           the letters and blurs the word. The label above escapes that through
+           its caps and letter-spacing, not through its size;
+         · glued 2 px from the bottom edge, the line fell exactly onto the next
+           line of desktop text.
+       Answer: 7 px / 600, and a multi-layer dark halo TIGHT on the glyphs. The
+       hierarchy still holds — caps + letter-spacing on top, normal case below —
+       so 7 px does not turn the two lines into one block of two labels. */
+  #fiche { position:absolute; left:50%; bottom:3.5px; transform:translateX(-50%);
            max-width:146px; overflow:hidden; text-overflow:ellipsis;
            white-space:nowrap; text-align:center;
-           color:rgba(255,255,255,.92);
-           font:500 6px/1.25 ui-sans-serif,-apple-system,sans-serif;
+           color:#fff; letter-spacing:.1px;
+           font:600 8.5px/1.2 ui-sans-serif,-apple-system,sans-serif;
            /* ⚠ A HEAVIER shadow than the label's, the opposite of what the
               hierarchy would suggest: this line is thinner and longer, so it
               has less matter to stand out with. Seen on the light-background
               sheet, the soft version drowned in the desktop text behind it.
-              Rank is read from the case, not from weak contrast. */
-           text-shadow:0 1px 2px rgba(4,7,12,.95),
-                       0 0 3px rgba(4,7,12,.75);
+              Rank is read from the case, not from weak contrast.
+              The two tight layers (1 px and 2 px) kill the background between
+              the letters; the third, wide and faint, lifts the word off the
+              desktop without drawing an area — a shadow, never an outline. */
+           text-shadow:0 1px 1.5px rgba(4,7,12,1),
+                       0 0 2px rgba(4,7,12,1),
+                       0 0 5px rgba(4,7,12,.8);
            opacity:0; transition:opacity .28s ease; pointer-events:none; }
   #fiche.vu { opacity:1; }
   /* The three dots say it is STILL GOING — an agent pass runs for minutes, and
@@ -455,7 +475,21 @@ function lireFlux(etat) {
     dernierFichier = j.rel || j.file || dernierFichier;
     out.push({ t: '── ' + (j.rel || j.file || '?'), c: 'tete' });
     for (const d of j.diff) {
-      const t = d.replace(/\t/g, '  ').replace(/\s+$/, '');
+      // ⚠ INDENTATION WAS THROWING THE WHOLE PAD OFF-CENTRE (2026-08-08). The
+      //   lines are CENTRED in the disc, and `white-space:pre` keeps leading
+      //   spaces: a line indented by twelve spaces centres WITH them, so its
+      //   text drifts to the right and out of the mask while the left half of
+      //   the pad stays empty. Visible as soon as you look at a deeply nested
+      //   code file — a shader, typically. We keep two spaces: enough to see
+      //   there is a level, not enough to push the line out of the disc. It
+      //   also buys back 10 useful characters out of 19.
+      // ⚠ THE DIFF SIGN COMES BEFORE THE INDENTATION — "+          vec3 x". A
+      //   first attempt anchored the pattern on the space alone (`^ {3,}`): it
+      //   therefore matched NO added or removed line, that is, almost the whole
+      //   pad, and the sheet came back identical. The sign is captured and put
+      //   back, otherwise `classe()` no longer recognises the line.
+      const t = d.replace(/\t/g, '  ').replace(/\s+$/, '')
+                 .replace(/^([+-]?) {2,}/, '$1 ');
       if (!t) continue;
       out.push({ t: t.slice(0, LARGEUR), c: classe(t) });
     }

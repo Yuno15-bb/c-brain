@@ -14,7 +14,7 @@ Code can discover them.
 ## The agents
 
 - **[distiller](distiller.md)** — creates knowledge: turns raw sessions (`sessions/archive/`, transcripts) into clean notes and lessons, or updates what exists. *Does not tidy the tree globally* (that is the gardener).
-- **[gardener](gardener.md)** — tidies the tree: deduplicates, guarantees every note is in `MEMORY.md`, weaves and repairs the **obvious** `[[...]]` links, masks secrets, handles coherence and usefulness. *Creates no knowledge.*
+- **[gardener](gardener.md)** — tidies the tree: deduplicates, guarantees every note is on the map (`MEMORY.md` + `lessons/INDEX.md`), weaves and repairs the **obvious** `[[...]]` links, masks secrets, handles coherence and usefulness. *Creates no knowledge.*
 - **[architect](architect.md)** — **global** cohesion: reads the whole graph topology (`hooks/brain_topology.py`) to weave the **missing** links, connect isolated notes, reattach detached islands, favour cross-domain bridges. *The wide view, where the gardener files note by note.*
 - **[challenger](challenger.md)** — puts the knowledge to the test: hunts the stale, the false, the contradicted, the oversold; produces substantiated doubts (`state/challenges.json`). *Fixes nothing — it doubts.*
 - **[synthesizer](synthesizer.md)** — second-order knowledge: connects a cross-cutting theme across several projects into a dense essay (`lessons/`). *Creates the wide view no single note states.*

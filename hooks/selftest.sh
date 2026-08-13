@@ -59,6 +59,53 @@ python3 tests/invariants_brain.py >/dev/null 2>&1 \
   && ok "invariants_brain (7 relations)" \
   || ko "invariants_brain — a trunk invariant is violated (python3 tests/invariants_brain.py)"
 
+# 8. THE FRONT DOOR — the `brain` CLI itself (added 2026-08-04).
+#    THE HOLE THAT COST 6 WEEKS: this selftest exercised ONLY hooks. `brain` is not a hook, so
+#    nothing ever ran it — and since 2026-06-22 `brain status` had been calling a
+#    `brain_status.py show` that DID NOT EXIST. The word "show" was taken for a STATE and WRITTEN
+#    into status.json: empty output, exit 0, corrupted capsule. The commit that introduced the
+#    bug is THE VERY ONE THAT CREATED THIS SELFTEST, and it announced "12/12 OK".
+#    The lesson is in the criterion: "exits 0" does not test a command whose job is to DISPLAY.
+#    So we assert on the OUTPUT, and on the ABSENCE of side effects.
+before=$(cat state/status.json 2>/dev/null)
+for c in "" next; do
+  out=$(./brain $c 2>&1)
+  [ -n "$out" ] \
+    && ok "brain ${c:-status} produces output ($(echo "$out" | wc -l | tr -d ' ') line(s))" \
+    || ko "brain ${c:-status} prints NOTHING — a silent display command is broken, even at exit 0"
+done
+# a READ command must never mutate the state the capsule reads
+[ "$(cat state/status.json 2>/dev/null)" = "$before" ] \
+  && ok "brain status did not modify state/status.json (pure read)" \
+  || ko "brain status MUTATED status.json — this is exactly the 2026-06-22 bug"
+# an unknown state must be REFUSED, not recorded (otherwise a typo poisons the capsule)
+python3 hooks/brain_status.py bogus-state >/dev/null 2>&1
+[ $? -eq 2 ] && [ "$(cat state/status.json 2>/dev/null)" = "$before" ] \
+  && ok "brain_status refuses an unknown state (exit 2, file intact)" \
+  || ko "brain_status accepted an unknown state — any typo breaks the capsule"
+# do all the subcommands announced in the usage really exist in the case?
+if python3 - <<'PYEOF'
+import re, subprocess, sys, os
+brain = os.path.expanduser("~/.c-brain/trunk/brain")
+usage = subprocess.run([brain, "no-such-command"], capture_output=True, text=True)
+m = re.search(r"brain <([^>]*)>", usage.stdout + usage.stderr)
+announced = set(m.group(1).split("|")) if m else set()
+src = open(brain).read()
+# every alternative of every `case` label
+implemented = set()
+for lab in re.findall(r"^\s{2}([a-z|]+)\)", src, re.M):
+    implemented |= set(lab.split("|"))
+missing = sorted(announced - implemented)
+if not announced:
+    print("usage not found", file=sys.stderr); sys.exit(1)
+if missing:
+    print("announced but absent: " + " ".join(missing), file=sys.stderr); sys.exit(1)
+print(f"{len(announced)} subcommands announced, all implemented")
+PYEOF
+then ok "usage <-> case: no subcommand announced into the void"
+else ko "brain's usage announces a subcommand that does not exist (this is THE kind of gap that created the 2026-06-22 bug)"
+fi
+
 echo
 [ $fail -eq 0 ] && echo "✅ selftest OK — every hook healthy" || echo "❌ selftest: some hooks are broken"
 exit $fail

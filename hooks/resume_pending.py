@@ -30,6 +30,24 @@ def main():
     if os.environ.get("CLAUDE_BRAIN_GARDENING") == "1":
         return                              # we are already a headless run
 
+    # The freeze on autonomous writers lives in auto_maintain.main(), and THIS path
+    # does not go through main(): it calls launch_agent directly. So the freeze was
+    # bypassable every ten minutes by launchd, without anyone seeing it. Same mistake
+    # as [[desarmer-le-hook-ne-suffit-pas-la-session-voisine-commite-aussi]]: a lock
+    # placed at ONE caller does not protect against the others.
+    # The queue keeps filling up — nothing is lost, everything waits for the thaw.
+    if os.path.exists(os.path.join(am.BRAIN, "state", "FREEZE")):
+        return
+
+    # Notes whose processing is UNFINISHED, before looking at the queue — otherwise a
+    # half-written note with an empty queue would never be seen (the early return
+    # below cuts the path off). The check only reads local files: zero tokens, ~20 ms
+    # over 314 notes. It caps its own retries.
+    try:
+        guard.requeue_unfinished()
+    except Exception:
+        pass
+
     try:
         pending = json.load(open(QUEUE, encoding="utf-8"))
     except Exception:

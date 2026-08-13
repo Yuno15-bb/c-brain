@@ -27,12 +27,13 @@ Usage :
 """
 import os, re, sys, json, time, glob, subprocess
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 STATE = os.path.join(BRAIN, "state")
 HOOKS = os.path.join(BRAIN, "hooks")
 STALE_DAYS = 90                                     # « plus de trois mois »
 FICHE_DIRS = ("projects", "lessons", "meta", "life", "agents", "planet", "sessions")
 SKIP_PARTS = {".git", "node_modules", "audits", "capsule", "planet/dist"}
+STRUCTURAL_MAPS = {os.path.join("lessons", "INDEX.md")}
 
 
 def _rj(name, default):
@@ -58,6 +59,8 @@ def _fiches_in(dirs):
     for d in dirs:
         for p in glob.glob(os.path.join(BRAIN, d, "**", "*.md"), recursive=True):
             rel = os.path.relpath(p, BRAIN)
+            if rel in STRUCTURAL_MAPS:
+                continue
             if any(part in SKIP_PARTS for part in rel.split(os.sep)):
                 continue
             out.append((rel, p))
@@ -164,6 +167,7 @@ def build():
         "dead_links": doctor.get("dead_links", []),
         "orphans": doctor.get("orphans", []),
         "off_index": doctor.get("off_index", []),
+        "memory_too_heavy": doctor.get("memory_too_heavy", []),
         "naming": doctor.get("naming", []),
         "frontmatter": doctor.get("frontmatter", []),
         "drift_git": doctor.get("drift_git"),
@@ -197,8 +201,9 @@ def to_markdown(r):
         ("Stale notes (>3 months)", "stale_notes", "→ archivist: check freshness"),
         ("Inconsistent infrastructure paths", "odd_paths", "→ mechanic: fix the infrastructure"),
         ("Dead links", "dead_links", "→ mechanic/gardener"),
-        ("Orphelins (hors carte)", "orphans", "→ jardinier : indexer"),
-        ("Hors index (MEMORY.md)", "off_index", "→ jardinier : indexer"),
+        ("Orphans (off the map)", "orphans", "→ gardener: index it"),
+        ("Off-map (MEMORY + lessons/INDEX)", "off_index", "→ gardener: index it"),
+        ("MEMORY.md above 20 kB", "memory_too_heavy", "→ gardener: lighten the startup map"),
     ]
     for label, key, who in rows:
         n = (r["n_components"] - 1 if key is None and r.get("n_components") else _n(r.get(key)))

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Invariants du C Brain — relations qui doivent rester vraies, pas cas particuliers.
+"""C Brain invariants — relations that must stay true, not special cases.
 
 Each test states a RELATION between two halves of the system that, read separately,
-semblent justes. Lancer : python3 tests/invariants_brain.py   (rc != 0 si un invariant casse)
+look right. Run: python3 tests/invariants_brain.py   (rc != 0 when an invariant breaks)
 
 Born of a real audit: the challenger's sensor counted `len(coherence.json)`
 while the file can hold NON-actionable entries (arbitration notes left by an
@@ -11,9 +11,9 @@ preempted the architect — and a check_coherence dying on a KeyError over the s
 """
 import json, os, sys, unittest
 
-# Deux racines DISTINCTES, et c'est volontaire :
+# TWO DISTINCT roots, on purpose:
 #  · CODE  — where the hooks to import come from. Follows the file, because the engine
-#    peut vivre ailleurs que le tronc (installation par symlinks).
+#    can live somewhere other than the trunk (symlink installation).
 #  · BRAIN — the user's trunk, where the DATA comes from (state/).
 #    Always derived from $HOME: writing into the engine would break the installation
 #    and be wiped on the first update.
@@ -22,7 +22,7 @@ BRAIN = os.path.expanduser("~/.c-brain/trunk")
 sys.path.insert(0, os.path.join(CODE, "hooks"))
 
 MALFORMED = [{"note": "✓ arbitrated, false positive", "note2": "✓ same"}]
-REAL_PAIR = [{"a": "x", "b": "y", "sim": 0.9, "ts": 0, "status": "fort recouvrement"}]
+REAL_PAIR = [{"a": "x", "b": "y", "sim": 0.9, "ts": 0, "status": "heavy overlap"}]
 
 
 class SensorNeverStuck(unittest.TestCase):
@@ -43,19 +43,19 @@ class SensorNeverStuck(unittest.TestCase):
             if backup is not None:
                 open(path, "w", encoding="utf-8").write(backup)
 
-    def test_entrees_non_actionnables_ne_reveillent_pas_le_challenger(self):
+    def test_non_actionable_entries_do_not_wake_the_challenger(self):
         self.assertFalse(self._has_work(MALFORMED),
                          "challenger woken on an entry with no (a,b) pair to arbitrate")
 
-    def test_vraie_paire_reveille_bien_le_challenger(self):
+    def test_a_real_pair_does_wake_the_challenger(self):
         self.assertTrue(self._has_work(REAL_PAIR),
-                        "challenger endormi alors qu'une vraie paire attend un arbitrage")
+                        "challenger left asleep while a real pair waits for arbitration")
 
-    def test_capteur_vide_ne_reveille_personne(self):
+    def test_an_empty_sensor_wakes_nobody(self):
         self.assertFalse(self._has_work([]))
 
 
-class CheckCoherenceTolerantAuxVieillesEntrees(unittest.TestCase):
+class CheckCoherenceToleratesOldEntries(unittest.TestCase):
     """INVARIANT: the detector survives any content already present in its own state.
 
     check_coherence RE-READS coherence.json then writes back to it. If it assumes a
@@ -63,47 +63,52 @@ class CheckCoherenceTolerantAuxVieillesEntrees(unittest.TestCase):
     detached — and NO overlap is ever detected again.
     """
 
-    def test_pas_de_keyerror_sur_entree_legacy(self):
+    def test_no_keyerror_on_a_legacy_entry(self):
         import check_coherence
         for flags in (MALFORMED, REAL_PAIR, [], MALFORMED + REAL_PAIR):
             with self.subTest(flags=flags):
                 try:
                     pairs = check_coherence.existing_pairs(flags)
                 except Exception as e:  # noqa: BLE001
-                    self.fail(f"check_coherence casse sur {flags}: {e!r}")
+                    self.fail(f"check_coherence breaks on {flags}: {e!r}")
                 self.assertIsInstance(pairs, set)
 
 
-class DocEtCodeDAccord(unittest.TestCase):
+class DocsAndCodeAgree(unittest.TestCase):
     """INVARIANT: every agent that can wake autonomously is documented as such.
 
     An agent wired into ORDER runs with --dangerously-skip-permissions. If the docs
     call it "optional, not wired in", nobody knows it can write on its own.
     """
 
-    def test_tout_agent_de_ORDER_est_annonce_dans_le_readme(self):
+    SECOND_LAYER_HEADING = "## The second autonomous layer"
+
+    def test_every_ORDER_agent_is_announced_in_the_readme(self):
         import brain_upkeep
-        readme = open(os.path.join(BRAIN, "agents", "readme.md"), encoding="utf-8").read()
-        bloc = readme.split("## Seconde couche")[-1]
+        readme = open(os.path.join(BRAIN, "agents", "README.md"), encoding="utf-8").read()
+        self.assertIn(self.SECOND_LAYER_HEADING, readme,
+                      "the watch section heading has moved — the split below would silently "
+                      "return the WHOLE readme and the test would stop testing anything")
+        block = readme.split(self.SECOND_LAYER_HEADING)[-1]
         for agent in brain_upkeep.ORDER:
-            self.assertIn(agent, bloc,
+            self.assertIn(agent, block,
                           f"{agent} wakes autonomously but is missing from the watch documentation")
 
-    def test_tout_agent_de_ORDER_a_un_modele_et_une_tache(self):
+    def test_every_ORDER_agent_has_a_model_and_a_task(self):
         import brain_upkeep
         for agent in brain_upkeep.ORDER:
             self.assertIn(agent, brain_upkeep.MODEL, f"{agent} has no model → a silent default")
             self.assertIn(agent, brain_upkeep.TASKS, f"{agent} has no mission → KeyError on wake-up")
 
 
-class ModeleParAgentCoucheUn(unittest.TestCase):
+class ModelPerAgentLayerOne(unittest.TestCase):
     """INVARIANT: the creative stage (distiller) is never given a weaker model than the
     mechanical one (gardener). A failed distillation loses knowledge PERMANENTLY;
     a failed gardening pass simply replays."""
 
-    RANG = {"haiku": 0, "sonnet": 1, "opus": 2}
+    RANK = {"haiku": 0, "sonnet": 1, "opus": 2}
 
-    def test_distillateur_au_moins_aussi_fort_que_jardinier(self):
+    def test_distiller_at_least_as_strong_as_gardener(self):
         src = open(os.path.join(BRAIN, "hooks", "auto_maintain.py"), encoding="utf-8").read()
         self.assertIn("MODEL_L1", src, "the model is hardcoded, not configurable per agent")
         ns = {}
@@ -111,8 +116,59 @@ class ModeleParAgentCoucheUn(unittest.TestCase):
             if line.strip().startswith("MODEL_L1"):
                 exec(line.strip(), {}, ns)  # noqa: S102
         m = ns["MODEL_L1"]
-        self.assertGreaterEqual(self.RANG[m["distiller"]], self.RANG[m["gardener"]],
+        self.assertGreaterEqual(self.RANK[m["distiller"]], self.RANK[m["gardener"]],
                                 "the distiller (irreversible) runs below the gardener (replayable)")
+
+
+class ComposedMapWithoutPollution(unittest.TestCase):
+    """INVARIANT: the secondary index lightens startup without becoming knowledge."""
+
+    REL_INDEX = os.path.join("lessons", "INDEX.md")
+
+    def test_memory_keeps_its_loading_margin(self):
+        import brain_doctor
+        size = os.path.getsize(os.path.join(BRAIN, "MEMORY.md"))
+        self.assertLessEqual(size, brain_doctor.MEMORY_WARN_BYTES)
+
+    def test_structural_index_is_excluded_from_the_knowledge_engines(self):
+        import brain_recall
+        import brain_topology
+        import brain_utility
+        import track_read
+        self.assertTrue(brain_recall._skip(self.REL_INDEX))
+        self.assertIn(self.REL_INDEX, brain_topology.STRUCTURAL_MAPS)
+        self.assertIn(self.REL_INDEX, brain_utility.STRUCTURAL_MAPS)
+        self.assertIn(self.REL_INDEX, track_read.STRUCTURAL_MAPS)
+
+    def test_infra_catalogues_are_excluded_from_recall(self):
+        import brain_recall
+        for rel in ("agents/gardener.md", "state/to-validate.md",
+                    "capsule-v2/README.md", self.REL_INDEX):
+            with self.subTest(rel=rel):
+                self.assertTrue(brain_recall._skip(rel))
+
+
+class ContextSignal(unittest.TestCase):
+    """INVARIANT: the context warning does not depend on any recall result."""
+
+    def test_shared_usage_sum(self):
+        import context_usage
+        self.assertEqual(context_usage.usage_tokens({
+            "input_tokens": 10,
+            "cache_read_input_tokens": 20,
+            "cache_creation_input_tokens": 30,
+        }), 60)
+
+    def test_warns_strictly_above_300k(self):
+        import inject_recall
+        original = inject_recall.read_context_tokens
+        try:
+            inject_recall.read_context_tokens = lambda _path: 300_000
+            self.assertIsNone(inject_recall.context_notice({"transcript_path": "x"}))
+            inject_recall.read_context_tokens = lambda _path: 300_001
+            self.assertIn("300k tokens", inject_recall.context_notice({"transcript_path": "x"}))
+        finally:
+            inject_recall.read_context_tokens = original
 
 
 if __name__ == "__main__":

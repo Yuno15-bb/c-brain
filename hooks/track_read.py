@@ -10,8 +10,9 @@ A signal grounded in REAL usage, not introspection. Always exits 0.
 """
 import sys, os, json, time
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 LOG = os.path.join(BRAIN, "state", "read_log.jsonl")
+STRUCTURAL_MAPS = {"MEMORY.md", os.path.join("lessons", "INDEX.md")}
 
 
 def main():
@@ -28,7 +29,7 @@ def main():
     if not real.startswith(BRAIN + os.sep) or not real.endswith(".md"):
         return
     rel = os.path.relpath(real, BRAIN)
-    if rel == "MEMORY.md" or rel.split(os.sep)[0] not in ("projects", "lessons", "life", "meta"):
+    if rel in STRUCTURAL_MAPS or rel.split(os.sep)[0] not in ("projects", "lessons", "life", "meta"):
         return
     try:
         os.makedirs(os.path.dirname(LOG), exist_ok=True)
@@ -46,7 +47,9 @@ def refresh_live():
     only surface at the next note written or at session end — so never live.
     Best-effort and silent: a failure here must break nothing in the hook."""
     import subprocess
-    for script in ("coactivation.py", "graph_export.py"):
+    # recall_feedback: closes the usage → ranking loop. Recomputed here, at the moment a
+    # read has just happened, rather than by adding one more periodic task.
+    for script in ("coactivation.py", "graph_export.py", "recall_feedback.py"):
         try:
             subprocess.run([sys.executable, os.path.join(BRAIN, "hooks", script)],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8)

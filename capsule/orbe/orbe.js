@@ -25,8 +25,10 @@
 // during transitions and work.
 import * as THREE from './vendor/three.module.js';
 
-export const MECANIQUES = { houle:0, balayage:1, plaques:2, ebullition:3,
-  ondeDeChoc:4, cellules:5, vortex:6, respiration:7, interference:8, eclats:9 };
+// The constants live in `mecaniques.js` — a module WITHOUT Three.js, so that
+// `palettes.js` (the colours) does not have to load the 3D engine for ten
+// numbers. Re-exported here: historical callers do not change.
+export { MECANIQUES } from './mecaniques.js';
 
 export const PHYSIQUES = [
   { id: 0,  nom: 'Swell',       desc: 'a single scale, slow and round' },
@@ -224,13 +226,39 @@ export function creerOrbe(canvas, mode, snoiseSrc, couleurs) {
           //     reads on the edge, not on a filled surface;
           //   · relief is no longer told by dark patches but by the LIGHT
           //     sliding over it.
+          // ── MATERIAL DOSAGES (2026-08-08) ────────────────────────────────
+          // The author's request, word for word: "the edges are transparent,
+          // I would like them less so and more organic, less shiny, fewer
+          // reflections, so the middle and the scrolling text read better".
+          // Four NAMED dials rather than a rewrite: the tuning is redone by
+          // changing four numbers, and the previous version's glass model
+          // stays readable underneath.
+          // ⚠ This PARTLY REVERSES the 2026-08-04 note that rejected "the
+          //   translucent paste stained with dark" and its 0.42 alpha floor.
+          //   The reason for that rejection held: an OPAQUE dark core hid the
+          //   background AND had nothing to show. That is no longer the case —
+          //   the code pad has lived in the centre since, and a nearly empty
+          //   core drops it straight onto the desktop, where it becomes
+          //   unreadable. So the core carries material again, but DARK and
+          //   moderate: it backs the green text, it does not cover it.
+          const float BRILLANCE = 0.26;   // 1.0 = the polished glass of before
+          const float REFLET    = 0.34;   // share of reflected environment
+          const float COEUR     = 0.78;   // alpha at the centre — carries the text
+          const float BORD      = 0.30;   // what the thickness adds on top
+
           float ep=pow(1.0-d,1.55);
           // Relief keeps its share of thickness — otherwise the mechanic, the
           // only channel readable without colour, vanishes under transparency.
           ep=clamp(ep+smoothstep(0.10,-0.75,vDisp)*0.16,0.0,1.0);
+          // ⚠ ORGANIC = THE EDGE FOLLOWS THE RELIEF. The crisp rim of before drew
+          //   the same circle whatever the material underneath: that reads as a
+          //   UI outline laid over the object. By modulating the thickness with
+          //   the field, the edge density ripples along with the mechanic.
+          ep=clamp(ep*(0.90+0.26*smoothstep(-0.9,0.9,vDisp)),0.0,1.0);
 
-          // TINT BY ABSORPTION: nothing in the centre, dense on the edge.
-          vec3 teinte=uC2*(0.30+1.45*ep);
+          // TINT: the dark hollow comes back AT THE CENTRE (backing the text),
+          // the family colour stays carried by the thickness of the edge.
+          vec3 teinte=mix(uC3*0.60,uC2*1.30,clamp(ep*1.30,0.0,1.0));
 
           // ⚠ THERE IS NO BACKGROUND TO REFLECT (transparent window, WebGL
           //   cannot see the desktop). So we MAKE one: bright sky above, dark
@@ -239,33 +267,46 @@ export function creerOrbe(canvas, mode, snoiseSrc, couleurs) {
           //   moves, where a plain specular dot stays glued in place.
           vec3 R=reflect(-V,N);
           float ciel=smoothstep(-0.10,0.30,R.y);
-          vec3 env=mix(vec3(0.07,0.09,0.13),vec3(0.88,0.93,1.0),ciel);
-          env+=vec3(1.0)*smoothstep(0.62,0.92,R.y)*0.45;   // the skylight
+          // MUTED sky (0.88→0.52): at full brightness the reflected horizon
+          // repainted the upper half of the object in milky white and ate the
+          // text through the transparency.
+          vec3 env=mix(vec3(0.05,0.06,0.09),vec3(0.52,0.57,0.66),ciel);
+          // ⚠ THE SKYLIGHT IS REMOVED — it was the square of light at the zenith,
+          //   the strongest "glass marble under a spotlight" signal in the whole
+          //   render, and the first thing the author points at saying "too much
+          //   reflection".
           // Fresnel: glass reflects almost nothing head-on, everything at a
           // grazing angle.
-          float fres=0.06+0.94*pow(1.0-d,4.0);
+          float fres=(0.04+0.62*pow(1.0-d,4.0))*REFLET;
 
           // TWO SPECULARS, not one. The tight one gives the highlight that
           // says "polished"; the broad one gives the sheen over the whole lit
           // face. A single narrow lobe reads as plastic.
+          // ⚠ Exponents LOWERED at the same time as the gains: a very narrow
+          //   lobe (200) heavily attenuated is still a hard dot that catches the
+          //   eye. Widened and weakened, it becomes the lustre of a matte material.
           vec3 H=normalize(L+V);
-          float dur  =pow(max(dot(N,H),0.0),200.0)*uSweep;
-          float large=pow(max(dot(N,H),0.0), 14.0)*uSweep;
+          float dur  =pow(max(dot(N,H),0.0), 80.0)*uSweep*BRILLANCE;
+          float large=pow(max(dot(N,H),0.0), 10.0)*uSweep*BRILLANCE;
 
           // THE EDGE — a THIN rim over the very last degrees before the
           // silhouette. Without it the border fades out softly and the object
           // looks blurry; with it, it has an arris, like a polished glass edge.
           // ⚠ It must stay within the last ~0.03 of 'd': any wider and it
           //   reads as a UI outline rather than as thickness.
-          float tranche=smoothstep(0.88,0.998,1.0-d);
-          vec3 verre=teinte + env*fres*0.85 + uRim*f*0.55
-                     + (uRim*0.45+vec3(0.55))*tranche*0.60
-                     + vec3(large)*0.22 + vec3(dur)*1.15;
-          // ALPHA makes the glass: nearly empty core, dense edge, and the
-          // reflections stay OPAQUE — a translucent reflection reads as a
-          // smear of paint, not as a surface.
-          float a=clamp(0.10+0.86*ep + dur*1.0 + large*0.16 + fres*0.10
-                        + tranche*0.30,0.0,1.0);
+          // ⚠ The rim is now TINTED (uRim dominates, white is only a touch): a
+          //   white rim over the full 360° of the outline is exactly what gave
+          //   the cut-glass arris.
+          float tranche=smoothstep(0.90,0.999,1.0-d);
+          vec3 verre=teinte + env*fres + uRim*f*0.42
+                     + (uRim*0.55+vec3(0.10))*tranche*0.45
+                     + vec3(large)*0.10 + vec3(dur)*0.45;
+          // ALPHA: the core is no longer empty (COEUR), and the edge thickness
+          // finishes making it frankly material (BORD). Reflections barely push
+          // the opacity any more — they must stop making the volume in place of
+          // the material.
+          float a=clamp(COEUR + BORD*ep + dur*0.45 + large*0.06
+                        + tranche*0.22,0.0,1.0);
 
           gl_FragColor=vec4(mix(plein,verre,uVerre), mix(1.0,a,uVerre)); }`,
     }));

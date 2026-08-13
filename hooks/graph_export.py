@@ -179,7 +179,8 @@ def clean_body(text):
 
 def scan():
     nodes = {}      # id -> {id, name, domain, group, desc, file}
-    raw_links = []  # (src_id, target_name)
+    raw_links = []   # (src_id, target_name)
+    link_types = {}  # (src_id, target_name) -> "based_on" | "contradicts" | "replaces"
     embed2 = load_embed2()         # semantic positions keyed by note path
     heat, coact_edges, live, live_window_min = load_coact()   # heat + usage links + live activity
     challenges = load_challenges()             # the challenger's verdict per note
@@ -240,6 +241,12 @@ def scan():
                 # outgoing links (deduplicated below)
                 for tgt in set(LINK.findall(text)):
                     raw_links.append((nid, tgt.strip()))
+                # TYPED relations from the frontmatter (cf. gardening rules §4 bis).
+                # They add no edge: they QUALIFY the one that already exists, since the
+                # convention requires keeping the [[slug]] in the body.
+                for typ, targets in _relations(text).items():
+                    for c in targets:
+                        link_types[(nid, c)] = typ
 
     # keep only links whose target is a known note (not [[yet-to-write]] ones)
     ids = set(nodes)
@@ -248,7 +255,11 @@ def scan():
     for src, tgt in raw_links:
         if tgt in ids and src != tgt and (src, tgt) not in seen and (tgt, src) not in seen:
             seen.add((src, tgt))
-            links.append({"source": src, "target": tgt})
+            edge = {"source": src, "target": tgt}
+            typ = link_types.get((src, tgt)) or link_types.get((tgt, src))
+            if typ:
+                edge["type"] = typ
+            links.append(edge)
 
     # ---------- MEMBERSHIP (continent / city / frontier model) ----------
     # « villes » = les sous-dossiers du domaine projects (chaque projet est une ville).
@@ -310,6 +321,27 @@ def scan():
         # USAGE links (co-activation): notes activated together in a session, unlike declared links
         "coact": [e for e in coact_edges if e[0] in ids and e[1] in ids],
     }
+
+
+RELATION_TYPES = ("based_on", "contradicts", "replaces")
+_REL_BLOCK = re.compile(r"^relations:\s*$(.*?)(?=^\S|\Z)", re.M | re.S)
+_REL_LINE = re.compile(r"^\s+(\w+)\s*:\s*\[([^\]]*)\]", re.M)
+
+
+def _relations(text):
+    """Reads the frontmatter's `relations:` block. Silent when absent or malformed —
+    a wobbly frontmatter must never bring the graph export down."""
+    fm = re.match(r"^---\n(.*?)\n---", text, re.S)
+    if not fm:
+        return {}
+    block = _REL_BLOCK.search(fm.group(1) + "\n")
+    if not block:
+        return {}
+    out = {}
+    for typ, targets in _REL_LINE.findall(block.group(1)):
+        if typ in RELATION_TYPES:
+            out[typ] = [c.strip().strip('"\'') for c in targets.split(",") if c.strip()]
+    return out
 
 
 def main():

@@ -21,7 +21,7 @@ import os, re, sys, json, glob, argparse, datetime
 import numpy as np
 from model2vec import StaticModel
 
-BRAIN = os.path.realpath(os.path.expanduser("~/.c-brain/trunk"))
+BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 COLD = os.path.join(BRAIN, "corpus", "cold")
 NPZ = os.path.join(BRAIN, "state", "corpus_embeddings.npz")
 META = os.path.join(BRAIN, "state", "corpus_embeddings.json")
