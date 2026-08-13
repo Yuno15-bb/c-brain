@@ -53,7 +53,15 @@ naif="$(git tag -l 'v*' | sort -V | tail -1)"
 # On charge les VRAIES fonctions depuis update.sh au lieu de les réécrire ici —
 # une copie dans le test continuerait de passer après que le code livré a cassé.
 ENGINE="$T/engine"
-eval "$(sed -n '/^family() {/,/^}/p;/^latest_tag() {/,/^}/p' "$ROOT/cbrain/update.sh")"
+# STATE et FAMILLE_FICHIER sont chargés aussi : `family()` lit la famille
+# ENREGISTRÉE avant d'en déduire une, et un banc qui l'omettait testait une
+# version de la fonction que le script livré n'exécute jamais — exactement la
+# dérive que cet `eval` existe pour éviter. Sans ça, sous `set -u`, la variable
+# non définie tuait `family()` : le suffixe revenait vide, et le banc voyait une
+# install FRANÇAISE se faire proposer l'arbre anglais.
+STATE="$T/state"
+mkdir -p "$STATE"
+eval "$(sed -n '/^FAMILLE_FICHIER=/p;/^family() {/,/^}/p;/^latest_tag() {/,/^}/p' "$ROOT/cbrain/update.sh")"
 
 check() {  # check <libellé> <checkout> <attendu>
   git -C "$ENGINE" checkout -q "$2"
@@ -71,6 +79,25 @@ check "install anglaise (sur v1.17.0)"   v1.17.0    v1.18.0
 check "install française (sur v1.17.0-fr)" v1.17.0-fr v1.18.0-fr
 check "clone frais de la branche fr"      fr         v1.18.0-fr
 check "clone frais de la branche main"    main       v1.18.0
+
+echo "▸ la famille ENREGISTRÉE l'emporte sur la famille déduite"
+# La fin de la famille `-fr` (2026-08-13) repose entièrement là-dessus : une
+# install française qui bascule en anglais reste posée sur un TAG `-fr`, donc la
+# déduction la renverrait dans l'arbre français à la mise à jour suivante.
+git -C "$ENGINE" checkout -q v1.17.0-fr
+printf '' > "$STATE/tag-family"                 # enregistré : la famille nue
+check_enregistre() {  # check_enregistre <libellé> <attendu>
+  local got; got="$(latest_tag)"
+  if [ "$got" = "$2" ]; then
+    echo "  ✅ $1 → $got"
+  else
+    echo "  ❌ $1 → obtenu '$got', attendu '$2'"
+    FAILS=$((FAILS + 1))
+  fi
+}
+check_enregistre "tag -fr + anglais enregistré → anglais" v1.18.0
+rm -f "$STATE/tag-family"
+check_enregistre "fichier retiré → retour à la déduction" v1.18.0-fr
 
 echo "▸ un dépôt sans aucun tag ne plante pas"
 git -C "$ENGINE" tag -d $(git -C "$ENGINE" tag) >/dev/null 2>&1
