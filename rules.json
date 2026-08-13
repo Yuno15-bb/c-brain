@@ -60,6 +60,20 @@
       "pattern": "# Fiches d'INFRA seulement.*?\\n    return hits\\n",
       "why": "Le détecteur de chemins périmés était câblé sur deux comptes précis (l'ancien et le nouveau home de l'auteur). Généralisé : il dérive le home courant et signale tout autre utilisateur.",
       "replace": "# Fiches d'INFRA seulement : y décrire un chemin périmé est un vrai bug. Ailleurs\n# (sessions/archive, journaux projet), un ancien home est un fait HISTORIQUE daté,\n# pas une incohérence — on ne le signale pas (bruit).\nINFRA_DIRS = (\"meta\", \"agents\")\n\n\ndef path_incoherences():\n    \"\"\"Chemins incohérents dans les fiches d'INFRA : référence à un home qui n'est\n    pas celui de la machine courante (migration de compte, copier-coller d'une\n    autre machine). Constat, pas correction.\n\n    Le nom d'utilisateur est DÉRIVÉ, jamais codé en dur : c'est exactement le\n    bug qui avait cassé la distillation lors d'une migration de compte.\"\"\"\n    me = os.path.basename(os.path.expanduser(\"~\"))\n    other = re.compile(r\"/Users/(?!\" + re.escape(me) + r\"\\b)([A-Za-z0-9._-]+)\")\n    hits = []\n    for rel, p in _fiches_in(INFRA_DIRS):\n        try:\n            lines = open(p, encoding=\"utf-8\", errors=\"ignore\").read().splitlines()\n        except OSError:\n            continue\n        for i, line in enumerate(lines, 1):\n            m = other.search(line)\n            if m:\n                hits.append({\"fiche\": rel, \"ligne\": i,\n                             \"type\": f\"chemin d'un autre utilisateur ({m.group(1)})\",\n                             \"extrait\": line.strip()[:160]})\n    return hits\n"
+    },
+    {
+      "id": "statut-signal-depots-auteur",
+      "file": "hooks/brain_status.py",
+      "pattern": "\\n\\ndef show_depots\\(\\):.*?print\\(f\"  \\{l\\}\"\\)\\n",
+      "why": "`show_depots` lit `state/traduction-en-retard.json`, un signal qu'écrit `tools/sync_depots.py` — l'outil PRIVÉ qui tient les deux dépôts de l'auteur et ne fait pas partie du paquet. Chez un utilisateur, la fonction ne trouverait jamais son fichier et parlerait de `~/c-brain`, de la branche `fr` et d'une traduction qui ne le concerne pas. On la retire à la SOURCE de la copie plutôt que de publier du code mort qu'il faudrait traduire à chaque version.",
+      "replace": "\n"
+    },
+    {
+      "id": "statut-appel-signal-depots",
+      "file": "hooks/brain_status.py",
+      "pattern": "\\n    show_depots\\(\\)",
+      "why": "L'appel doit partir avec la fonction : le laisser lèverait un NameError sur `brain status`, la commande la plus utilisée du CLI. Deux règles et non une, parce que le bloc et son appel ne se touchent pas dans le fichier.",
+      "replace": ""
     }
   ],
   "replacements": [

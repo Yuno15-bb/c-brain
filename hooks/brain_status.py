@@ -85,38 +85,8 @@ def show_status():
     print(f"source   : {s.get('source') or '—'}")
     quand = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(s.get('ts') or 0))
     print(f"depuis   : {quand}  ({int(age)} s — {'frais' if frais else 'PÉRIMÉ, la capsule le lit comme idle'})")
-    show_depots()
     return 0
 
-
-def show_depots():
-    """Ce que la dernière passe de sync_depots a mesuré sur le dépôt PUBLIC.
-
-    Silencieux quand tout est à jour : un signal qui parle tout le temps est un
-    signal qu'on n'entend plus. On n'affiche que ce qui appelle un geste — et
-    ces gestes-là sont ceux de l'auteur, jamais ceux de l'automate."""
-    try:
-        with open(os.path.join(STATE_DIR, "traduction-en-retard.json"),
-                  "r", encoding="utf-8") as f:
-            d = json.load(f)
-    except Exception:
-        return
-    lignes = []
-    p = d.get("paquet")
-    if p and p != "à jour":
-        # ⚠ Le geste dépend du CAS. Proposer `sync_depots.py` quand le dépôt est
-        # sur `main` enverrait dans un mur : sync.sh refuse d'y tourner, donc la
-        # commande ne mesurerait rien de plus. On dit ce qui débloque VRAIMENT.
-        geste = ("git -C ~/c-brain checkout fr, puis python3 hooks/sync_depots.py"
-                 if "non mesuré" in p else "python3 hooks/sync_depots.py")
-        lignes.append(f"paquet   : {p}  → {geste}")
-    if d.get("commits_de_retard"):
-        lignes.append(f"traduction : `main` n'a pas reçu le dernier sync "
-                      f"(~{d.get('fichiers', 0)} ligne(s) d'empreinte) — à traduire à la main")
-    if lignes:
-        print(f"\ndépôt public (mesuré le {d.get('mesure_le', '?')}) :")
-        for l in lignes:
-            print(f"  {l}")
 
 
 if __name__ == "__main__":

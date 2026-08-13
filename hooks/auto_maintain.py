@@ -302,10 +302,9 @@ def launch_agent(sid, n, to_distill):
     # SAUVEGARDE MÉCANIQUE (pas de LLM), câblée ici le 2026-08-13.
     # Avant : `git add -A` + un commit fourre-tout. C'est ce `add -A` qui a noyé
     # 19 fichiers d'un chantier en cours dans e61fd01 (03/08), et 612 commits de
-    # ce type dorment dans l'historique. sync_depots commite ZONE PAR ZONE (le
-    # hook pre-commit du tronc refuse déjà les commits mixtes : on s'appuie
-    # dessus au lieu de le contourner) puis POUSSE le tronc — la sauvegarde hors
-    # machine que le commit local d'avant ne faisait pas.
+    # ce type dorment dans l'historique. On commite désormais ZONE PAR ZONE : le
+    # hook pre-commit du tronc refuse déjà les commits mixtes, on s'appuie dessus
+    # au lieu de le contourner.
     # DEUX LIGNES, ET LA SÉPARATION EST DÉLIBÉRÉE :
     #   · `commit_par_zone` est LIVRÉ — il commite en LOCAL, chez tout le monde.
     #   · `tools/sync_depots.py` n'existe QUE chez l'auteur (`tools/` n'est pas
