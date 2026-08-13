@@ -127,10 +127,14 @@ def capsule_vivante(pids):
         alive = os.path.join(BRAIN, "state", "capsule-alive")
         if not os.path.exists(alive):
             # ⚠ AUCUN battement n'a JAMAIS été écrit. Ce n'est pas un zombie, c'est
-            #   une capsule qui ne sait pas battre : `capsule/main.js` est GELÉ hors
-            #   sync (refonte V2), donc le paquet public embarque ce contrôle SANS
-            #   l'émetteur. Sans ce garde, chaque capsule y serait déclarée morte
-            #   passé le délai de grâce et tuée en boucle à chaque passage.
+            #   une capsule qui ne sait pas battre. Deux cas réels :
+            #     · une capsule jamais lancée depuis l'installation ;
+            #     · une capsule d'une version ANTÉRIEURE à l'émetteur — le paquet
+            #       public a longtemps porté ce contrôle sans lui (`capsule/main.js`
+            #       n'est pas synchronisé ; l'émetteur y a été porté à la main le
+            #       2026-08-13, mais une install plus vieille tourne encore sans).
+            #   Sans ce garde, ces capsules-là seraient déclarées mortes passé le
+            #   délai de grâce et tuées en boucle à chaque passage.
             #   On ne juge que ce qui a DÉJÀ battu puis s'est tu.
             return True
         if time.time() - os.path.getmtime(alive) < BATTEMENT_MAX:
