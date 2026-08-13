@@ -86,7 +86,7 @@ jetable.
 > Inspiré du *Dreaming Service* d'Anthropic (`cwc-workshops/agents-that-remember`) : leur
 > job de consolidation lit les transcripts et écrit dans un **nouveau** magasin mémoire,
 > jamais dans le magasin vivant ; on compare les deux, puis on bascule. Voir
-> [[cwc-workshops-integration]] pour ce qui a été retenu et ce qui a été écarté.
+> l'atelier « agents that remember » d'Anthropic pour ce qui a été retenu et ce qui a été écarté.
 
 ## Garde-fous
 - **N'invente jamais** un fait absent de la source. Si un détail manque, laisse un `[[lien]]` ou une mention « à confirmer », ne comble pas par hypothèse.
