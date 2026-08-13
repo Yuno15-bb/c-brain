@@ -1,7 +1,7 @@
 {
   "name": "c-brain",
   "description": "Une mémoire qui pousse. Ton agent est brillant à l'intérieur d'une session et amnésique entre deux — ceci lui donne un tronc de connaissance persistant sur ta machine : ce que tu résous une fois est distillé en fiche, rangé, relié, et resurgit tout seul la fois suivante, depuis n'importe quel projet. Rien ne quitte la machine.",
-  "version": "1.26.5",
+  "version": "1.27.0",
   "author": { "name": "Dylan Peellaert" },
   "homepage": "https://github.com/Yuno15-bb/c-brain",
   "repository": "https://github.com/Yuno15-bb/c-brain",
