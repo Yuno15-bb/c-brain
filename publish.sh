@@ -25,6 +25,26 @@ MSG="${2:-}"
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
+# --- `main` IS THE PRODUCT, `fr` IS A STAGING BUFFER (decision of 2026-08-13) --
+# `fr` used to be a released product too, with its own `-fr` tag family. That cost
+# more than it gave:
+#   · `sort -V` places `v1.27.0-fr` AFTER `v1.27.0`, so any "latest tag" selector
+#     that scans every tag moves an English install onto the French tree. It stayed
+#     invisible only while `fr` lagged behind; bringing it level ARMED it.
+#   · `fr` cannot be published without a clean sync from the author's living Brain,
+#     so unfinished work on that machine blocks a release that has nothing to do
+#     with it — measured the same day.
+# `fr` remains what it always really was: the French landing strip of the sync,
+# read by nobody but the translation step. Published tags stay published — a moved
+# tag breaks the fetch of anyone still on it — so the `-fr` family simply stops
+# growing at v1.27.0-fr.
+if [ "$BRANCH" = "fr" ] && [ "${CBRAIN_ALLOW_TAG_ON_FR:-}" != "1" ]; then
+  echo "❌ \`fr\` is a staging buffer, not a product — nothing is published from it."
+  echo "   The engine ships from \`main\`, which is the translated, public branch."
+  echo "   → git checkout main    (or CBRAIN_ALLOW_TAG_ON_FR=1 if you know why)"
+  exit 1
+fi
+
 echo "▸ Does the package still match the living Brain?"
 if [ "$BRANCH" = "fr" ]; then
   if ! ./sync.sh --check >/dev/null 2>&1; then

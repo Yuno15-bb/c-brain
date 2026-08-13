@@ -60,6 +60,33 @@ python3 leakcheck.py --history
 Read the diff before translating. Most syncs move a handful of lines; a blind
 `git merge fr` would drag the whole French tree back onto `main`.
 
+## `main` is the product, `fr` is a staging buffer (2026-08-13)
+
+`fr` used to be a released product of its own, with a `-fr` tag family. It is not
+any more. It stays exactly what it always really was: **the French landing strip
+of the sync**, read by nobody but the translation step.
+
+Two costs decided it, both measured the same day:
+
+- **The tag families collide by sorting.** `sort -V` places `v1.27.0-fr` AFTER
+  `v1.27.0`, so any "latest tag" selector scanning every tag moves an English
+  install onto the French tree — no error, the tool just starts speaking another
+  language. It stayed invisible only while `fr` lagged behind; bringing the two
+  level is what ARMED it.
+- **`fr` cannot ship without a clean sync.** Publishing from `fr` requires the
+  author's living Brain to match the package. Unfinished work on that machine
+  therefore blocks a release that has nothing to do with it.
+
+`publish.sh` now refuses to tag from `fr` (`CBRAIN_ALLOW_TAG_ON_FR=1` forces it,
+for the rare case where you know why). Published tags stay published — moving one
+breaks the fetch of anyone still on it — so the `-fr` family simply stops growing
+at `v1.27.0-fr`.
+
+**What does NOT change**: the direction of the pipeline. The living Brain is
+French and `generalize.py` matches French strings, so the sync still lands on
+`fr` first and `main` is still translated from it by a human reading a diff.
+`fr` is a step, no longer a destination.
+
 ## Tags
 
 | Branch | Tags | Who installs it |
