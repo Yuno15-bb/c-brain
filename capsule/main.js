@@ -38,6 +38,30 @@ const MARGE  = 26;
 // surveille. Même chemin que celui utilisé par orbe.html.
 const STATUS = path.join(os.homedir(), '.c-brain', 'trunk', 'state', 'status.json');
 
+// PREUVE DE VIE de la fenêtre, portée à la main le 2026-08-13.
+//
+// auto_maintain remplace une capsule dont le process n'a plus de fenêtre (un
+// zombie). Il lit ce fichier pour distinguer une capsule vivante d'une morte —
+// et jusqu'ici le paquet embarquait ce CONTRÔLE SANS SON ÉMETTEUR, parce que ce
+// fichier n'est pas synchronisé. Ce qui le rendait inoffensif, c'est le garde
+// d'en face : « jamais battu ≠ zombie ». Le contrôle ne pouvait donc rien
+// réparer non plus. Maintenant si.
+//
+// ⚠ Écrit par le processus PRINCIPAL, jamais par le renderer : celui-ci se met
+//   volontairement en pause quand l'orbe est cachée (écran endormi, repos), un
+//   battement posé là-bas s'arrêterait au repos et crierait au zombie sur une
+//   capsule parfaitement saine.
+// ⚠ Seulement tant que la fenêtre existe — c'est tout l'intérêt : un process
+//   sans fenêtre cesse de battre, et devient repérable de l'extérieur.
+// Même chemin dérivé de $HOME que STATUS : c'est le state du TRONC, pas du moteur.
+const ALIVE = path.join(os.homedir(), '.c-brain', 'trunk', 'state', 'capsule-alive');
+const BATTEMENT = 5000;
+function battement() {
+  try {
+    if (win && !win.isDestroyed()) fs.writeFileSync(ALIVE, String(Date.now()));
+  } catch (e) {}
+}
+
 // L'orbe s'efface d'elle-même quand plus rien ne travaille : un indicateur qui
 // ne dit rien ne doit pas occuper l'écran. Elle revient au premier agent.
 // Une minute de présence après la fin du travail — assez pour qu'on ait le
@@ -191,6 +215,7 @@ app.whenReady().then(() => {
     .forEach(e => screen.on(e, poser));
   watchStatus();   // re-montre l'orbe dès qu'un agent passe en 'busy'
   watchPower();    // pause réelle quand l'écran dort ou que la session est verrouillée
+  battement(); setInterval(battement, BATTEMENT);   // preuve de vie de la FENÊTRE
 
   // Rechargement à chaud — opt-in : c'est un confort de DÉVELOPPEMENT, pas une
   // fonction de la capsule. En usage normal il ferait un accès disque toutes
