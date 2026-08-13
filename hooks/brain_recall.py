@@ -78,7 +78,25 @@ _SUFFIXES = sorted((
 _MIN_RACINE = 4          # en dessous, la racine ne veut plus rien dire
 
 
+# Memoise : un corpus repete son vocabulaire sans relache — 835 tokens distincts
+# pour 8 013 occurrences dans un seul fichier, donc 90 % des appels ci-dessous
+# sont redondants. Le cout de la racinisation se paie a la construction FROIDE de
+# l'index, c'est-a-dire au premier prompt apres qu'une fiche a change, et
+# tests/recall_benchmark.py tient ce temps sous seuil. Le dictionnaire est borne
+# par le VOCABULAIRE du tronc, pas par sa taille en octets : il cesse de grossir
+# bien avant le corpus.
+_STEM_CACHE = {}
+
+
 def stem(t):
+    cached = _STEM_CACHE.get(t)
+    if cached is not None:
+        return cached
+    _STEM_CACHE[t] = s = _stem(t)
+    return s
+
+
+def _stem(t):
     if len(t) <= 4:
         return t
     # Pluriel : le « s » seulement. Retirer un « x » final visait les pluriels
@@ -111,14 +129,18 @@ _ALIAS = {
     r"mise en production": "deploy",
     r"\bmemoire cache\b": "cache",
 }
-_ALIAS_RE = [(re.compile(k), v) for k, v in
-             sorted(_ALIAS.items(), key=lambda kv: -len(kv[0]))]
+# UNE passe, pas une par couple. Sept `sub()` separes parcouraient le document
+# sept fois ; une alternation unique le parcourt une fois et aiguille sur le
+# groupe qui a matche. Le motif le plus long reste en tete — Python essaie les
+# alternatives de gauche a droite a chaque position, donc l'ordre qui rendait la
+# version sequentielle correcte garde la version combinee correcte.
+_ALIAS_COUPLES = sorted(_ALIAS.items(), key=lambda kv: -len(kv[0]))
+_ALIAS_RE = re.compile("|".join(f"({k})" for k, _ in _ALIAS_COUPLES))
+_ALIAS_CANON = [v for _, v in _ALIAS_COUPLES]
 
 
 def aliaser(txt):
-    for motif, canon in _ALIAS_RE:
-        txt = motif.sub(canon, txt)
-    return txt
+    return _ALIAS_RE.sub(lambda m: _ALIAS_CANON[m.lastindex - 1], txt)
 
 
 def tokenize(text):

@@ -67,12 +67,29 @@ python3 tests/invariants_brain.py >/dev/null 2>&1 \
 #    est CELUI QUI A CRÉÉ CE SELFTEST, et il annonçait « 12/12 OK ».
 #    La leçon est dans le critère : « sort en code 0 » ne teste pas une commande dont le métier
 #    est d'AFFICHER. On assarte donc sur la SORTIE, et sur l'ABSENCE d'effet de bord.
+#    ⚠ DEUX FAUTES DE CE BLOC, PAYÉES EN CI LE 2026-08-13 :
+#      · il supposait `./brain` dans le tronc. C'est vrai CHEZ L'AUTEUR, où le tronc EST le
+#        dépôt. Après une vraie install il n'y a pas de `trunk/brain` : install.sh lie
+#        `~/.c-brain/engine/brain` vers `~/.local/bin/brain`. Le CLI se RÉSOUT donc, il ne
+#        se devine pas.
+#      · `$(./brain 2>&1)` capturait le « No such file or directory » du shell — donc
+#        l'assertion « ça produit une sortie » passait au VERT sur une commande ABSENTE.
+#        C'est exactement la faute que ce bloc existe pour attraper, commise dans le bloc
+#        lui-même. On lit stdout SEUL, et on exige aussi le code 0.
+BRAIN_CLI=""
+for c in "$BRAIN/brain" "$(command -v brain 2>/dev/null || true)"; do
+  [ -n "$c" ] && [ -x "$c" ] && { BRAIN_CLI="$c"; break; }
+done
+if [ -z "$BRAIN_CLI" ]; then
+  ko "CLI brain introuvable (ni $BRAIN/brain, ni dans le PATH) — la porte d'entrée n'est pas testée"
+else
 avant=$(cat state/status.json 2>/dev/null)
 for c in "" next; do
-  out=$(./brain $c 2>&1)
-  [ -n "$out" ] \
+  # stdout SEUL : un message d'erreur sur stderr ne doit JAMAIS compter comme une sortie.
+  out=$("$BRAIN_CLI" $c 2>/dev/null); rc=$?
+  [ $rc -eq 0 ] && [ -n "$out" ] \
     && ok "brain ${c:-status} produit une sortie ($(echo "$out" | wc -l | tr -d ' ') ligne(s))" \
-    || ko "brain ${c:-status} ne sort RIEN — une commande d'affichage muette est cassée, même en code 0"
+    || ko "brain ${c:-status} : code $rc, $([ -n "$out" ] && echo 'sortie non vide' || echo 'RIEN sur stdout') — une commande d'affichage muette est cassée, même en code 0"
 done
 # une commande de LECTURE ne doit jamais muter l'état que lit la capsule
 [ "$(cat state/status.json 2>/dev/null)" = "$avant" ] \
@@ -84,9 +101,9 @@ python3 hooks/brain_status.py etat-bidon >/dev/null 2>&1
   && ok "brain_status refuse un état inconnu (exit 2, fichier intact)" \
   || ko "brain_status a accepté un état inconnu — n'importe quelle faute de frappe casse la capsule"
 # toutes les sous-commandes annoncées dans l'usage existent-elles vraiment dans le case ?
-if python3 - <<'PYEOF'
+if BRAIN_CLI="$BRAIN_CLI" python3 - <<'PYEOF'
 import re, subprocess, sys, os
-brain = os.path.expanduser("~/.c-brain/trunk/brain")
+brain = os.environ["BRAIN_CLI"]          # résolu par le script, jamais deviné
 usage = subprocess.run([brain, "commande-inexistante"], capture_output=True, text=True)
 m = re.search(r"brain <([^>]*)>", usage.stdout + usage.stderr)
 annoncees = set(m.group(1).split("|")) if m else set()
@@ -104,6 +121,7 @@ print(f"{len(annoncees)} sous-commandes annoncées, toutes implémentées")
 PYEOF
 then ok "usage ↔ case : aucune sous-commande annoncée à vide"
 else ko "l'usage de brain annonce une sous-commande qui n'existe pas (c'est CE type d'écart qui a créé le bug du 2026-06-22)"
+fi
 fi
 
 echo
