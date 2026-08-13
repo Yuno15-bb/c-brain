@@ -4,8 +4,13 @@ Hook SessionEnd du C Brain.
 À chaque fin de session :
   1. rafraîchit l'index lossless sessions/TIMELINE.md (cache incrémental, rapide)
   2. capture le diff git du projet travaillé (cwd) dans sessions/archive/
-  3. commit le tronc ~/.c-brain/trunk pour versionner la croissance
-  4. push vers le remote privé si configuré (silencieux, non bloquant, hors-ligne OK)
+
+⚠ Ce hook n'écrit PLUS dans git. Les étapes 3 (commit du tronc) et 4 (push vers
+le remote) ont été coupées le 2026-08-03 — voir `commit_brain()`, qui garde le
+détail et la condition de leur retour. Elles sont restées annoncées ici pendant
+dix jours après leur suppression : ce docstring est le premier écran que lit
+quiconque ouvre le fichier, et il promettait une sauvegarde qui n'existait plus.
+La sauvegarde distante est assurée par le coffre chiffré, pas par ce hook.
 
 Règle d'or : ne JAMAIS bloquer ni faire échouer la session. Sort toujours 0.
 """

@@ -11,11 +11,6 @@ qui préemptait l'architecte — et un check_coherence mort en KeyError sur la m
 """
 import json, os, sys, unittest
 
-# BRAIN_HOME rend la suite HERMÉTIQUE (Phase 1 du RFC Brain V3, 2026-08-03).
-# Sans elle, SensorNeverStuck écrit dans le VRAI state/coherence.json et le
-# restaure ensuite depuis une copie mémoire : un crash entre les deux laisse
-# l'état de production écrasé par une valeur de test. Le défaut par défaut reste
-# la racine du dépôt, donc `python3 tests/invariants_brain.py` ne change pas.
 # Deux racines DISTINCTES, et c'est volontaire :
 #  · CODE  — d'où viennent les hooks à importer. Suit le fichier, car le moteur
 #    peut vivre ailleurs que le tronc (installation par symlinks).
