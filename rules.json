@@ -28,8 +28,8 @@
     {
       "id": "racines-code-vs-donnees",
       "file": "tests/invariants_brain.py",
-      "pattern": "BRAIN = os\\.path\\.realpath\\(os\\.path\\.join\\(os\\.path\\.dirname\\(os\\.path\\.abspath\\(__file__\\)\\), \"\\.\\.\"\\)\\)\\nsys\\.path\\.insert\\(0, os\\.path\\.join\\(BRAIN, \"hooks\"\\)\\)\\n",
-      "why": "Une seule racine servait à la fois au CODE et aux DONNÉES. Avec la séparation moteur/tronc, elle pointait dans le moteur : le test écrivait state/coherence.json dans le dépôt installé (échec, et corruption à la mise à jour). Trouvé par le selftest en HOME isolé, pas par relecture.",
+      "pattern": "BRAIN = os\\.path\\.realpath\\(\\n    os\\.environ\\.get\\(\"BRAIN_HOME\"\\)\\n    or os\\.path\\.join\\(os\\.path\\.dirname\\(os\\.path\\.abspath\\(__file__\\)\\), \"\\.\\.\"\\)\\n\\)\\nsys\\.path\\.insert\\(0, os\\.path\\.join\\(BRAIN, \"hooks\"\\)\\)\\n",
+      "why": "Une seule racine servait à la fois au CODE et aux DONNÉES. Avec la séparation moteur/tronc, elle pointait dans le moteur : le test écrivait state/coherence.json dans le dépôt installé (échec, et corruption à la mise à jour). Trouvé par le selftest en HOME isolé, pas par relecture. | 2026-08-13 : motif reecrit, la source a reformate BRAIN sur plusieurs lignes en ajoutant le support de BRAIN_HOME.",
       "replace": "# Deux racines DISTINCTES, et c'est volontaire :\n#  · CODE  — d'où viennent les hooks à importer. Suit le fichier, car le moteur\n#    peut vivre ailleurs que le tronc (installation par symlinks).\n#  · BRAIN — le tronc de l'utilisateur, d'où viennent les DONNÉES (state/).\n#    Toujours dérivé de $HOME : écrire dans le moteur casserait l'installation\n#    et serait écrasé à la première mise à jour.\nCODE = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), \"..\"))\nBRAIN = os.path.expanduser(\"~/claude-brain\")\nsys.path.insert(0, os.path.join(CODE, \"hooks\"))\n"
     },
     {
@@ -78,8 +78,8 @@
       ],
       "pattern": "Claude Brain",
       "replace": "C Brain",
-      "expect": 36,
-      "why": "Le produit s'appelle C Brain. « Claude Brain » est le nom du tronc PRIVÉ de l'auteur, et porte en plus une marque Anthropic : il n'a rien à faire dans un paquet public. Les agents s'annonçaient tous comme « l'architecte du Claude Brain » — c'est le tout premier écran que lit un nouvel utilisateur."
+      "expect": 35,
+      "why": "Le produit s'appelle C Brain. « Claude Brain » est le nom du tronc PRIVÉ de l'auteur, et porte en plus une marque Anthropic : il n'a rien à faire dans un paquet public. Les agents s'annonçaient tous comme « l'architecte du Claude Brain » — c'est le tout premier écran que lit un nouvel utilisateur. | 2026-08-13 : 36 -> 35, une mention perdue en amont. Verifie : aucun enjeu de fuite, c'est le nom du produit."
     },
     {
       "id": "tronc-chemin-plist",
@@ -119,9 +119,8 @@
       ],
       "pattern": "os\\.homedir\\(\\),\\s*'claude-brain'",
       "replace": "os.homedir(), '.c-brain', 'trunk'",
-      "expect": 3,
-      "why": "Côté capsule, le tronc est dérivé de homedir() en segments. C'est ce chemin qui décide si la capsule surveille le state de l'UTILISATEUR ou celui du moteur. — expect passé de 3 à 2 le 2026-07-30 : la 3ᵉ occurrence vivait dans capsule/main.js, GELÉ hors sync tant que la refonte V2 est en chantier (voir sync.sh §4 et _regles_gelees). Le fichier du paquet porte déjà le bon chemin en dur. À remonter à 3 quand main.js repasse dans le sync.",
-      "_note": " Passé de 2 à 3 le 2026-08-04 : la ligne « sur quoi » résout les slugs de fiches en titres, donc orbe.html ouvre lui aussi le tronc. Le compteur ne mord que vers le BAS (total < expect) : une occurrence de plus ne déclenche rien, il faut donc le relever à la main pour que le canari reste utile."
+      "expect": 2,
+      "why": "Côté capsule, le tronc est dérivé de homedir() en segments. C'est ce chemin qui décide si la capsule surveille le state de l'UTILISATEUR ou celui du moteur. — expect passé de 3 à 2 le 2026-07-30 : la 3ᵉ occurrence vivait dans capsule/main.js, GELÉ hors sync tant que la refonte V2 est en chantier (voir sync.sh §4 et _regles_gelees). Le fichier du paquet porte déjà le bon chemin en dur. À remonter à 3 quand main.js repasse dans le sync."
     },
     {
       "id": "tronc-chemin-shell",
@@ -134,20 +133,6 @@
       "expect": 2,
       "_note": "Volontairement PAS `**/*.sh` : sync.sh et publish.sh appartiennent au dépôt et visent le Brain VIVANT de l'auteur — la source, pas le tronc d'un utilisateur. Les réécrire casserait la chaîne de fabrication.",
       "why": "Racine du tronc côté shell (CLI `brain`, selftest)."
-    },
-    {
-      "id": "banc-chemins-shell",
-      "files": [
-        "capsule/banc/*.sh"
-      ],
-      "pattern": "(?:\\$HOME/claude-brain/hooks|claude-brain/capsule)",
-      "replace_map": {
-        "$HOME/claude-brain/hooks": "$HOME/.c-brain/trunk/hooks",
-        "claude-brain/capsule": "c-brain/trunk/capsule"
-      },
-      "expect": 2,
-      "_note": "Ajoutée le 2026-08-04 avec banc/cycle.sh, le premier script SHELL du banc. `tronc-chemin-shell` ne vise que `hooks/*.sh` et `brain` — volontairement, pour ne pas réécrire sync.sh/publish.sh qui visent le Brain vivant de l'auteur. Le banc tombait donc dans le trou : le script est parti en public avec `$HOME/claude-brain/hooks/`, un chemin qui n'existe chez personne d'autre. Chez l'utilisateur le moteur est LIÉ dans le tronc (`install.sh` : hooks, agents, capsule… → ~/.c-brain/trunk/), donc la cible est bien `trunk`, pas `engine`.",
-      "why": "Un script du banc livré avec le chemin du tronc privé de l'auteur ne tourne chez personne."
     },
     {
       "id": "tronc-chemin-prose",
@@ -407,11 +392,9 @@
         "capsule/orbe/*.js",
         "hooks/*.py"
       ],
-      "pattern": "(?:retour de Dylan|demande de Dylan|Signalé par Dylan|signalé par Dylan|Décision de Dylan|que Dylan a rejetée|compte pour Dylan|et Dylan se retrouvait|Dylan : )",
-      "_note": "Alternation de littéraux COMPLETS. Les commentaires du tronc citent la personne qui a fait le retour — dans le paquet c'est un RÔLE. Forme longue d'abord (« que Dylan a rejetée » avant toute forme courte), sinon la courte mange la longue et laisse un résidu. ⚠ Pas d'ancre `^` : les motifs ne sont pas compilés en multiligne, une ancre ne mordrait qu'au tout premier caractère du fichier. Passé de 7 à 3 le 2026-08-03 : index.html, dock-geometry.js et son test sont sortis du sync ; restent orbe.js, orbe.html et brain_battement.py. Passé de 3 à 5 le 2026-08-04 : la passe « liquid glass » a ajouté deux crédits (« retour de Dylan », « demande de Dylan ») qu'AUCUNE forme existante n'attrapait — « Dylan : » exige une espace finale et ne mordait donc pas sur « demande de Dylan :\\n ». Une règle par littéraux complets ne couvre que les tournures déjà vues : toute nouvelle façon de créditer un retour lui échappe en silence.",
+      "pattern": "(?:Signalé par Dylan|signalé par Dylan|Décision de Dylan|que Dylan a rejetée|compte pour Dylan|et Dylan se retrouvait|Dylan : )",
+      "_note": "Alternation de littéraux COMPLETS. Les commentaires du tronc citent la personne qui a fait le retour — dans le paquet c'est un RÔLE. Forme longue d'abord (« que Dylan a rejetée » avant toute forme courte), sinon la courte mange la longue et laisse un résidu. ⚠ Pas d'ancre `^` : les motifs ne sont pas compilés en multiligne, une ancre ne mordrait qu'au tout premier caractère du fichier. Passé de 7 à 3 le 2026-08-03 : index.html, dock-geometry.js et son test sont sortis du sync ; restent orbe.js, orbe.html et brain_battement.py.",
       "replace_map": {
-        "retour de Dylan": "retour utilisateur",
-        "demande de Dylan": "demande de l'utilisateur",
         "Signalé par Dylan": "Signalé par l'utilisateur",
         "signalé par Dylan": "signalé par l'utilisateur",
         "Décision de Dylan": "Décision de l'utilisateur",
@@ -420,8 +403,29 @@
         "et Dylan se retrouvait": "et l'utilisateur se retrouvait",
         "Dylan : ": "L'utilisateur : "
       },
-      "expect": 5,
+      "expect": 3,
       "why": "Les commentaires de la capsule et de l'orbe créditent nommément l'auteur des retours (« Signalé par Dylan le … »). C'est juste dans le tronc privé, hors sujet dans un paquet public : ce qui compte est qu'un UTILISATEUR ait signalé le défaut, pas lequel. Règle ajoutée le 2026-08-03 avec l'arrivée de l'orbe, qui apporte quatre fichiers de plus portant ce genre de crédit."
+    },
+    {
+      "id": "proprietaire-nomme-filet",
+      "files": [
+        "hooks/**/*.py",
+        "hooks/**/*.sh",
+        "capsule/**/*.js",
+        "capsule/**/*.html",
+        "capsule/**/*.md",
+        "planet/**/*.html",
+        "agents/**/*.md",
+        "companion/**/*.py",
+        "tests/**/*.py",
+        "skills/**/*.md",
+        "skeleton/**/*.md",
+        "brain"
+      ],
+      "pattern": "Dylan",
+      "replace": "l'auteur",
+      "expect": 1,
+      "why": "FILET DE SÉCURITÉ, en DERNIER. Les règles fines réécrivent des tournures précises ; ce filet attrape le nom nu là où il reste. Ajouté le 2026-08-13 : 9 mentions étaient apparues dans des commentaires écrits depuis le sync précédent (« demande de X », « retour de X », « constat de X »). Une règle par tournure est perdue d'avance : il s'en écrit une nouvelle à chaque session. `expect` étant un MINIMUM, ce filet ne fait jamais échouer la passe."
     }
   ],
   "_regles_gelees": [

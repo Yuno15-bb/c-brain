@@ -25,6 +25,19 @@ MODE="copy"
 RSYNC_FLAGS=(-a --delete --itemize-changes)
 [ "$MODE" = "check" ] && RSYNC_FLAGS+=(--dry-run)
 
+# ⚠️ GARDE-FOU DE BRANCHE — il était DOCUMENTÉ dans docs/translation.md et n'existait
+# PAS dans le code. Mesuré le 2026-08-13 : un sync lancé depuis `main` a écrasé 89
+# fichiers traduits par leurs originaux français et supprimé les 7 agents anglais.
+# Aucun test ne lit de la prose : rien ne l'aurait signalé, seul un lecteur l'aurait vu,
+# bien plus tard. Une protection écrite dans la doc mais pas dans le code n'existe pas.
+BRANCHE="$(git -C "$DEST" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+if [ "$BRANCHE" = "main" ] && [ "${CBRAIN_ALLOW_SYNC_ON_MAIN:-}" != "1" ]; then
+  echo "❌ ./sync.sh tourne sur la branche \`fr\`, pas sur \`main\`."
+  echo "   main est la TRADUCTION : un sync l'écraserait avec le français de la source."
+  echo "   → git checkout fr    (ou CBRAIN_ALLOW_SYNC_ON_MAIN=1 si tu sais pourquoi)"
+  exit 1
+fi
+
 [ -d "$SRC" ] || { echo "❌ Source introuvable : $SRC"; exit 1; }
 [ "$SRC" = "$DEST" ] && { echo "❌ Source et destination identiques."; exit 1; }
 
@@ -49,6 +62,8 @@ empreinte_source() {
          "$SRC/companion" "$SRC/tests" -type f \
          ! -path "*/node_modules/*" ! -name "*.pyc" ! -name ".DS_Store" \
          ! -name "graph.json" ! -name "desktop_sync.py" \
+         ! -name "capteur_fraicheur.py" \
+         ! -name "com.dgc.fraicheur.plist.template" \
          ! -name "com.dylan.desktop-sync.plist.template" \
          ! -name "com.claudebrain.resume.plist" \
          ! -path "*/capsule/assets/*" \
@@ -145,6 +160,8 @@ sync_file "$SRC/brain" "brain"
 # le plugin cesserait d'enregistrer QUOI QUE CE SOIT sans une seule erreur.
 sync_dir hooks \
   'desktop_sync.py' \
+  'capteur_fraicheur.py' \
+  'com.dgc.fraicheur.plist.template' \
   'com.dylan.desktop-sync.plist.template' \
   'com.claudebrain.resume.plist' \
   'hooks.json' \
