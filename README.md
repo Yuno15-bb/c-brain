@@ -5,14 +5,24 @@
 [![Licence](https://img.shields.io/github/license/Yuno15-bb/c-brain?color=8a8f98)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS-8a8f98)](#compatibility)
 
-<p align="center">
-  <img src="docs/media/capsule.webp" alt="The capsule: a glass orb sitting on the desktop, its material and hue changing as each agent works — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing — with the code being written scrolling inside it" width="168">
-</p>
-<p align="center"><sub>Your agents, working. Live, in the corner of your screen.</sub></p>
-
 **C Brain turns each session with your CLI agent into memory it can reuse —
 distilled into a note, filed, linked, and handed back automatically the next
 time it matters. From any project, and without leaving your machine.**
+
+<table>
+<tr>
+<td width="26%" align="center">
+  <img src="docs/media/capsule.webp" alt="The capsule: a glass orb sitting on the desktop, its material and hue changing as each agent works — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing — with the code being written scrolling inside it" width="168">
+</td>
+<td width="74%" align="center">
+  <img src="docs/media/planet-globe.webp" alt="The trunk planet: a wireframe globe in phosphor orange on black, clusters of notes on its surface, each labelled with its region name and count, the regions listed by size down the left column" width="100%">
+</td>
+</tr>
+<tr>
+<td align="center"><sub><b>The capsule</b> — your agents, working.<br>Live, in the corner of your screen.</sub></td>
+<td align="center"><sub><b>The planet</b> — everything they wrote, as one map.<br>Rebuilt from your notes on every launch.</sub></td>
+</tr>
+</table>
 
 Your agent is brilliant within a session and amnesic between two. Solve
 something on Monday, explain it again on Thursday. C Brain is the part that
@@ -29,21 +39,21 @@ conversation history, which only gets longer.
 
 | | |
 |---|---|
-| 🌳 **A trunk** | your lessons, projects, method — markdown, on your machine, versionable |
-| 🔎 **Automatic recall** | relevant notes are injected into context on every prompt |
-| 📈 **It learns from use** | what served you climbs — with a slot kept for notes never seen, so it does not go round in circles |
-| 🕰️ **It knows its own age** | notes never re-checked enter a review queue, dated from the git history |
-| 🤖 **8 agents** | they distill, file, link, challenge, synthesize, prune, repair, and watch the machine |
-| 🔁 **A closed loop** | session ends → archive → distill → file, without being asked |
-| ⬆️ **Updates** | the engine updates itself; **your notes are never touched** |
+| **A trunk** | your lessons, projects, method — markdown, on your machine, versionable |
+| **Automatic recall** | relevant notes are injected into context on every prompt |
+| **It learns from use** | what served you climbs — with a slot kept for notes never seen, so it does not go round in circles |
+| **It knows its own age** | notes never re-checked enter a review queue, dated from the git history |
+| **8 agents** | they distill, file, link, challenge, synthesize, prune, repair, and watch the machine |
+| **A closed loop** | session ends → archive → distill → file, without being asked |
+| **Updates** | the engine updates itself; **your notes are never touched** |
 
 **And two ways to look at it**, which are extensions and install separately —
 `./install.sh --core-only` leaves both out:
 
 | | |
 |---|---|
-| 🔮 **A capsule** | a glass orb on your desktop showing the agents at work, live |
-| 🪐 **A planet** | your knowledge as a navigable 3D globe, rebuilt on every launch |
+| **A capsule** | a glass orb on your desktop showing the agents at work, live |
+| **A planet** | your knowledge as a navigable 3D globe, rebuilt on every launch |
 
 <p align="center">
   <img src="docs/media/architecture.png" alt="How a session becomes memory: the trunk — ~/.c-brain/trunk, holding the notes, MEMORY.md and state — is read and written by three hook stages inside your session. On every prompt, inject_recall uses BM25 plus embeddings to pick the few notes that match what you asked and pastes them into the prompt. During the session, post_diff, track_read, on_fiche_write and pre_snapshot record what is written and read. At session end, archive_session and auto_maintain archive the session and wake the agents, in two layers: layer 1 always runs the distiller then the gardener, the gardener gated on the distiller actually succeeding; layer 2 wakes at most one of the challenger, architect, archivist or mechanic, and only if its sensor crosses a threshold and twelve hours have passed. Below, three ways to look at it: the capsule reading state/status.json, the planet built from graph_export, and the brain CLI — status, review, selftest, update — every automatic step runnable by hand" width="900">
@@ -65,7 +75,7 @@ It holds to about a thousand notes and degrades sharply past that. Published
 here because a memory tool that will not say how well it remembers is asking
 for trust it has not earned. The CI enforces these numbers as thresholds.
 
-⚠️ **This bench does NOT measure everything.** Its corpus is synthetic, so its
+**This bench does NOT measure everything.** Its corpus is synthetic, so its
 vocabulary is coherent by construction: it says nothing about morphology
 ("ranger" versus "rangement") nor about the French/English mix, which are two
 real causes of an unfindable note. Its numbers did not move when those two
@@ -209,40 +219,21 @@ Points warm up as you read them and fade on their own; the ⚠ ✦ ↻ ▷ marke
 what was challenged, held as a conviction, left open, or is replayable in 3D.
 
 <p align="center">
-  <img src="docs/media/planet.webp" alt="The knowledge planet, one continuous pass: the globe turns in meaning view, the cursor lands on a note and a panel gives its title and summary, the note opens to reveal its plain-language section and its twelve connections, the map switches to structure, lies flat, then a region opens as an inner sphere of its own" width="900">
+  <img src="docs/media/planet.webp" alt="The knowledge planet, one continuous pass: the globe turns, the cursor lands on a note and a panel gives its title and summary, the note opens to reveal its plain-language section and its twelve connections, then the map switches to the meaning view where the same notes rearrange themselves by resemblance" width="900">
 </p>
 <p align="center"><sub>A showcase trunk of 375 notes and 1 474 links — the real shape of a working trunk, with generated titles. Yours starts empty.</sub></p>
 
-#### Every screen of it
+<p align="center">
+  <img src="docs/media/planet-meaning.webp" alt="The meaning map: the same notes laid flat and arranged by resemblance rather than by folder, arcs running between them, the region list down the left column and the header reading TRUNK MAP — MEANING" width="900">
+</p>
+<p align="center"><sub><b>The meaning map</b> — the same notes, arranged by what they resemble, folders ignored. Two notes side by side here and far apart on the globe is a link you have not written.</sub></p>
 
-<table>
-<tr>
-<td width="50%"><img src="docs/media/planet-globe.webp" alt="The trunk planet: a wireframe globe in phosphor orange on black, clusters of notes sitting on its surface, each cluster labelled with its region name and count. The left column lists the regions by size; the header reads TRUNK PLANET" width="100%"></td>
-<td width="50%"><img src="docs/media/planet-meaning.webp" alt="The meaning map: the same notes laid flat, arranged by resemblance rather than by folder, with arcs running between them. The header reads TRUNK MAP — MEANING" width="100%"></td>
-</tr>
-<tr>
-<td><b>The planet</b> — the filing, in volume. One cluster per region, sized by how much it holds. Click one to go in.</td>
-<td><b>The meaning map</b> — the same notes, arranged by what they resemble. Folders ignored. Two notes side by side here and far apart on the globe is a link you have not written.</td>
-</tr>
-<tr>
-<td><img src="docs/media/planet-structure.webp" alt="The structure map: the regions laid flat as separate clusters, joined by long arcs, the header reading TRUNK MAP — STRUCTURE" width="100%"></td>
-<td><img src="docs/media/planet-region.webp" alt="Inside a region: the note cloud of a single region rendered as its own sphere with its internal links drawn, the header reading REGION — PRINCIPLES and the breadcrumb offering to go back to the overview" width="100%"></td>
-</tr>
-<tr>
-<td><b>The structure map</b> — the filing, flat. Where the regions sit relative to each other, and what crosses between them.</td>
-<td><b>Inside a region</b> — one region becomes a sphere of its own, with only its own links drawn. <code>Esc</code> comes back out.</td>
-</tr>
-<tr>
-<td><img src="docs/media/planet-hover.webp" alt="The hover panel: a framed panel in the top right showing the region, the note title MECHANIC, a two-line summary and the file path. No list of connections" width="100%"></td>
-<td><img src="docs/media/planet-note.webp" alt="The opened note panel: the same note with a FOR YOU section in plain words, a FOR THE MODEL section folded behind it, and a connections list of twelve chips, each carrying the region it comes from" width="100%"></td>
-</tr>
-<tr>
-<td><b>Hover</b> — region, title, summary, file. That is the whole panel: you are still moving.</td>
-<td><b>Click</b> — <code>for you</code>, then <code>for the model</code> folded behind it, then <code>connections (N)</code> at the end.</td>
-</tr>
-</table>
+<p align="center">
+  <img src="docs/media/planet-note.webp" alt="The opened note panel: a framed panel showing the note title MECHANIC, a FOR YOU section in plain words, a FOR THE MODEL section folded behind it, and a list of twelve connection chips each carrying the region it comes from" width="900">
+</p>
+<p align="center"><sub><b>A note, opened</b> — <code>for you</code> in plain words, <code>for the model</code> folded behind it, <code>connections (N)</code> at the end. Hovering shows only the first three lines: you are still moving.</sub></p>
 
-📖 **[Full planet documentation](docs/planet.md)** — the two views, reading a
+**[Full planet documentation](docs/planet.md)** — the two views, reading a
 point, the markers, and what the map cannot do.
 
 ## Commands
