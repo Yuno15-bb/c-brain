@@ -199,6 +199,17 @@ Turn the globe, point at a note: its links light up, and the panel gives you its
 region, its neighbours, its description and the file it lives in — one
 double-click away from the note itself.
 
+Two views, and that is where it earns its place: `V` shows the **filing** — where
+you put a note; `S` shows the **meaning** — what it resembles, folders ignored. A
+note alone in its corner on the globe but sitting against five others in the
+meaning view is a link you have not written yet.
+
+Points warm up as you read them and fade on their own; the ⚠ ✦ ↻ ▷ markers flag
+what was challenged, held as a conviction, left open, or is replayable in 3D.
+
+📖 **[Full planet documentation](docs/planet.md)** — the two views, reading a
+point, the markers, and what the map cannot do.
+
 <p align="center">
   <img src="docs/media/planet.webp" alt="The knowledge planet: the globe turns, the cursor lands on a note, its linked arcs light up and a panel opens showing the note's region, its seven connections, its description and its file path" width="900">
 </p>

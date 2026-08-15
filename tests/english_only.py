@@ -67,11 +67,30 @@ def visible_strings(text):
 
 
 def strip_comments(text, suffix):
-    """Comments are out of scope — see the module docstring."""
+    """Comments are out of scope — see the module docstring.
+
+    ⚠️ `.html` USED TO FALL THROUGH HERE, AND IT MATTERED (fixed 2026-08-15).
+    An HTML page carries its script and its style inline, so its `//` and `/* */`
+    comments were scanned like content. That is not a small over-reach: French
+    contractions put an apostrophe mid-comment (« qu'elles », « l'écran »), and
+    the `'([^'\\n]{4,})'` pattern happily reads the text BETWEEN two of them as a
+    string literal. Measured on the planet: 95 findings, of which the large
+    majority were phantom strings cut out of French prose — every one of them
+    starting right after an apostrophe.
+    A checker that reports mostly noise gets silenced, not obeyed. It has to
+    measure what its own docstring claims it measures.
+
+    Only whole comment lines go: `const s = 'texte'; // note` does NOT start with
+    `//`, so it is still scanned and a real string on it is still caught.
+    """
     if suffix in (".py", ".sh", ""):
         return "\n".join(l for l in text.splitlines() if not l.lstrip().startswith("#"))
-    if suffix == ".js":
-        return "\n".join(l for l in text.splitlines() if not l.lstrip().startswith("//"))
+    if suffix in (".js", ".html", ".css"):
+        # blocs d'abord (ils enjambent les lignes), lignes ensuite
+        text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+        text = re.sub(r"<!--.*?-->", " ", text, flags=re.S)
+        return "\n".join(l for l in text.splitlines()
+                         if not l.lstrip().startswith("//"))
     return text
 
 
