@@ -12,7 +12,7 @@ python3 "$BRAIN/hooks/graph_export.py"            # graph up to date before open
 # kill any server already on this port (clean restart)
 lsof -ti tcp:"$PORT" 2>/dev/null | xargs kill 2>/dev/null || true
 
-echo "🪐 Planet on http://localhost:$PORT  (Ctrl+C to stop)"
+echo "📟  Trunk planet — MOTHER signature — http://localhost:$PORT  (Ctrl+C to stop)"
 ( sleep 1; open "http://localhost:$PORT" ) &
 cd "$DIR"
 exec python3 -m http.server "$PORT"
