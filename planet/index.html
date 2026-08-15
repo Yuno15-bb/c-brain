@@ -1575,7 +1575,14 @@ function showPanel(mesh, expanded){
   if(n.media){ mEl.textContent='▷ capture 3D rejouable — double-clic pour l\'ouvrir'; mEl.classList.add('show'); }
   else { mEl.classList.remove('show'); mEl.textContent=''; }
   // connexions : les fiches reliées à ce point (titre descriptif + région si autre catégorie)
-  const others=(mesh.userData.links||[]).map(L=> L.a===mesh?L.b:L.a), CAP=16, rn=regionOf(n);
+  // ⚠ AU CLIC SEULEMENT. Demande de l'auteur (2026-08-15) : « quand je survole un point il doit
+  // afficher seulement titre et résumé, pas les connexions ». Au survol on lit UNE chose et on
+  // passe ; une liste de 16 pastilles sous le résumé faisait du panneau volant un mur, et
+  // allongeait la fiche au point de la faire défiler alors que le curseur bouge encore.
+  // Les connexions sont une exploration, pas une information de survol : elles arrivent quand
+  // on a décidé de s'arrêter sur le point (clic → `expanded`), en fin de fiche.
+  const others=expanded ? (mesh.userData.links||[]).map(L=> L.a===mesh?L.b:L.a) : [];
+  const CAP=16, rn=regionOf(n);
   let lh='';
   if(others.length){
     const chips=others.slice(0,CAP).map(o=>{ const d=o.userData.data, col='#'+colorOf(d).getHexString();
