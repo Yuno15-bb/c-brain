@@ -75,10 +75,10 @@ you three things and stops there: the region it belongs to, its title, and its
 summary. Nothing else. Hovering is how you *sweep* — you read one thing and move
 on — so the panel stays a size you can read without stopping.
 
-**Click the note** and the same panel opens out: the plain-language section
-first, the full note folded behind it, and **the connections at the end** — the
-other notes this one is wired to, each with its region when it comes from
-another part of the map.
+**Click the note** and the same panel opens out: `for you` — the plain-language
+section — first, `for the model` — the full note — folded behind it, and
+**`connections (N)` at the end**: the other notes this one is wired to, each
+labelled with its region when it comes from another part of the map.
 
 Connections used to appear on hover. They made a passing panel long enough to
 scroll, under a cursor that was still moving. They are an exploration, not a
