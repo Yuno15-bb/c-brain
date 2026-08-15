@@ -273,6 +273,9 @@ body{ letter-spacing:.03em; }
   min-height:13px; padding:2px 2px 0; letter-spacing:.03em;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #pod .cap b{ color:var(--ph-100); font-weight:400; }
+#pod .hd .bascule{ cursor:pointer; opacity:.45; }
+#pod .hd .bascule:hover{ opacity:.8; }
+#pod .hd .bascule.on{ opacity:1; color:var(--ph-100); text-decoration:underline; }
 #pod .cap .off{ color:var(--ph-600); }
 /* la fiche de survol récupère tout le côté droit : la capsule n'y est plus */
 
@@ -392,7 +395,7 @@ button:focus-visible{ outline:2px solid var(--ph-100); outline-offset:2px; }
   <!-- la planète, devenue instrument de coin : elle tourne toute seule, elle répond au survol,
        elle ne se manipule pas. Ce qu'on y vise s'allume dans la carte du sens. -->
   <div id="pod">
-    <div class="hd">[ globe — les familles ]</div>
+    <div class="hd">[ globe — <span class="bascule" data-mode="dossiers">dossiers</span> · <span class="bascule" data-mode="sujets">sujets</span> ]</div>
     <canvas id="pc"></canvas>
     <div class="cap"></div>
   </div>
@@ -1051,6 +1054,7 @@ function build(data){
     sEl.innerHTML=`◉ en direct dans : ${top.join(' · ')}`;
   } else sEl.textContent='';
   buildLegend(data);
+  lireFamilles(data);                // les familles thématiques AVANT la capsule, qui s'en sert
   buildPod();                        // la capsule se refait avec le graphe : sinon elle montre l'avant-dernier tronc
   majFil();                          // le fil d'Ariane était figé sur le texte écrit en dur dans le HTML
   // ⚠️ LA RÉGION OUVERTE DOIT ÊTRE REPOSÉE APRÈS CHAQUE RECONSTRUCTION.
@@ -1268,8 +1272,48 @@ podCam.position.set(0, 4.5, 30); podCam.lookAt(0,0,0);
 let podGroup = new THREE.Group(); podScene.add(podGroup);
 let podBlobs = [];
 let podHover = null, podPin = null;                 // famille visée (survol) · famille épinglée (clic)
+let podMode = 'dossiers';                          // 'dossiers' (portée) ou 'sujets' (thème)
+// à quel groupe appartient une fiche, SELON le mode de la capsule — c'est cette fonction qui
+// fait que viser un amas allume les bonnes fiches dans le nuage du sens.
+function groupeDe(nd){ return podMode==='sujets' ? (FAM_DE[nd.id]||null) : regionOf(nd); }
 const podPtr = { x:-1e4, y:-1e4, in:false };
 const _pw = new THREE.Vector3(), _podDir = new THREE.Vector3();
+
+// ════════ LES FAMILLES THÉMATIQUES — le SECOND axe, dans la capsule ════════
+// Les dossiers disent la PORTÉE d'une fiche (d'où faut-il pouvoir la relire), les familles
+// disent son SUJET. Ce sont deux découpages indépendants du même tronc : un projet (dossier)
+// et « le contrôle qui ment » (famille) ne se recouvrent pas, et c'est justement l'intérêt —
+// on voit alors où un sujet se disperse à travers les projets.
+// Seules les 223 leçons portent une famille : les fiches de projet n'en ont pas, elles
+// disparaissent donc de la capsule en mode « sujets ». C'est voulu, pas un oubli.
+const FAMILLES_TITRES = {
+  'controle-qui-ment':"le contrôle que j'écris et qui ment", 'systeme-qui-ment':"le système qu'on interroge et qui ment",
+  'front-qui-ment':'le front qui ment', 'visuel-et-geste':'le visuel et le geste', 'machine':'la machine',
+  'concurrence-et-pertes':'concurrence et pertes', 'garde-fou-partiel':"le garde-fou qui ne couvre qu'un cas",
+  'le-cerveau':'le cerveau lui-même', 'methode-et-principes':'la méthode et les principes',
+  'mettre-en-ligne':'mettre en ligne', 'artefact-derive':'l\'artefact qui dérive', 'service-tiers':'brancher un service tiers',
+  'fabriquer-un-document':'fabriquer un document' };
+let FAM_INFO = {}, FAM_DE = {};
+function lireFamilles(data){
+  FAM_INFO = {}; FAM_DE = {};
+  for(const n of data.nodes){
+    const t = (n.tags && n.tags[0]) || null;
+    if(!t) continue;
+    FAM_DE[n.id] = t;
+    (FAM_INFO[t] = FAM_INFO[t] || { n:0 }).n++;
+  }
+  // ⚠️ ancrage : on répartit les familles sur la sphère par la spirale de Fibonacci, MAIS
+  // en démarrant l'indice à 0,5 et en triant par taille DÉCROISSANTE inversée — sinon la plus
+  // grosse famille (53 fiches) atterrit exactement au pôle et écrase tout,
+  // cf. [[van-der-corput-index-0-au-pole]].
+  const noms = Object.keys(FAM_INFO).sort((a,b)=>FAM_INFO[a].n-FAM_INFO[b].n);
+  const m = noms.length, ga = Math.PI*(3-Math.sqrt(5));
+  noms.forEach((nom,i)=>{
+    const y = 1-2*(i+0.5)/m, rad = Math.sqrt(Math.max(0,1-y*y)), a = ga*i;
+    FAM_INFO[nom].dir = new THREE.Vector3(Math.cos(a)*rad, y, Math.sin(a)*rad).normalize();
+    FAM_INFO[nom].col = new THREE.Color().setHSL(0.02 + 0.10*(i/Math.max(1,m-1)), 0.62, 0.62);
+  });
+}
 
 function buildPod(){
   podGroup.removeFromParent();
@@ -1284,6 +1328,22 @@ function buildPod(){
       opacity:0.30, depthWrite:false })));
   // un amas par région, repris tel quel de la grande carte (même graine, donc même forme :
   // la mémoire visuelle d'une famille doit survivre au changement d'échelle).
+  const amasPour = (graine, n, col, dir) => {
+    const grains = Math.min(n, 90), rad = 0.42 + 1.05*Math.cbrt(n/60);
+    const pos = new Float32Array(grains*3);
+    for(let i=0;i<grains;i++){
+      const u=hash(graine+':'+i), v=hash(i+':'+graine), w=hash(graine+i+'z');
+      const th=2*Math.PI*u, ph=Math.acos(2*v-1), rr=rad*Math.cbrt(w);
+      pos[i*3]=rr*Math.sin(ph)*Math.cos(th); pos[i*3+1]=rr*Math.sin(ph)*Math.sin(th); pos[i*3+2]=rr*Math.cos(ph);
+    }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    const pts=new THREE.Points(g, new THREE.PointsMaterial({ color:col.clone(), map:POINT_TEX,
+      size:1.15, transparent:true, opacity:1, depthWrite:false, sizeAttenuation:true }));
+    pts.position.copy(dir).multiplyScalar(R);
+    return pts;
+  };
+  // jeu n°1 — les DOSSIERS (repris tels quels de la grande carte : même graine, même forme,
+  // pour que la mémoire visuelle d'une famille survive au changement d'échelle)
   for(const b of regionObjs){
     const src = b.children[0];                      // children[0] = l'amas de points, [1] = l'étiquette
     if(!src || !src.geometry) continue;
@@ -1291,12 +1351,22 @@ function buildPod(){
       color:b.userData.colBase.clone(), map:POINT_TEX, size:1.15, transparent:true,
       opacity:1, depthWrite:false, sizeAttenuation:true }));
     pts.position.copy(b.userData.pos3);
-    pts.userData = { region:b.userData.region, col:b.userData.colBase.clone() };
+    pts.userData = { region:b.userData.region, col:b.userData.colBase.clone(), mode:'dossiers' };
     podGroup.add(pts); podBlobs.push(pts);
   }
+  // jeu n°2 — les SUJETS
+  for(const [nom, f] of Object.entries(FAM_INFO)){
+    if(!f.dir) continue;
+    const pts = amasPour(nom, f.n, f.col, f.dir);
+    pts.userData = { region:nom, col:f.col.clone(), mode:'sujets', titre:(FAMILLES_TITRES[nom]||nom) };
+    pts.visible = false;
+    podGroup.add(pts); podBlobs.push(pts);
+  }
+  const connu = n => podMode==='sujets' ? !!FAM_INFO[n] : !!REGION_COUNT[n];
   // une famille épinglée qui a disparu du graphe laisserait tout le nuage éteint sans rien allumer
-  if(podPin && !REGION_COUNT[podPin]) podPin=null;
-  if(podHover && !REGION_COUNT[podHover]) podHover=null;
+  if(podPin && !connu(podPin)) podPin=null;
+  if(podHover && !connu(podHover)) podHover=null;
+  for(const p of podBlobs) p.visible = (p.userData.mode===podMode);
   majPodCap();
   placerPod();                       // la légende vient d'être réécrite : l'espace libre a changé
 }
@@ -1339,10 +1409,19 @@ addEventListener('resize', placerPod);
 
 function majPodCap(){
   const r = podPin || podHover;
-  if(r) podCap.innerHTML = `<b>${r}</b> — ${REGION_COUNT[r]||0} fiches`
+  const combien = n => podMode==='sujets' ? (FAM_INFO[n]||{n:0}).n : (REGION_COUNT[n]||0);
+  const nom = n => podMode==='sujets' ? (FAMILLES_TITRES[n]||n) : n;
+  const total = podBlobs.filter(p=>p.userData.mode===podMode).length;
+  if(r) podCap.innerHTML = `<b>${nom(r)}</b> — ${combien(r)} fiches`
                          + (podPin===r ? ` <span class="off">· clic = relâcher</span>` : '');
-  else  podCap.innerHTML = `<span class="off">${podBlobs.length} familles · viser pour allumer</span>`;
+  else  podCap.innerHTML = `<span class="off">${total} ${podMode==='sujets'?'sujets':'dossiers'} · viser pour allumer</span>`;
+  document.querySelectorAll('#pod .bascule').forEach(b=>b.classList.toggle('on', b.dataset.mode===podMode));
 }
+document.querySelectorAll('#pod .bascule').forEach(b=> b.addEventListener('click', ()=>{
+  podMode = b.dataset.mode; podHover = null; podPin = null;
+  for(const p of podBlobs) p.visible = (p.userData.mode===podMode);
+  majPodCap(); majFil();
+}));
 
 // Le survol de la LÉGENDE allume la même chose que le survol de la capsule : deux endroits qui
 // désignent une famille ne doivent pas avoir deux effets différents.
@@ -1398,6 +1477,7 @@ function podTick(dt){
   if(podPtr.in){
     const w=podCv.clientWidth||208, h=podCv.clientHeight||208;
     for(const p of podBlobs){
+      if(p.userData.mode!==podMode) continue;
       p.getWorldPosition(_pw);
       if(_pw.clone().normalize().dot(_podDir) < 0.02) continue;   // amas de la face arrière : pas visable
       _pw.project(podCam);
@@ -2071,7 +2151,7 @@ function tick(now){
     }
     let fam = 1;
     if(viseFamille){
-      const dedans = regionOf(m.userData.data)===viseFamille;
+      const dedans = groupeDe(m.userData.data)===viseFamille;
       fam = dedans ? 1.9 : 1;
       // On agit sur la COULEUR (multiplication), pas sur la transparence : 366 matériaux
       // transparents obligeraient le moteur à les trier à chaque image.
