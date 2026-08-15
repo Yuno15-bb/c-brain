@@ -12,7 +12,7 @@ time it matters. From any project, and without leaving your machine.**
 <table width="100%">
 <tr>
 <td width="26%" align="center">
-  <img src="docs/media/capsule.webp" alt="The capsule: a glass orb sitting on the desktop, its material and hue changing as each agent works — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing — with the code being written scrolling inside it" width="168">
+  <img src="docs/media/capsule.webp" alt="The capsule: a glass orb sitting on the desktop, its material and hue changing as each agent works — idle, gardening, challenging, committing — with the lines being written scrolling inside it and the current task named underneath" width="168">
 </td>
 <td width="74%" align="center">
   <img src="docs/media/planet.webp" alt="The knowledge map, turning: hundreds of notes arranged by resemblance in phosphor orange on black. The cursor lands on a note and a panel gives its region, title and summary; then the structure button is clicked and the map reorganises into the filing; then a family is clicked and opens as a sphere of its own" width="100%">
