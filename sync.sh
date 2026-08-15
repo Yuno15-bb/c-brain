@@ -257,6 +257,7 @@ sync_dir companion '__pycache__' '*.pyc'
 # Ils n'ont pas d'équivalent dans le Brain vivant ; --delete les emporterait.
 sync_dir tests 'plugin_manifest.py' 'english_only.py' 'update_tag_family.sh' \
   'recall_benchmark.py' 'recall_cache.py' 'update_rollback.sh' 'plugin_install.sh' \
+  'docs_aligned.py' \
   '__pycache__' '*.pyc'
 
 # --- 8. Registre des familles thématiques ---------------------------------
