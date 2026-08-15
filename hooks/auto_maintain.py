@@ -317,8 +317,17 @@ def launch_agent(sid, n, to_distill):
     #     jamais demandé que ses notes y partent à chaque fin de session — donc
     #     le paquet ne contient AUCUN push, et l'absence du fichier suffit à ce
     #     que la ligne ne fasse rien là-bas.
-    # `--auto` = le tronc PRIVÉ seulement, jamais le dépôt public : voir le
-    # docstring de sync_depots.py, section « DEUX MODES ».
+    # ⚠️ CE QUE `--auto` FAIT A CHANGÉ LE 2026-08-15. Il poussait le tronc privé
+    # et se contentait de MESURER le paquet public ; il pousse désormais aussi la
+    # branche `fr` du paquet, via le plan de travail ~/c-brain-fr.
+    # Pourquoi c'était bloqué, et pourquoi ça ne l'est plus : l'obstacle n'était
+    # pas le risque mais un fait matériel — le dépôt de l'auteur vit sur `main`,
+    # `sync.sh` refuse d'y tourner, et l'automatisme aurait été un no-op qui a
+    # l'air branché. Le worktree lui donne un endroit où le garde-fou de branche
+    # est DÉJÀ satisfait ; il n'est ni forcé ni contourné.
+    # Ce qui n'a PAS bougé : le leakcheck reste la seule barrière et il décide
+    # (rouge = rien ne part) ; le tag et `main` restent des gestes humains.
+    # Voir le docstring de sync_depots.py, section « DEUX MODES ».
     depots = (f'"{py}" "{BRAIN}/hooks/commit_par_zone.py" || true\n'
               f'[ -f "{BRAIN}/tools/sync_depots.py" ] && '
               f'"{py}" "{BRAIN}/tools/sync_depots.py" --auto || true')
