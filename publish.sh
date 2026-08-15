@@ -59,6 +59,22 @@ else
   echo "  ⤳ skipped on \`$BRANCH\` (only \`fr\` syncs from the Brain)"
 fi
 
+# Prose has no test, so it never fails — it just quietly describes a program that
+# stopped behaving that way. `docs_aligned.py` does not read the prose; it asks
+# one mechanical question: has the code a document claims to describe moved since
+# that document was last edited? A version that ships with unreviewed docs ships a
+# manual for a different program, and the reader has no way to tell.
+# WARN, NOT REFUSE, for now: four documents are behind today and a hard gate here
+# would only teach the next person to skip the script. Turn it into an `exit 1`
+# once the backlog is at zero — a warning nobody can ever satisfy is noise.
+echo "▸ Do the docs still describe this code?"
+if python3 tests/docs_aligned.py --quiet; then
+  echo "  ✅ every document reviewed since the code it describes last moved"
+else
+  echo "  ⚠️  some documents are behind — python3 tests/docs_aligned.py for the list"
+  echo "     (not blocking: the tag goes out, the manual may be out of date)"
+fi
+
 echo "▸ Is the working tree clean?"
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "❌ Uncommitted changes. Commit first."
