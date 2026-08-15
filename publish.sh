@@ -64,16 +64,21 @@ fi
 # one mechanical question: has the code a document claims to describe moved since
 # that document was last edited? A version that ships with unreviewed docs ships a
 # manual for a different program, and the reader has no way to tell.
-# WARN, NOT REFUSE, for now: four documents are behind today and a hard gate here
-# would only teach the next person to skip the script. Turn it into an `exit 1`
-# once the backlog is at zero — a warning nobody can ever satisfy is noise.
+# IT REFUSES. It only warned for a few hours, while four documents were behind:
+# a gate nobody can satisfy teaches people to skip the script, which is worse than
+# no gate. The backlog reached zero the same day, so the gate closed — a promise
+# to tighten "later" is a promise nobody keeps.
+# The cost of being wrong here is one doc edit. The cost of being wrong the other
+# way is a published version whose manual describes a different program.
 echo "▸ Do the docs still describe this code?"
-if python3 tests/docs_aligned.py --quiet; then
-  echo "  ✅ every document reviewed since the code it describes last moved"
-else
-  echo "  ⚠️  some documents are behind — python3 tests/docs_aligned.py for the list"
-  echo "     (not blocking: the tag goes out, the manual may be out of date)"
+if ! python3 tests/docs_aligned.py; then
+  echo
+  echo "⛔ A document has not been reviewed since the code it describes moved."
+  echo "   Open it, check the claim, edit it — that commit is the new baseline."
+  echo "   Nothing is published."
+  exit 1
 fi
+echo "  ✅ every document reviewed since the code it describes last moved"
 
 echo "▸ Is the working tree clean?"
 if ! git diff --quiet || ! git diff --cached --quiet; then
