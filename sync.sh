@@ -22,7 +22,12 @@ MODE="copy"
 
 # --itemize-changes dans les DEUX modes : le rapport doit dire ce qui a bougé,
 # pas seulement ce qui aurait bougé.
-RSYNC_FLAGS=(-a --delete --itemize-changes)
+# `*.bak` exclu GLOBALEMENT : une sauvegarde d'édition est, par définition, une
+# version ANTÉRIEURE d'un fichier vivant — donc du code mort, et surtout du code
+# qui n'est jamais repassé par generalize.py au fil des versions. Le 2026-08-15,
+# `capsule/orbe.html.bak` est arrivé dans le paquet avec 5 occurrences du nom du
+# propriétaire, que le leakcheck a arrêtées. Git tient déjà l'historique.
+RSYNC_FLAGS=(-a --delete --itemize-changes --exclude '*.bak')
 [ "$MODE" = "check" ] && RSYNC_FLAGS+=(--dry-run)
 
 # ⚠️ GARDE-FOU DE BRANCHE — il était DOCUMENTÉ dans docs/translation.md et n'existait
@@ -53,6 +58,16 @@ fi
 # Sinon le fichier n'est jamais copié mais compte quand même dans l'empreinte :
 # la source reste « changée » pour toujours et publish.sh refuse de tagger,
 # sans jamais dire quoi corriger.
+#
+# ⚠⚠ ET ELLE DOIT ÊTRE ANCRÉE PAR `-path`, JAMAIS PAR `-name`.
+# `-name` ne connaît pas de dossier : il frappe partout sous les six racines
+# scannées. `! -name "index.html"`, posé le 2026-08-03 pour sortir la capsule,
+# a du même coup rendu `planet/index.html` INVISIBLE à l'empreinte — le fichier
+# principal de la planète. Conséquence mesurée le 2026-08-15 : la refonte
+# MOTHER (122 Ko d'écart, « phosphore » 4 fois contre 0) ne faisait pas broncher
+# `--check`, qui répondait « rien n'a bougé ». Le paquet public est resté sur
+# une planète du 13/08 pendant que le capteur affirmait le contraire.
+# Un fichier exclu à tort ici ne rougit jamais : il disparaît, en silence.
 MANIFEST="$DEST/.sync-manifest"
 
 empreinte_source() {
@@ -61,17 +76,22 @@ empreinte_source() {
     find "$SRC/hooks" "$SRC/agents" "$SRC/capsule" "$SRC/planet" \
          "$SRC/companion" "$SRC/tests" -type f \
          ! -path "*/node_modules/*" ! -name "*.pyc" ! -name ".DS_Store" \
-         ! -name "graph.json" ! -name "desktop_sync.py" \
+         ! -name "*.bak" \
+         ! -name "desktop_sync.py" \
          ! -name "capteur_fraicheur.py" \
          ! -name "com.dgc.fraicheur.plist.template" \
          ! -name "com.dylan.desktop-sync.plist.template" \
          ! -name "com.claudebrain.resume.plist" \
          ! -path "*/capsule/assets/*" \
-         ! -path "*/capsule/lottie/*" ! -name "index-v2.html" \
+         ! -path "*/capsule/lottie/*" \
          ! -path "*/capsule/hand/*" \
-         ! -name "index.html" ! -name "dock-geometry.js" \
-         ! -name "test_dock_geometry.js" \
-         ! -path "*/capsule/main.js" 2>/dev/null \
+         ! -path "*/capsule/index.html" ! -path "*/capsule/index-v2.html" \
+         ! -path "*/capsule/dock-geometry.js" \
+         ! -path "*/capsule/test_dock_geometry.js" \
+         ! -path "*/capsule/main.js" \
+         ! -path "*/planet/*.json" \
+         ! -path "*/planet/launch-mother.sh" \
+         ! -path "*/planet/archive/*" 2>/dev/null \
       | sort | xargs shasum -a 256 2>/dev/null
   } | sed "s|$SRC/||; s|$CLAUDE_DIR/||" | sort -k2
 }
@@ -87,8 +107,17 @@ if [ "$MODE" = "check" ]; then
     echo "  ✅ inchangé — le paquet est à jour."
     exit 0
   fi
-  echo "  ⚠️  la source a changé :"
-  printf '%s\n' "$DIFF" | grep -E '^[<>]' | awk '{print "      " $1 " " $3}' | sort -u | head -20
+  # Le total AVANT la troncature. Sans lui, `head -20` cachait le reste sans
+  # le dire : le 2026-08-15, `planet/index.html` était bien détecté comme
+  # changé mais tombait au-delà de la 20ᵉ ligne, et on lisait la sortie comme
+  # « la planète, elle, n'a pas bougé ». Une liste coupée doit dire qu'elle coupe.
+  CHANGES="$(printf '%s\n' "$DIFF" | grep -E '^[<>]' | awk '{print "      " $1 " " $3}' | sort -u)"
+  N_CHANGES="$(printf '%s\n' "$CHANGES" | wc -l | tr -d ' ')"
+  echo "  ⚠️  la source a changé — $N_CHANGES entrée(s) :"
+  printf '%s\n' "$CHANGES" | head -20
+  if [ "$N_CHANGES" -gt 20 ]; then
+    echo "      … et $((N_CHANGES - 20)) autre(s), non affichée(s)."
+  fi
   echo
   echo "  → ./sync.sh pour reporter les changements, puis relis le diff git."
   exit 1
@@ -200,9 +229,24 @@ sync_dir capsule 'node_modules' 'assets' 'lottie' 'index-v2.html' 'main.js' 'han
                  'index.html' 'dock-geometry.js' 'test_dock_geometry.js'
 
 # --- 5. Planète -----------------------------------------------------------
-# EXCLU : graph.json — 1,4 Mo contenant le TEXTE INTÉGRAL des fiches, noms de
-# clients compris. Régénéré à chaque lancement par graph_export.py.
-sync_dir planet 'graph.json'
+# EXCLU : *.json — TOUTES les données régénérées de la planète, pas seulement
+# celles qui existaient le jour où cette ligne a été écrite.
+#
+# Historique, et pourquoi la règle est passée d'un NOM à un MOTIF : la ligne
+# excluait `graph.json` (1,4 Mo, texte intégral des fiches, noms de clients
+# compris). Le 2026-08-14, la refonte de la planète a créé `textes.json` —
+# 1,5 Mo du MÊME contenu, sous un nom neuf. Il tombait hors de la règle, hors
+# du .gitignore, et serait parti sur le dépôt PUBLIC au premier sync.
+# C'est le motif `le-premier-fichier-d-un-type-nouveau-tombe-hors-des-regles` :
+# un filtre par liste ne protège que ce qui existait quand on l'a écrit.
+#
+# Le paquet n'embarque AUCUN .json de planète, par construction : le globe se
+# reconstruit au lancement (graph_export.py). Un .json ici est donc toujours
+# une donnée du tronc de l'auteur, jamais un fichier du produit.
+#
+# EXCLU aussi : launch-mother.sh — un alias vers launch.sh qui n'existe que
+# pour ne pas casser un raccourci du Bureau de l'auteur. Rien à en faire ici.
+sync_dir planet '*.json' 'launch-mother.sh' 'archive'
 
 # --- 6. Companion ---------------------------------------------------------
 sync_dir companion '__pycache__' '*.pyc'

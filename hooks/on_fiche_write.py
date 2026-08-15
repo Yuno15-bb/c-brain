@@ -26,6 +26,12 @@ LESSONS_INDEX = os.path.join(BRAIN, "lessons", "INDEX.md")
 MAP_RELS = {"MEMORY.md", os.path.join("lessons", "INDEX.md")}
 INBOX_HEADER = "## 🆕 Inbox — fiches à classer (auto)"
 
+# Vocabulaire des types de fiche. CINQ valeurs, pas quatre : `lesson` a été ajouté
+# le 2026-08-13 parce que 32 fiches l'utilisaient déjà et que c'est la catégorie la
+# plus utile d'un tronc dont 205 fiches vivent dans `lessons/`. Divergence assumée
+# avec la spec mémoire du harnais (qui en liste 4) — ne pas la « réparer » à 4.
+TYPES_VALIDES = {"project", "feedback", "reference", "lesson", "user"}
+
 SECRET = re.compile(
     r'(ntn_[A-Za-z0-9]+|sk-ant-[A-Za-z0-9_-]+|AIza[A-Za-z0-9_-]+|secret_[A-Za-z0-9]+'
     r'|eyJ[A-Za-z0-9_.-]{20,}|gh[pousr]_[A-Za-z0-9]{20,})'
@@ -101,6 +107,27 @@ def main(data):
             write_status("busy", "correcting", f"secret masqué dans {name}")
         except Exception:
             pass
+
+    # --- 1 bis. vocabulaire des types : OBSERVER, jamais bloquer ni corriger ---
+    # Pourquoi ce contrôle existe : mesuré le 2026-08-13, le champ `type` avait dérivé
+    # (`lessons` au pluriel, faute de frappe pure) sans que rien ne s'en aperçoive —
+    # le garde vérifiait la PRÉSENCE du frontmatter, jamais la VALIDITÉ de ses valeurs.
+    # Un standard que rien ne contrôle dérive toujours.
+    #
+    # On consigne, on ne répare pas : `type` n'est lu par aucun code (vérifié), donc une
+    # valeur inattendue n'a jamais d'effet mécanique. C'est une question de vocabulaire,
+    # elle se tranche fiche par fiche, par le jardinier — pas par une substitution muette.
+    try:
+        mt = re.search(r'^\s*type:\s*(\S+)\s*$', txt[:1200], re.M)
+        if mt and mt.group(1) not in TYPES_VALIDES:
+            import time
+            with open(os.path.join(BRAIN, "state", "types-hors-vocabulaire.jsonl"),
+                      "a", encoding="utf-8") as f:
+                f.write(json.dumps({"ts": int(time.time()), "path": rel,
+                                    "type": mt.group(1)}, ensure_ascii=False) + "\n")
+            write_status("busy", "correcting", f"type inconnu « {mt.group(1)} » dans {name}")
+    except Exception:
+        pass
 
     # slug / nom pour la détection de présence dans la carte
     m = re.search(r'^name:\s*(.+)$', txt, re.M)

@@ -166,5 +166,73 @@ class SignalDeContexte(unittest.TestCase):
             inject_recall.read_context_tokens = original
 
 
+class UnePierreTombaleNestPasUneTache(unittest.TestCase):
+    """INVARIANT : une décision CONSIGNÉE ne se relit pas comme une tâche OUVERTE.
+
+    Les deux moitiés semblent justes séparément : le détecteur cherche « reste à faire »,
+    et une fiche bien tenue écrit noir sur blanc qu'une chose est close. Ensemble, elles
+    produisent l'inverse du but — le 2026-08-13, les deux décisions que l'utilisateur venait de
+    trancher sont ressorties le soir même en tête des points de reprise, en citant la
+    phrase qui disait qu'elles étaient closes.
+
+    C'est la fiche la MIEUX rédigée qui souffre le plus : plus on consigne proprement,
+    plus on pollue la file. D'où un invariant et pas un correctif ponctuel.
+    """
+
+    def test_marqueur_barre_ou_nie_nest_pas_une_reprise(self):
+        import brain_anticipate as ba
+        for ligne in (
+            "Le point est fermé, ce n'est plus un reste à faire.",
+            "## ~~À reprendre en phase vernissage~~ — ABANDONNÉ le 13/08",
+            "Aucun reste à faire sur ce lot.",
+            "Il n'y a plus de point de reprise ici.",
+            # trouvé le 2026-08-14 : le marqueur est « à faire », donc la fenêtre d'avant se
+            # termine par « rien » et le motif `rien à` ne pouvait pas s'y appliquer.
+            "✅ **TRANCHÉ le 2026-08-11 — plus rien à faire.** Les packs contenaient bien tout.",
+            # « à faire » comme verbe français, pas comme tâche — c'est cette phrase-là qui
+            # allumait le badge ↻ sur `audit-pack-outillage`.
+            "Question de l'auteur : un simple repomix suffit-il à faire auditer un produit ?",
+        ):
+            self.assertIsNone(ba.best_marker(ligne), f"faux positif sur : {ligne}")
+
+    def test_un_vrai_point_de_reprise_reste_detecte(self):
+        """Le filtre ne doit pas rendre le détecteur muet — sinon il « passe » en ne
+        trouvant plus rien, ce qui est la panne, pas la réussite."""
+        import brain_anticipate as ba
+        for ligne in (
+            "## RESTE À FAIRE : brancher le token Notion du compte partagé",
+            "Point de reprise : finir la refonte de l'interface",
+            "Réglé le lot A ; RESTE À FAIRE : le lot B",
+            # le marqueur faible reste valide quand il est PRÉSENTÉ comme une tâche
+            "## À faire\n- brancher le webhook",
+            "À faire : relancer l'export",
+        ):
+            self.assertIsNotNone(ba.best_marker(ligne), f"vrai point de reprise perdu : {ligne}")
+
+    def test_le_tableau_de_bord_ne_se_detecte_pas_lui_meme(self):
+        """ETAT-DES-PROJETS.md contient « ce qu'il faut reprendre » par construction :
+        s'il entre dans le scan, il squatte la première place à chaque passage."""
+        import brain_anticipate as ba
+        noms = {it["path"] for it in ba.collect()}
+        self.assertNotIn(os.path.join("projects", "ETAT-DES-PROJETS.md"), noms)
+
+    def test_le_badge_de_la_planete_montre_les_memes_reprises_que_le_brain(self):
+        """Le badge ↻ a longtemps eu SON propre détecteur (une recherche de « à reprendre »
+        n'importe où dans le texte) : 32 fiches allumées en continu, dont des leçons qui
+        PARLENT du marqueur et des tâches explicitement closes. Un marqueur allumé partout
+        ne marque plus rien, et la carte contredisait le message de démarrage de session.
+        Une seule source, un seul classement — et cet invariant pour que ça le reste."""
+        import json
+        import brain_anticipate as ba
+        chemin = os.path.join(BRAIN, "planet", "graph.json")
+        if not os.path.exists(chemin):
+            self.skipTest("graph.json pas encore généré")
+        graphe = json.load(open(chemin, encoding="utf-8"))
+        allumes = {n["file"] for n in graphe["nodes"] if n.get("resume")}
+        attendus = {it["path"] for it in ba.collect()[:ba.TOP_REPRISES]}
+        self.assertEqual(allumes, attendus,
+                         "le badge ↻ et les reprises proposées au démarrage ont divergé")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

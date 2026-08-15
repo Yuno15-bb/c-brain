@@ -27,7 +27,8 @@ MODEL = "minishlab/potion-base-8M"
 # pas seulement l'archive. cf. [[bm25-recall-exclure-index-catalogues]]
 SKIP_DIRS = {
     ".git", "node_modules", "capsule", "capsule-v2", "corpus", "audits",
-    "agents", "state",
+    "agents", "state", "tools",
+    "archive",   # parité avec brain_recall : deux backends, MÊME corpus
 }
 SKIP_PREFIX = ("sessions",)
 SKIP_FILES = {"MEMORY.md", os.path.join("lessons", "INDEX.md")}

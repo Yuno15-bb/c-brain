@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- État des projets — la ronde de 8 h et de 19 h.
+
+     POURQUOI UN SERVICE ET PAS UN HOOK DE SESSION : l'état doit être ANNONCÉ matin et
+     soir, pas trouvé par qui pense à ouvrir une session. Un hook ne parle qu'à qui vient
+     lui parler.
+
+     AUCUN APPEL LLM ici — ronde mécanique, comme le machiniste. Elle ne peut donc ni
+     coûter, ni être gelée par le quota, ni échouer parce qu'un modèle est indisponible.
+
+     TEMPLATE — __HOME__ doit être substitué par le vrai $HOME à l'installation.
+     Un chemin en dur d'une ancienne machine a déjà cassé silencieusement la reprise
+     du Brain le 2026-07-22. Le marqueur est `__HOME__`, comme dans le template du
+     machiniste : un vrai chemin écrit ici partirait tel quel dans le paquet public.
+
+     Installation :
+       sed "s|__HOME__|$HOME|g" hooks/com.claudebrain.etat.plist.template \
+         > ~/Library/LaunchAgents/com.claudebrain.etat.plist
+       launchctl load -w ~/Library/LaunchAgents/com.claudebrain.etat.plist
+     Vérification (l'observable, pas le code de retour) :
+       launchctl kickstart -k gui/$(id -u)/com.claudebrain.etat
+       tail -5 ~/claude-brain/sessions/etat.log     → l'annonce doit s'y trouver
+       head -8 ~/claude-brain/projects/ETAT-DES-PROJETS.md  → horodatage du passage
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.claudebrain.etat</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>__HOME__/.c-brain/trunk/hooks/etat_projets.py</string>
+        <string>--notifier</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    <!-- Deux passages : le point du matin, le bilan du soir. -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key><integer>8</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key><integer>19</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+    </array>
+    <!-- Le Mac dort souvent à 8 h : sans ça, le passage manqué serait perdu.
+         launchd le rejoue au réveil. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>StandardOutPath</key>
+    <string>__HOME__/.c-brain/trunk/sessions/etat.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/.c-brain/trunk/sessions/etat.log</string>
+</dict>
+</plist>

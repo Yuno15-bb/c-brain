@@ -27,7 +27,10 @@ LINKED_DIRS = ("projects", "lessons", "life", "meta")           # zones tissées
 # L'ancien `"sessions/archive" in parts` (token multi-segment vs segment unique) ne matchait JAMAIS
 # → les ~130 notes d'archive + TIMELINE étaient comptées comme « fiches », polluant le compteur et
 # la courbe metrics.jsonl. cf. [[scan-skip-par-segment-pas-substring]]
-SKIP_DIRS = {".git", "node_modules", "capsule", "corpus", "audits", "state"}
+SKIP_DIRS = {".git", "node_modules", "capsule", "corpus", "audits", "state",
+             # `archive/` = couche froide : ses journaux ne sont pas des fiches et
+             # leurs [[liens]] gelés ne doivent pas polluer le compteur ni les liens morts.
+             "archive"}
 SKIP_PREFIX = ("sessions",)   # toute la couche d'archive/timeline (≠ savoir tissé)
 # tokens qui apparaissent comme [[...]] mais sont des EXEMPLES de doc, pas des liens
 EXAMPLE_WHITELIST = {"slug", "nom-du-fichier", "exemples", "lien", "liens",
@@ -78,6 +81,17 @@ def frontmatter(text):
     return fm
 
 
+def _familles():
+    try:
+        with open(os.path.join(BRAIN, "meta", "familles.json"), encoding="utf-8") as f:
+            return set(json.load(f).get("familles", {}))
+    except Exception:
+        return set()
+
+
+FAMILLES = _familles()
+
+
 def main():
     files = md_files()
     checked_files = [
@@ -88,7 +102,11 @@ def main():
 
     all_links = set()
     problems = {"liens_morts": [], "orphelins": [], "frontmatter": [],
-                "nommage": [], "hors_index": [], "memory_trop_lourd": []}
+                "nommage": [], "hors_index": [], "memory_trop_lourd": [],
+                # axe thématique (2026-08-14) : une leçon sans famille est invisible pour
+                # le pont de vocabulaire du rappel — et la prochaine fiche écrite sortira
+                # sans tag si RIEN ne l'exige, cf. le-premier-fichier-d-un-type-nouveau…
+                "lecons_sans_famille": [], "index_derive": []}
 
     # Les cartes structurelles contribuent les liens qu'elles portent, sans devenir
     # elles-mêmes des fiches soumises aux invariants de frontmatter/nommage.
@@ -97,6 +115,18 @@ def main():
         all_links |= extract_links(txt)
 
     # 1. liens morts
+    # INDEX dérivé : la carte des leçons est GÉNÉRÉE depuis les tags. Si elle diffère de ce
+    # que le générateur produirait, quelqu'un l'a éditée à la main — et sa correction sera
+    # écrasée au prochain passage sans prévenir.
+    try:
+        import subprocess as _sp
+        r = _sp.run([sys.executable, os.path.join(BRAIN, "hooks", "index_lecons.py"), "--verifie"],
+                    capture_output=True, text=True)
+        if r.returncode != 0:
+            problems["index_derive"].append("lessons/INDEX.md a été édité à la main — régénérer")
+    except Exception:
+        pass
+
     for l in sorted(all_links):
         if l in slugs or l in EXAMPLE_WHITELIST:
             continue
@@ -130,6 +160,19 @@ def main():
             # 5. présence dans la carte (MEMORY.md + lessons/INDEX.md)
             if base not in INDEX_EXEMPT and base not in memory and rel not in memory:
                 problems["hors_index"].append(base)
+
+            # 6. toute leçon porte une famille thématique (1 principale + 1 secondaire max)
+            if zone == "lessons" and base not in INDEX_EXEMPT:
+                t = re.search(r"^tags:\s*\[(.*?)\]", txt, re.M)
+                noms = [x.strip() for x in t.group(1).split(",") if x.strip()] if t else []
+                if not noms:
+                    problems["lecons_sans_famille"].append(f"{base} : aucun tag")
+                elif len(noms) > 2:
+                    problems["lecons_sans_famille"].append(f"{base} : {len(noms)} tags (plafond 2)")
+                else:
+                    inconnus = [n for n in noms if n not in FAMILLES]
+                    if inconnus:
+                        problems["lecons_sans_famille"].append(f"{base} : famille inconnue {inconnus}")
 
     # 6. garde-fou de chargement : alerte avant la limite effective (~24,4 ko).
     try:
@@ -179,10 +222,20 @@ def main():
         ico = "✅" if report["ok"] else "⚠️"
         print(f"{ico} brain_doctor — {len(files)} fiches, {len(all_links)} liens, "
               f"{len(drift)} modif(s) non commitée(s)")
+        # ⚠️ TOUTE CLÉ DE `problems` DOIT AVOIR SON LIBELLÉ. Cette table était écrite en dur :
+        # deux contrôles ajoutés le 2026-08-14 (famille manquante, INDEX dérivé) remplissaient
+        # bien `problems`, comptaient dans le total et faisaient sortir en 1 — mais n'imprimaient
+        # RIEN. Un contrôle qui détecte sans le dire est un contrôle muet. L'assertion en dessous
+        # empêche la prochaine addition de retomber dedans.
         labels = {"liens_morts": "Liens morts", "orphelins": "Orphelins",
                   "frontmatter": "Frontmatter", "nommage": "Nommage",
                   "hors_index": "Hors carte",
-                  "memory_trop_lourd": "MEMORY.md trop lourd"}
+                  "memory_trop_lourd": "MEMORY.md trop lourd",
+                  "lecons_sans_famille": "Leçons sans famille thématique",
+                  "index_derive": "lessons/INDEX.md édité à la main"}
+        muets = [k for k in problems if k not in labels]
+        if muets:
+            print(f"  ⚠️  contrôles SANS libellé, donc invisibles : {muets}")
         for k, lab in labels.items():
             if problems[k]:
                 print(f"  ⚠️  {lab} ({len(problems[k])}): " + ", ".join(map(str, problems[k][:12])))

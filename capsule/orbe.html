@@ -116,6 +116,29 @@
        glyphes. La hiérarchie tient toujours — capitales + interlettrage en
        haut, casse normale en bas — donc 7 px ne fait pas des deux lignes un
        bloc de deux libellés. */
+  /* ── PASTILLE « RESTE À TRAITER » (2026-08-14, demande de l'auteur) ────────────
+     Combien de fiches attendent encore le jardinier. La source de vérité est
+     l'Inbox de MEMORY.md — celle que `on_fiche_write.py` alimente tout seul.
+     Posée en HAUT À DROITE : le bas de la fenêtre est déjà pris par le libellé
+     et la ligne de fiche, et le centre par le pavé.
+     Pas d'ombre portée en ellipse (retirée en 2026-08-04) : on tient le
+     contraste par un aplat opaque + un liseré, comme un badge d'application. */
+  /* 2026-08-14 — RAPPROCHÉ DE L'ORBE (L'utilisateur : « rapproche »). Collé au coin de
+     la fenêtre, le compteur flottait tout seul dans le vide du bureau et ne se
+     rattachait visuellement à rien. Posé au bord de la sphère, il se lit comme
+     une étiquette DE l'orbe, pas comme un élément du bureau. */
+  #restant { position:absolute; top:27px; right:23px; display:none;
+             color:rgba(255,255,255,.95); letter-spacing:.6px;
+             font:700 9px/1.2 ui-sans-serif,-apple-system,sans-serif;
+             /* Même traitement que #fiche : pas d'aplat ni de pastille (l'auteur,
+                2026-08-14 : « pas de pastille plutôt un 1/4 »). Le contraste
+                tient par trois couches d'ombre — deux serrées qui éteignent le
+                fond entre les lettres, une large et faible qui décolle le mot
+                du bureau sans dessiner de zone. */
+             text-shadow:0 0 1px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.75),
+                         0 0 7px rgba(0,0,0,.45); }
+  #restant .tot { opacity:.62; font-weight:600; }
+  #restant.vu { display:block; }
   #fiche { position:absolute; left:50%; bottom:3.5px; transform:translateX(-50%);
            max-width:146px; overflow:hidden; text-overflow:ellipsis;
            white-space:nowrap; text-align:center;
@@ -222,6 +245,7 @@
 <div id="dit"></div>
 <div id="fiche"></div>
 <div id="pave"><div class="rouleau"></div></div>
+<div id="restant" title="fiches en attente de rangement"></div>
 
 <script type="module">
 const { ipcRenderer } = require('electron');
@@ -616,6 +640,73 @@ function lire() {
 }
 setInterval(lire, 700);
 lire();
+
+/* ── COMBIEN DE FICHES RESTENT À TRAITER ────────────────────────────────────
+   Demande de l'auteur (2026-08-14) : « à chaque fois que l'orbe est lancé, elle
+   doit afficher une petite pastille notifiant combien de fiches elle doit
+   encore traiter ».
+   Source de vérité : l'Inbox de MEMORY.md, alimentée automatiquement par
+   `hooks/on_fiche_write.py` (« déposée auto, à classer par le jardinier »).
+   C'est le SEUL endroit qui dit ce qui attend, et il est déjà tenu à jour —
+   on ne recompte rien, on lit.
+   ⚠ Cadence lente exprès : `lire()` tourne à 700 ms pour l'état de l'agent,
+   mais l'Inbox ne bouge qu'à l'écriture d'une fiche. La relire 85 fois par
+   minute coûterait sans rien apprendre. 20 s suffisent, plus un appel au
+   lancement pour que la pastille soit juste dès la première image. */
+const RESTANT_EL = document.getElementById('restant');
+const MEMOIRE = path.join(os.homedir(), '.c-brain', 'trunk', 'MEMORY.md');
+const INBOX_TITRE = '## \u{1F195} Inbox';
+
+function compterEnAttente() {
+  let t;
+  try { t = fs.readFileSync(MEMOIRE, 'utf8'); } catch (e) { return null; }
+  const i = t.indexOf(INBOX_TITRE);
+  if (i < 0) return 0;                       // pas d'Inbox = rien en attente
+  let bloc = t.slice(i + INBOX_TITRE.length);
+  const suivant = bloc.indexOf('\n## ');      // on s'arrête à la section suivante
+  if (suivant >= 0) bloc = bloc.slice(0, suivant);
+  return bloc.split('\n').filter(l => l.trim().startsWith('- [')).length;
+}
+
+/* Le compteur affiche « 2/4 » : où on en est dans le LOT en cours.
+   Le reste à traiter se lit dans MEMORY.md, mais le TOTAL du lot, lui, ne s'y
+   lit nulle part — dès qu'une fiche est rangée elle disparaît de l'Inbox. On
+   mémorise donc le plus haut niveau atteint dans `state/orbe-lot.json`, ce qui
+   fait aussi survivre le lot à un relancement de l'orbe (sinon « 3/4 » se
+   retomberait à « 1/2 » au prochain démarrage, et la progression mentirait).
+   Le lot se referme tout seul quand l'Inbox se vide. */
+const LOT = path.join(os.homedir(), '.c-brain', 'trunk', 'state', 'orbe-lot.json');
+
+function lireLot() {
+  try { return JSON.parse(fs.readFileSync(LOT, 'utf8')).total | 0; } catch (e) { return 0; }
+}
+function ecrireLot(total) {
+  try { fs.writeFileSync(LOT, JSON.stringify({ total, maj: new Date().toISOString() })); }
+  catch (e) {}
+}
+
+function majRestant() {
+  const reste = compterEnAttente();
+  if (reste === null) return;                  // lecture ratée : on garde l'affichage précédent
+
+  if (reste === 0) {                           // lot terminé : le compteur s'efface et se remet à zéro
+    RESTANT_EL.classList.remove('vu');
+    if (lireLot() !== 0) ecrireLot(0);
+    return;
+  }
+  let total = lireLot();
+  if (reste > total) { total = reste; ecrireLot(total); }   // de nouvelles fiches agrandissent le lot
+
+  // reste=4 sur 4 -> « 1/4 » (on est sur la première) ; reste=1 -> « 4/4 » ; reste=0 -> effacé.
+  const rang = total - reste + 1;
+  RESTANT_EL.innerHTML = rang + '<span class="tot">/' + total + '</span>';
+  RESTANT_EL.title = rang + ' sur ' + total + ' — ' + reste
+                   + (reste > 1 ? ' fiches restent à ranger' : ' fiche reste à ranger');
+  RESTANT_EL.classList.add('vu');
+}
+majRestant();
+setInterval(majRestant, 20000);
+
 
 /* ── ATTRAPER L'ORBE ────────────────────────────────────────────────────────
    La fenêtre laisse passer les clics (`setIgnoreMouseEvents(true, {forward:true})`)

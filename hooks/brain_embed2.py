@@ -5,7 +5,7 @@ But : une carte où la proximité = le SENS (contenu), pas le rangement déclar�
 Deux fiches qui parlent de la même chose sans aucun lien doivent se retrouver voisines.
 
 Backend ZÉRO-DÉPENDANCE (numpy seul, comme tout le venv du Brain — pas de umap/sklearn/scipy) :
-  1. seed PCA (SVD top-2) → repère global stable et déterministe ;
+  1. seed PCA (SVD top-DIM) → repère global stable et déterministe ;
   2. raffinement force-dirigé (Fruchterman-Reingold) sur le graphe des k plus proches voisins COSINUS
      → attire le sens proche, repousse le reste → les clusters se séparent (mieux que PCA seule).
 
@@ -39,19 +39,75 @@ def normalize_rows(m):
     return m / (np.linalg.norm(m, axis=1, keepdims=True) + 1e-9)
 
 
+# La carte du SENS sort désormais en TROIS dimensions (2026-08-14, demande de l'auteur :
+# « "sens" aussi doit faire un amas 3D harmonieux »). Elle était plate parce qu'elle était née
+# comme une carte 2D à comparer côte à côte avec la carte de structure ; à plat, 357 fiches et
+# 1386 liens se superposent et redonnent la pelote qu'on vient d'éliminer ailleurs. En volume,
+# les groupes se séparent au lieu de se recouvrir, et on tourne autour.
+# Le force-layout est déjà générique (opérations vectorielles sur la dernière dimension) :
+# passer de 2 à 3 colonnes ne change rien à sa logique, seulement au nombre de degrés de liberté.
+DIM = 3
+
+
 def pca_init(vn):
-    """Seed déterministe : 2 premières composantes principales (SVD), signe fixé."""
+    """Seed déterministe : DIM premières composantes principales (SVD), signe fixé."""
     x = vn - vn.mean(axis=0, keepdims=True)
-    # SVD : x = U S Vt ; les scores 2D = U[:, :2] * S[:2]
+    # SVD : x = U S Vt ; les scores = U[:, :DIM] * S[:DIM]
     u, s, _ = np.linalg.svd(x, full_matrices=False)
-    p = u[:, :2] * s[:2]
+    p = u[:, :DIM] * s[:DIM]
     # signe déterministe : la composante de plus grande amplitude est positive
-    for j in range(2):
+    for j in range(DIM):
         if p[np.argmax(np.abs(p[:, j])), j] < 0:
             p[:, j] = -p[:, j]
     # normalise l'échelle du seed (std cible) pour démarrer le force-layout proprement
     p = p / (p.std() + 1e-9) * SEED_STD
     return p
+
+
+# Cohésion de FAMILLE (2026-08-14, l'auteur sur capture : « les couleurs doivent être plus
+# sectionnées en familles distinctes, mais l'amas doit rester à peu près comme il est, avec des
+# séparations qui se remarquent malgré l'amas »).
+# Le layout ne connaissait QUE le sens : deux fiches proches sémantiquement se collaient, quelle
+# que soit leur région, donc les couleurs se mêlaient uniformément et aucune famille ne se lisait.
+# On ajoute une attraction FAIBLE entre fiches de la même région, en PLUS de l'attraction
+# sémantique. Faible, c'est le mot : trop forte, elle referait les paquets par dossier et
+# effacerait ce que la vue du sens sert à montrer — les voisinages qui traversent les régions.
+# RÉGLÉE PAR BALAYAGE, pas au jugé. Indicateur : distance moyenne ENTRE centres de famille
+# divisée par la dispersion INTERNE moyenne (>1 = les familles se distinguent).
+#     0.0 → 0.97  les couleurs sont mêlées, aucune famille lisible (l'état d'avant)
+#     0.6 → 2.20  familles nettes, l'amas garde 73 % de son étalement
+#     1.8 → 3.15  familles nettes mais repliées en boules serrées : l'amas est perdu
+# 0.6 tient les deux moitiés de la demande : « sectionné en familles distinctes » ET
+# « l'amas doit rester à peu près comme il est ».
+COHESION = 0.6   # réglé par balayage mesuré, cf. plus bas
+
+
+def region_de(path):
+    """La famille d'une fiche = son premier dossier ; projects/<x>/ compte comme sa propre famille."""
+    parts = path.replace("\\", "/").split("/")
+    if parts[0] == "projects" and len(parts) > 2:
+        return "projects/" + parts[1]
+    return parts[0]
+
+
+def family_weights(meta):
+    """Attraction douce, uniforme, entre membres d'une même famille — normalisée par sa taille
+    pour qu'une famille de 170 fiches ne s'écrase pas en un point pendant qu'une famille de 2
+    reste libre."""
+    fam = [region_de(m["path"]) for m in meta]
+    n = len(fam)
+    w = np.zeros((n, n))
+    from collections import defaultdict
+    par = defaultdict(list)
+    for i, f in enumerate(fam):
+        par[f].append(i)
+    for membres in par.values():
+        if len(membres) < 2:
+            continue
+        idx = np.array(membres)
+        w[np.ix_(idx, idx)] = COHESION / np.sqrt(len(membres))
+    np.fill_diagonal(w, 0.0)
+    return w
 
 
 def neighbor_weights(vn, k):
@@ -77,7 +133,7 @@ def fr_layout(p, w, iters):
     cool = 0.985
     eps = 1e-9
     for _ in range(iters):
-        diff = p[:, None, :] - p[None, :, :]          # n×n×2
+        diff = p[:, None, :] - p[None, :, :]          # n×n×DIM
         dist = np.sqrt((diff * diff).sum(-1)) + eps   # n×n
         unit = diff / dist[..., None]
         rep = (k * k / dist)[..., None] * unit         # répulsion ∝ k²/d
@@ -90,7 +146,7 @@ def fr_layout(p, w, iters):
 
 
 def to_unit(p):
-    """Centre + met à l'échelle dans le disque unité (max rayon = 1) pour un espace stable côté JS."""
+    """Centre + met à l'échelle dans la BOULE unité (max rayon = 1) pour un espace stable côté JS."""
     p = p - p.mean(axis=0, keepdims=True)
     r = np.sqrt((p * p).sum(-1)).max() or 1.0
     return p / r
@@ -100,16 +156,17 @@ def compute():
     meta, vecs = load()
     vn = normalize_rows(vecs)
     p = pca_init(vn)
-    w = neighbor_weights(vn, K_NEIGHBORS)
+    w = neighbor_weights(vn, K_NEIGHBORS) + family_weights(meta)
     p = fr_layout(p, w, ITERS)
     p = to_unit(p)
-    pos = {meta[i]["path"]: [round(float(p[i, 0]), 4), round(float(p[i, 1]), 4)] for i in range(len(meta))}
+    pos = {meta[i]["path"]: [round(float(p[i, j]), 4) for j in range(DIM)]
+           for i in range(len(meta))}
     return meta, vn, pos
 
 
 def write(pos):
     data = {"generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "method": "pca-seed + cosine-kNN force-layout (numpy)", "pos": pos}
+            "dim": DIM, "method": f"pca-seed + cosine-kNN + cohesion-famille({COHESION}) force-layout {DIM}D (numpy)", "pos": pos}
     json.dump(data, open(OUT, "w", encoding="utf-8"), ensure_ascii=False)
 
 

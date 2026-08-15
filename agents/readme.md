@@ -7,6 +7,13 @@ metadata:
 
 # 🤖 Agents du C Brain
 
+## En clair
+
+Le guide des agents qui entretiennent ce carnet, et surtout de leurs frontières.
+
+Chacun a une mission unique, et ce qu'il ne fait PAS compte autant que ce qu'il fait. Celui qui crée le savoir ne range pas l'arbre. Celui qui range ne crée rien. Celui qui doute ne corrige rien — il expose. Celui qui relie ne juge pas la véracité. Celui qui archive ne supprime jamais seul.
+
+Cette séparation n'est pas de la bureaucratie : empiler des agents ne compose pas des compétences, ça compose des taux d'erreur. Un rôle étroit a une surface d'erreur étroite, et se vérifie séparément.
 Sous-agents Claude Code natifs qui entretiennent et nourrissent le tronc. Fichiers canoniques **versionnés ici** ; symlinkés dans `~/.claude/agents/` pour la découverte par Claude Code.
 
 ## Les agents

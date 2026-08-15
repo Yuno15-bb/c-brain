@@ -29,6 +29,12 @@ BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/
 SKIP_DIRS = {
     ".git", "node_modules", "capsule", "capsule-v2", "corpus", "audits",
     "agents", "state", "tools",
+    # `archive/` = la couche FROIDE (journaux détachés des fiches, cf.
+    # tools/archiver-journal.py). Mesuré le 2026-08-14 : sans cette ligne, un
+    # journal archivé ressortait **en 1re position** devant la fiche courante —
+    # ranger l'historique au froid n'a aucun sens s'il continue de concurrencer
+    # le présent dans la recherche. Sur disque et dans git, hors du rappel.
+    "archive",
 }
 SKIP_PREFIX = ("sessions",)
 SKIP_FILES = {"MEMORY.md", os.path.join("lessons", "INDEX.md")}
@@ -179,6 +185,18 @@ def _fingerprint(files):
         except OSError:
             continue
         h.update(f"{rel}\0{st.st_mtime_ns}\0{st.st_size}\0".encode())
+    # ⚠️ LE REGISTRE DES FAMILLES FAIT PARTIE DU TEXTE INDEXÉ, IL DOIT DONC ÊTRE DANS
+    # L'EMPREINTE. Il n'est pas un `.md` : sans cette ligne, corriger un lexique ne change
+    # rien à l'empreinte, le cache d'avant est relu tel quel, et la correction est ignorée
+    # EN SILENCE. Vécu le 2026-08-14 : deux mesures identiques au centième après avoir changé
+    # le lexique ET le poids — je mesurais l'index d'avant en croyant mesurer le neuf.
+    # On hache son CONTENU (quelques Ko), pas son mtime : un `git checkout` du registre remet
+    # un mtime neuf sur un contenu identique, et rejetterait le cache pour rien.
+    try:
+        with open(os.path.join(BRAIN, "meta", "familles.json"), "rb") as f:
+            h.update(b"\0familles\0"); h.update(f.read())
+    except OSError:
+        h.update(b"\0familles\0absent")
     return h.hexdigest()
 
 
@@ -187,7 +205,10 @@ def _fingerprint(files):
 # selon les règles précédentes.
 #   v2 (2026-08-12) : racinisation + alias FR/EN dans tokenize().
 #   v3 (2026-08-12) : les documents portent redirectsTo / relations.remplace.
-_CACHE_VERSION = 3
+#   v4 (2026-08-14) : le texte indexé inclut le pont de vocabulaire des familles thématiques.
+#   v5 (2026-08-14) : le registre des familles entre dans l'empreinte (cf. _fingerprint) —
+#       sans ça, toute retouche de lexique était ignorée en silence.
+_CACHE_VERSION = 5
 
 
 def load_corpus():
@@ -231,6 +252,25 @@ def load_corpus():
     return docs
 
 
+# ── le registre des familles thématiques (libellé + lexique). La VÉRITÉ des appartenances
+# vit dans le `tags:` de chaque fiche ; ce fichier ne porte que le pont de vocabulaire.
+def _charger_familles():
+    p = os.path.join(BRAIN, "meta", "familles.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            return json.load(f).get("familles", {})
+    except Exception:
+        return {}          # registre absent = axe thématique inactif, jamais une exception
+
+
+_FAMILLES = _charger_familles()
+
+
+def _fm_tags(fm):
+    m = re.search(r"^tags:\s*\[(.*?)\]", fm, re.M)
+    return [t.strip() for t in m.group(1).split(",") if t.strip()] if m else []
+
+
 def _read_corpus(files):
     docs = []
     for rel, p in files:
@@ -242,9 +282,26 @@ def _read_corpus(files):
         name = re.search(r"^name:\s*(.+)$", fm.group(1), re.M) if fm else None
         desc = re.search(r'^description:\s*"?(.+?)"?\s*$', fm.group(1), re.M) if fm else None
         body = strip_md(raw)
-        # le titre/description pèsent plus (×3) : signal le plus dense
+        # ── AXE THÉMATIQUE (2026-08-14) : le tag ouvre un PONT DE VOCABULAIRE ──
+        # `strip_md()` supprime tout le frontmatter : un `tags:` y était donc écrit et lu par
+        # PERSONNE. Mesuré avant ce correctif : « faux positif » ne remontait AUCUNE des 52 fiches
+        # de la famille qui porte ce nom — le concept le plus central du tronc était introuvable
+        # par son propre nom.
+        # Et ce n'est pas le tag lui-même qui répare ça : personne ne tape « controle-qui-ment ».
+        # C'est le LEXIQUE de la famille (meta/familles.json) — les mots qu'on tape vraiment,
+        # que les fiches n'emploient pas — dont la fiche taguée hérite ici.
+        # ⚠️ POIDS ×1, PAS ×2. Mesuré : à ×2, une fiche qui HÉRITE d'un mot par sa famille
+        # passait devant une fiche qui l'ÉCRIT dans sa description — la requête « faux positif »
+        # perdait `une-assertion-negative…` au profit de fiches qui ne parlent pas de ça.
+        # Le pont doit rattraper ce que les mots ratent, jamais couvrir ce qu'ils trouvent.
+        tags = _fm_tags(fm.group(1) if fm else "")
+        pont = ""
+        for t in tags:
+            f = _FAMILLES.get(t)
+            if f:
+                pont += " " + f["titre"] + " " + " ".join(f["lexique"])
         boosted = ((name.group(1) + " ") * 3 if name else "") + \
-                  ((desc.group(1) + " ") * 3 if desc else "") + body
+                  ((desc.group(1) + " ") * 3 if desc else "") + pont + " " + body
         docs.append({
             "path": rel,
             # succession : cette fiche est-elle un alias (redirectsTo) et/ou en

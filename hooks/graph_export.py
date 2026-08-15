@@ -13,9 +13,12 @@ Conçu pour être appelé :
 Déterministe et sans dépendance externe. Sort toujours 0 (ne bloque jamais un hook).
 """
 import os, re, json, sys
+from collections import Counter
 
 BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/.c-brain/trunk")))
 OUT = os.path.join(BRAIN, "planet", "graph.json")
+# le corps des fiches, sorti de graph.json : chargé à la demande au premier dépliage
+OUT_TEXTES = os.path.join(BRAIN, "planet", "textes.json")
 EMBED2 = os.path.join(BRAIN, "state", "embed2.json")   # carte SÉMANTIQUE (Étage 1), calculée par brain_embed2.py
 COACT = os.path.join(BRAIN, "state", "coactivation.json")  # mémoire de travail (Étage 2), calculée par coactivation.py
 CHALLENGES = os.path.join(BRAIN, "state", "challenges.json")  # avis du challenger (Étage 3 : la carte a un avis)
@@ -100,8 +103,27 @@ FM_TITLE = re.compile(r'^\s*title:\s*["\']?(.+?)["\']?\s*$', re.M)  # libellé h
 FM_DESC = re.compile(r'^\s*description:\s*["\']?(.+?)["\']?\s*$', re.M)
 FM_BORN = re.compile(r'^\s*born_from:\s*(.+?)\s*$', re.M)   # born_from: <projet>[, autre]
 FM_SCALE = re.compile(r'^\s*scale:\s*([0-9](?:\.[0-9])?)\s*$', re.M)  # scale: 1..4 (centre-ville→périphérie)
+FM_TYPE = re.compile(r'^\s*type:\s*["\']?(\w+)["\']?\s*$', re.M)      # metadata.type : feedback|project|lesson…
 LINK = re.compile(r'\[\[([^\]]+)\]\]')          # [[nom-de-fiche]]
-RESUME_RE = re.compile(r'REPRENDRE ICI|point de reprise|à reprendre', re.I)   # point à reprendre (Étage 2/badge)
+# ⚠️ ANCIEN DÉTECTEUR, RETIRÉ LE 2026-08-14 :
+#     RESUME_RE = re.compile(r'REPRENDRE ICI|point de reprise|à reprendre', re.I)
+# Il allumait le badge ↻ sur 32 fiches en continu — et un marqueur allumé partout ne marque
+# plus rien. Il comptait notamment : les fiches qui PARLENT du marqueur (la leçon
+# `marqueur-barre-ou-nie-nest-pas-une-tache-ouverte`, l'audit de la planète lui-même), celles
+# qui le NIENT (« confirme qu'il n'y a rien à reprendre »), celles où il est BARRÉ
+# (`~~À reprendre~~`, une décision d'abandon), et les leçons/méta où un point de reprise n'a
+# aucun sens. C'est exactement le défaut déjà consigné dans
+# [[marqueur-barre-ou-nie-nest-pas-une-tache-ouverte]], corrigé dans `etat_projets.py` puis
+# jamais propagé ici : deux détecteurs pour la même question, un seul réparé.
+# Le badge lit maintenant `brain_anticipate` — le MÊME détecteur et le MÊME classement que les
+# reprises proposées au démarrage de session. Une seule source, donc plus de divergence
+# possible entre ce que le Brain propose et ce que la carte montre.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    import brain_anticipate
+    reprises = {it["path"] for it in brain_anticipate.collect()[:brain_anticipate.TOP_REPRISES]}
+except Exception:
+    reprises = set()          # jamais bloquer l'export du graphe pour un badge
 DASH = re.compile(r'\s+[—–]\s+')                # tiret cadratin/demi-cadratin entouré d'espaces
 
 # poids des appartenances (modèle continent/ville/frontière) — voir respirabilite & volet-3
@@ -140,6 +162,58 @@ def frontmatter(text):
         if end != -1:
             return text[3:end]
     return ""
+
+
+RE_H1 = re.compile(r'^#[ \t]+(.+?)[ \t]*$', re.M)
+# Un H1 qui n'est PAS un titre : un nom de fichier, un identifiant, un chemin. Ces lignes-là
+# existent bel et bien dans le tronc (« on_fiche_write.py »), et les prendre pour un titre
+# donnerait un panneau qui annonce un nom de fichier en gros.
+RE_PAS_UN_TITRE = re.compile(r'^[\w./-]+\.(py|md|js|mjs|json|sh|html|ts|cjs)$|^`|^[A-Z_]{3,}$')
+
+
+def titre_de(frontmatter_title, texte, nid):
+    """Le titre affiché : `title:` du frontmatter, sinon le H1 du corps, sinon le nom de fichier.
+
+    Avant (2026-08-14), il n'y avait que deux marches : `title:` ou le nom de fichier avec les
+    tirets remplacés par des espaces. Or 258 fiches sur 359 n'ont pas de `title:` — le panneau
+    affichait donc « email commit git fuite a la publication » en guise de titre d'article.
+    115 de ces fiches portaient pourtant DÉJÀ un vrai titre, en H1, dans leur corps. Il n'était
+    simplement jamais lu. La marche manquante coûtait plus cher que 115 réécritures à la main.
+
+    Dernier recours, on remet au moins une majuscule : « capturer stderr dans un test le rend
+    toujours vert » se lit mal, « Capturer stderr… » se lit.
+    """
+    if frontmatter_title and frontmatter_title.strip():
+        return frontmatter_title.strip()
+    m = RE_H1.search(texte)
+    if m:
+        h1 = m.group(1).strip().replace("`", "")
+        if len(h1) >= 12 and " " in h1 and not RE_PAS_UN_TITRE.match(h1):
+            return h1
+    mots = nid.replace("-", " ").strip()
+    return mots[:1].upper() + mots[1:]
+
+
+EN_CLAIR = re.compile(r'^##[ \t]+En clair[ \t]*$(.*?)(?=^## |\Z)', re.M | re.S)
+
+
+def extract_en_clair(text):
+    """Le bloc « ## En clair » d'une fiche — la version humaine, sans jargon (4-6 lignes).
+
+    Format tranché par l'auteur le 2026-08-14 : UN fichier, pas deux. Deux fichiers tenus à
+    la main divergent toujours ; au bout d'un mois il y a deux vérités, donc aucune. Le
+    bloc vit DANS la fiche, et c'est l'afficheur qui choisit ce qu'il montre en premier.
+    Rend None si la fiche n'a pas encore de bloc — le panneau retombe alors sur `desc`.
+    """
+    m = EN_CLAIR.search(text)
+    if not m:
+        return None
+    txt = re.sub(r"\[\[([^\]]+)\]\]", r"\1", m.group(1))
+    txt = txt.replace("**", "").replace("`", "")
+    # Les retours à la ligne du fichier servent la relecture du .md, pas l'affichage :
+    # on recolle les paragraphes et on ne garde que les vraies coupures (ligne vide).
+    paras = [" ".join(p.split()) for p in re.split(r"\n[ \t]*\n", txt) if p.strip()]
+    return "\n\n".join(paras) or None
 
 
 def clean_body(text):
@@ -207,7 +281,7 @@ def scan():
                 dm = FM_DESC.search(fm)
                 desc = clean_desc(dm.group(1) if dm else "")
                 tm = FM_TITLE.search(fm)
-                title = tm.group(1).strip() if tm else nid.replace("-", " ")
+                title = titre_de(tm.group(1) if tm else None, text, nid)
                 # sous-groupe = sous-dossier de projet (ex. mon-projet) sinon = domaine
                 rel = os.path.relpath(dirpath, root)
                 group = rel.split(os.sep)[0] if rel != "." else domain
@@ -221,6 +295,8 @@ def scan():
                 nodes[nid] = {"id": nid, "name": nid, "title": title, "domain": domain,
                               "group": group, "desc": desc,
                               "born_from": born, "scale": scale,
+                              "type": (FM_TYPE.search(fm).group(1) if FM_TYPE.search(fm) else None),
+                              "en_clair": extract_en_clair(text),  # version humaine, affichée en 1er
                               "long": clean_body(text),
                               "embed2": embed2.get(rel_file),   # [x,y] sémantique ou None
                               "heat": heat.get(nid, 0.0),        # chaleur d'usage 0..1 (Étage 2)
@@ -229,7 +305,7 @@ def scan():
                               "challenge": challenges.get(rel_file),   # avis du challenger (Étage 3) ou None
                               "conviction": beliefs.get(rel_file),     # conviction datée de l'auteur du tronc (Étage 3) ou None
                               "media": media.get(rel_file),            # capture rejouable (Étage 4) ou None
-                              "resume": bool(RESUME_RE.search(text)),  # porte un « point à reprendre » (badge ↻)
+                              "resume": rel_file in reprises,    # fait partie des reprises en tête (badge ↻)
                               "file": rel_file}
                 # liens sortants (dédupliqués plus bas)
                 for tgt in set(LINK.findall(text)):
@@ -253,6 +329,29 @@ def scan():
             if typ:
                 arete["type"] = typ
             links.append(arete)
+
+    # ---------- RÈGLES TRANSVERSES : une étiquette, plus un voisin ----------
+    # `verifier-le-code-jamais-supposer` est cité par 77 fiches sur 359, `verifier-le-rendu-final`
+    # par 49. À ce niveau, une règle n'est plus un VOISIN de la fiche — c'est une ÉTIQUETTE posée
+    # dessus, et les 215 arcs qui en partent forment l'essentiel du nuage gris.
+    # On ne supprime AUCUN lien : le savoir reste, le panneau les liste toujours. On les marque,
+    # et le viewer ne les dessine qu'au survol.
+    # Le critère n'est pas un seuil inventé : c'est le `type:` déclaré dans le frontmatter.
+    # `type: feedback` = une règle de travail de l'auteur ; `type: project` = une fiche de projet,
+    # qui a le droit d'être un hub de son domaine (`claude-brain`, 41 liens, en est un et doit
+    # le rester). Le degré ne sert qu'à distinguer la règle omniprésente de celle citée trois fois.
+    DEGRE_ETIQUETTE = 20            # ~5 % du tronc : au-delà, la règle est partout
+    degres = Counter()
+    for l in links:
+        degres[l["source"]] += 1
+        degres[l["target"]] += 1
+    regles = {nid for nid, n in nodes.items()
+              if n.get("type") == "feedback" and degres[nid] >= DEGRE_ETIQUETTE}
+    for nid, n in nodes.items():
+        n["regle"] = nid in regles
+    for l in links:
+        if l["source"] in regles or l["target"] in regles:
+            l["regle"] = True
 
     # ---------- APPARTENANCE (modèle continent/ville/frontière) ----------
     # « villes » = les sous-dossiers du domaine projects (chaque projet est une ville).
@@ -303,7 +402,12 @@ def scan():
                    "convictions": sum(1 for n in nodes.values() if n.get("conviction")),
                    "media": sum(1 for n in nodes.values() if n.get("media")),
                    "active": sum(1 for n in nodes.values() if n.get("active")),
-                   "resume": sum(1 for n in nodes.values() if n.get("resume"))},
+                   "resume": sum(1 for n in nodes.values() if n.get("resume")),
+                   "regles": sum(1 for n in nodes.values() if n.get("regle")),
+                   # compteur d'avancement de la conversion : combien de fiches ont déjà
+                   # leur version humaine. Sans lui, « on en a fait 10 » n'est vérifiable
+                   # nulle part et la campagne s'oublie à mi-chemin.
+                   "en_clair": sum(1 for n in nodes.values() if n.get("en_clair"))},
         "domains": DOMAINS,
         # fenêtre de l'ACTIVITÉ EN DIRECT (minutes) : le visualizer éteint lui-même un anneau
         # dont `active_ts` est sorti de la fenêtre, sans attendre une régénération du graphe.
@@ -341,11 +445,55 @@ def main():
     try:
         data = scan()
         os.makedirs(os.path.dirname(OUT), exist_ok=True)
-        with open(OUT, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=1)
+        # ---------- LE CORPS DES FICHES PART DANS SON PROPRE FICHIER ----------
+        # `long` (la fiche entière, dense) pesait 536 Ko des 1051 Ko de graph.json : plus de la
+        # MOITIÉ du fichier, pour un texte que seul le panneau DÉPLIÉ affiche — donc jamais au
+        # chargement, et jamais pour les 358 fiches qu'on ne déplie pas. La page revalide
+        # graph.json toutes les 3 s ; le jour où le serveur répond 200 plutôt que 304 (fiche
+        # modifiée, ce qui arrive à chaque passage de hook), c'est 1 Mo qui repart pour rien.
+        # Les textes vivent maintenant à côté, chargés au premier dépliage et gardés en cache.
+        textes = {n["id"]: n.pop("long") for n in data["nodes"] if n.get("long")}
+        # ---------- ET LE BLOC « EN CLAIR » SUIT LE MÊME CHEMIN ----------
+        # La campagne du 2026-08-14 a donné son bloc humain aux 362 fiches. Excellent pour la
+        # lecture — et graph.json est repassé de 472 Ko à 1309 Ko, dont 826 Ko pour ce seul
+        # champ. Le dégonflage de la veille était annulé par le chantier du lendemain.
+        # Or le SURVOL n'affiche que le PREMIER PARAGRAPHE (`en_clair.split('\n\n')[0]` côté
+        # viewer) ; le bloc entier ne sert qu'au panneau déplié, comme `long`. On ne garde donc
+        # que ce premier paragraphe — 60 Ko au lieu de 826 — et le reste part avec les textes.
+        for n in data["nodes"]:
+            plein = n.get("en_clair")
+            if not plein:
+                continue
+            textes[n["id"] + "::clair"] = plein
+            n["en_clair"] = plein.split("\n\n")[0]
+        # ⚠️ ÉCRITURE ATOMIQUE — SINON LA PLANÈTE SE RETROUVE AVEC UN GRAPHE ILLISIBLE.
+        # `open(OUT, "w")` tronque le fichier puis le réécrit : pendant ce temps, quiconque lit
+        # obtient un fichier à moitié écrit, et deux exports lancés en même temps (la ronde
+        # launchd et la boucle d'entretien) entrelacent leurs octets. Constaté le 2026-08-14 :
+        #   "target": "une-fiche-quel"une-fiche-quelconque,
+        # JSON invalide → la page charge 0 fiche et n'affiche RIEN, sans la moindre erreur
+        # visible (le fetch réussit, c'est le parse qui échoue, dans un `catch` silencieux).
+        # On écrit donc à côté, puis on bascule d'un coup : `os.replace` est atomique, un lecteur
+        # voit toujours l'ancien fichier OU le nouveau, jamais un mélange des deux.
+        def ecrire_atomique(chemin, charge, indent=None):
+            tmp = f"{chemin}.{os.getpid()}.tmp"
+            try:
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump(charge, f, ensure_ascii=False, indent=indent)
+                    f.flush()
+                    os.fsync(f.fileno())          # les octets sont sur le disque avant la bascule
+                os.replace(tmp, chemin)
+            finally:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+        # les textes d'abord : le graphe qui les référence ne doit jamais arriver avant eux
+        ecrire_atomique(OUT_TEXTES, textes)               # pas d'indent : personne ne le lit à l'œil
+        ecrire_atomique(OUT, data, indent=1)
         if sys.stdout.isatty():
             c = data["counts"]
-            print(f"🪐 graph.json écrit : {c['nodes']} points, {c['links']} liens → {os.path.relpath(OUT, BRAIN)}")
+            ko = lambda p: round(os.path.getsize(p) / 1024)
+            print(f"🪐 graph.json écrit : {c['nodes']} points, {c['links']} liens → {os.path.relpath(OUT, BRAIN)}"
+                  f" ({ko(OUT)} Ko + {ko(OUT_TEXTES)} Ko de textes à la demande)")
     except Exception as e:
         if sys.stdout.isatty():
             print(f"graph_export: {e}", file=sys.stderr)

@@ -20,9 +20,16 @@
 /MEMORY.md
 
 # --- Artefacts régénérés qui contiennent le TEXTE INTÉGRAL des fiches ---
-# planet/graph.json fait 1,4 Mo et embarque les noms de clients.
-# Il est reconstruit à chaque lancement par graph_export.py.
-planet/graph.json
+# La planète n'embarque AUCUN .json : le globe se reconstruit à chaque
+# lancement (graph_export.py). Donc tout planet/*.json est une donnée du
+# tronc de l'auteur — des méga-octets de texte de fiches, noms de clients
+# compris — jamais un fichier du produit.
+#
+# Cette règle nommait `graph.json` seul. Le 2026-08-14, la refonte de la
+# planète a ajouté `textes.json` : 1,5 Mo du même contenu sous un nom neuf,
+# hors de cette règle ET hors de l'exclusion de sync.sh. Une liste ne couvre
+# que ce qui existait quand on l'a écrite ; un motif couvre aussi le suivant.
+planet/*.json
 
 # --- Machine-spécifique (contient /Users/<nom> en dur) ---
 hooks/com.claudebrain.resume.plist
