@@ -156,8 +156,8 @@ check is red, or if the tag already exists. **Never bypass it** — that guard
 exists precisely because a leak check once ran at the end of a pipe, where `tail`
 always succeeds and the exit code tested was the wrong one.
 
-It also **warns, without refusing**, when a document has not been reviewed since
-the code it describes moved:
+It also **refuses** when a document has not been reviewed since the code it
+describes moved:
 
 ```bash
 python3 tests/docs_aligned.py
