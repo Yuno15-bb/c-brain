@@ -9,15 +9,13 @@
 distilled into a note, filed, linked, and handed back automatically the next
 time it matters. From any project, and without leaving your machine.**
 
-<table>
+<table width="100%">
 <tr>
 <td width="26%" align="center">
   <img src="docs/media/capsule.webp" alt="The capsule: a glass orb sitting on the desktop, its material and hue changing as each agent works — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing — with the code being written scrolling inside it" width="168">
 </td>
 <td width="74%" align="center">
-  <video src="docs/media/planet.mp4" autoplay loop muted playsinline width="100%">
-    <img src="docs/media/planet.webp" alt="The knowledge map, turning: hundreds of notes arranged by resemblance in phosphor orange on black. The cursor lands on a note and a panel gives its region, title and summary; then the structure button is clicked and the map reorganises into the filing; then a family is clicked and opens as a sphere of its own" width="100%">
-  </video>
+  <img src="docs/media/planet.webp" alt="The knowledge map, turning: hundreds of notes arranged by resemblance in phosphor orange on black. The cursor lands on a note and a panel gives its region, title and summary; then the structure button is clicked and the map reorganises into the filing; then a family is clicked and opens as a sphere of its own" width="100%">
 </td>
 </tr>
 <tr>
@@ -225,9 +223,7 @@ Points warm up as you read them and fade on their own; the ⚠ ✦ ↻ ▷ marke
 what was challenged, held as a conviction, left open, or is replayable in 3D.
 
 <p align="center">
-  <video src="docs/media/planet.mp4" autoplay loop muted playsinline width="100%">
-    <img src="docs/media/planet.webp" alt="The knowledge map, turning: hundreds of notes arranged by resemblance in phosphor orange on black. The cursor lands on a note and a panel gives its region, title and summary; then the structure button is clicked and the map reorganises into the filing; then a family is clicked and opens as a sphere of its own" width="100%">
-  </video>
+  <img src="docs/media/planet.webp" alt="The knowledge map, turning: hundreds of notes arranged by resemblance in phosphor orange on black. The cursor lands on a note and a panel gives its region, title and summary; then the structure button is clicked and the map reorganises into the filing; then a family is clicked and opens as a sphere of its own" width="100%">
 </p>
 <p align="center"><sub>A showcase trunk of 375 notes and 1 474 links — the real shape of a working trunk, with generated titles. Yours starts empty.</sub></p>
 
