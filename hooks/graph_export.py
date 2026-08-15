@@ -292,8 +292,13 @@ def scan():
                 sm = FM_SCALE.search(fm)
                 scale = float(sm.group(1)) if sm else guess_scale(nid)
                 rel_file = os.path.relpath(path, BRAIN)
+                # ── AXE THÉMATIQUE (2026-08-14) : la famille de la fiche, pour que la
+                # planète puisse montrer le SUJET et pas seulement le dossier. Les dossiers
+                # disent la portée, les familles disent de quoi ça parle — deux axes.
+                tm = re.search(r"^tags:\s*\[(.*?)\]", fm, re.M)
+                tags = [t.strip() for t in tm.group(1).split(",") if t.strip()] if tm else []
                 nodes[nid] = {"id": nid, "name": nid, "title": title, "domain": domain,
-                              "group": group, "desc": desc,
+                              "group": group, "desc": desc, "tags": tags,
                               "born_from": born, "scale": scale,
                               "type": (FM_TYPE.search(fm).group(1) if FM_TYPE.search(fm) else None),
                               "en_clair": extract_en_clair(text),  # version humaine, affichée en 1er
