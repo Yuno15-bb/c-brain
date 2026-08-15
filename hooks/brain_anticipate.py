@@ -21,7 +21,18 @@ STRONG = re.compile(r"(REPRENDRE ICI|POINT DE REPRISE|À REPRENDRE|REPRENDRE"
 # En français « à faire » est un verbe courant ; il ne vaut comme marqueur de tâche que s'il
 # est PRÉSENTÉ comme tel : en tête de ligne, en titre, en puce, ou suivi de deux-points.
 # (« RESTE À FAIRE » reste attrapé par STRONG, qui passe en premier.)
-WEAK = re.compile(r"(PROCHAIN[E]?\b|TODO\b|NEXT\b"
+# ⚠️ « PROCHAIN(E) » NU EST LE MÊME PIÈGE QUE « À FAIRE » NU, et il pesait plus lourd.
+# Mesuré le 2026-08-15 sur `projects/**` : 41 déclenchements sur du français ordinaire
+# (« la prochaine fiche écrite », « la prochaine fois », « le prochain palier ») contre
+# 24 marqueurs réellement présentés comme une tâche. Le détecteur était donc majoritairement
+# du bruit — et comme `graph_export.py` l'importe, ce bruit allumait aussi les badges ↻ de
+# la planète, dont la fiche `planete-saturation` constatait qu'ils saturaient à 31.
+# Même remède que pour « À FAIRE » : le mot ne compte que s'il est PRÉSENTÉ comme un
+# marqueur — en tête de ligne, en titre, en puce, ou suivi de deux-points.
+# (« PROCHAINE ÉTAPE » reste attrapé par STRONG, qui passe en premier.)
+WEAK = re.compile(r"(TODO\b|NEXT\b"
+                  r"|PROCHAIN[E]?\s*[:：]"
+                  r"|^[ \t]*(?:[#>\-*•]+[ \t]*)*PROCHAIN[E]?\b"
                   r"|À FAIRE\s*[:：]"
                   r"|^[ \t]*(?:[#>\-*•]+[ \t]*)*À FAIRE\b)", re.I | re.M)
 # Combien de reprises on met en avant. UN SEUL chiffre pour tout le système : le message de
