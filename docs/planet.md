@@ -35,12 +35,18 @@ are about to get.
 
 | Key | View | What POSITION means |
 |---|---|---|
-| `V` | **3D globe** | **filing** — region = folder, city = project |
-| `S` | **meaning** | **resemblance** — two nearby notes talk about the same thing, even with no link between them |
+| — | **meaning** *(what opens)* | **resemblance** — two nearby notes talk about the same thing, even with no link between them |
+| `V` | **the globe** | **filing** — region = folder, city = project |
 
-That is why both exist. The globe tells you where you *filed* a note; the meaning
-map tells you what it *resembles*. A note alone in its folder but sitting against
-five others in the meaning view is a link you have not written yet.
+That is why both exist. The meaning map tells you what a note *resembles*; the
+globe tells you where you *filed* it. A note alone in its folder but sitting
+against five others in the meaning view is a link you have not written yet.
+
+**The meaning map is what opens**, and the globe rides in the left column as a
+small instrument: aim a region in it and the same notes light up in the map.
+`V` gives the globe the whole screen back when you want to walk the filing
+itself. It used to be the other way round — the globe first, the meaning map
+behind a key — and the map turned out to be the thing worth landing on.
 
 `Esc` backs out of a region you entered.
 
