@@ -184,6 +184,18 @@ Ton savoir en globe 3D, régénéré à chaque lancement depuis les fiches. Les
 continents sont les domaines, les arcs sont les liens `[[...]]` que les agents
 ont tissés. Survoler une fiche allume ses connexions ; un double-clic l'épingle.
 
+Deux vues, et c'est là qu'elle devient utile : `V` montre le **rangement** —
+où tu as classé une fiche ; `S` montre le **sens** — ce à quoi elle ressemble,
+dossiers ignorés. Une fiche seule dans son coin sur le globe mais collée à cinq
+autres en vue *sens*, c'est un lien que tu n'as pas encore écrit.
+
+Les points chauffent quand on les lit et s'éteignent tout seuls ; les pastilles
+⚠ ✦ ↻ ▷ signalent ce qui est contesté, tenu pour acquis, resté ouvert, ou
+rejouable en 3D.
+
+📖 **[Documentation complète de la planète](docs/planete.md)** — les deux vues,
+la lecture d'un point, les pastilles, et ce que la carte ne sait pas faire.
+
 <p align="center">
   <img src="docs/media/planet.webp" alt="La planète de connaissance : le globe tourne, le curseur se pose sur une fiche, ses arcs de liens s'allument et un panneau s'ouvre montrant la région de la fiche, ses sept connexions, sa description et le chemin de son fichier" width="900">
 </p>
