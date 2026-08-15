@@ -2028,6 +2028,7 @@ addEventListener('resize', ()=>{ if(vOpen) vResize(); });
 
 // ---------- boucle ----------
 const vtag=document.getElementById('viewtag');
+const titleEl=document.getElementById('title');
 let _last=0, _lastF=0;
 function tick(now){
   requestAnimationFrame(tick);
@@ -2245,6 +2246,13 @@ function tick(now){
     if(!liveCount){ const s=document.getElementById('session'); if(s) s.textContent=''; }  // pas d'activité fantôme
   }
   updateLinks(time);
+  // Le TITRE suit la vue. Il était figé dans le HTML sur « — LE SENS » et ne bougeait
+  // jamais : en structure, à plat ou dans une région, l'en-tête annonçait toujours le
+  // sens. Trouvé le 2026-08-15 en REGARDANT les captures du README, pas le code — un
+  // libellé faux ne lève aucune erreur, il se contente d'être lu.
+  const _t = view<0.5 ? (focusRegion ? `[ RÉGION — ${focusRegion.toUpperCase()} ]` : '[ PLANÈTE DU TRONC ]')
+                      : (sem>0.5 ? '[ CARTE DU TRONC — LE SENS ]' : '[ CARTE DU TRONC — LA STRUCTURE ]');
+  if(titleEl && titleEl.textContent !== _t) titleEl.textContent = _t;   // écrit seulement s'il change
   vtag.textContent = view<0.5 ? (focusRegion ? `◉ ${focusRegion} EN VOLUME — glisser pour tourner · Échap pour ressortir`
                                               : '◉ 3D — S pour le sens')
     : (sem>0.5 ? '✦ SENS EN VOLUME — proximité = sens, toutes les fiches · S structure'
