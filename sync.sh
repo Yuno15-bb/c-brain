@@ -200,9 +200,24 @@ sync_dir capsule 'node_modules' 'assets' 'lottie' 'index-v2.html' 'main.js' 'han
                  'index.html' 'dock-geometry.js' 'test_dock_geometry.js'
 
 # --- 5. Planète -----------------------------------------------------------
-# EXCLU : graph.json — 1,4 Mo contenant le TEXTE INTÉGRAL des fiches, noms de
-# clients compris. Régénéré à chaque lancement par graph_export.py.
-sync_dir planet 'graph.json'
+# EXCLU : *.json — TOUTES les données régénérées de la planète, pas seulement
+# celles qui existaient le jour où cette ligne a été écrite.
+#
+# Historique, et pourquoi la règle est passée d'un NOM à un MOTIF : la ligne
+# excluait `graph.json` (1,4 Mo, texte intégral des fiches, noms de clients
+# compris). Le 2026-08-14, la refonte de la planète a créé `textes.json` —
+# 1,5 Mo du MÊME contenu, sous un nom neuf. Il tombait hors de la règle, hors
+# du .gitignore, et serait parti sur le dépôt PUBLIC au premier sync.
+# C'est le motif `le-premier-fichier-d-un-type-nouveau-tombe-hors-des-regles` :
+# un filtre par liste ne protège que ce qui existait quand on l'a écrit.
+#
+# Le paquet n'embarque AUCUN .json de planète, par construction : le globe se
+# reconstruit au lancement (graph_export.py). Un .json ici est donc toujours
+# une donnée du tronc de l'auteur, jamais un fichier du produit.
+#
+# EXCLU aussi : launch-mother.sh — un alias vers launch.sh qui n'existe que
+# pour ne pas casser un raccourci du Bureau de l'auteur. Rien à en faire ici.
+sync_dir planet '*.json' 'launch-mother.sh' 'archive'
 
 # --- 6. Companion ---------------------------------------------------------
 sync_dir companion '__pycache__' '*.pyc'
