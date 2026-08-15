@@ -72,7 +72,8 @@ MANIFEST="$DEST/.sync-manifest"
 
 empreinte_source() {
   {
-    shasum -a 256 "$SRC/brain" "$CLAUDE_DIR/statusline.py" 2>/dev/null
+    shasum -a 256 "$SRC/brain" "$CLAUDE_DIR/statusline.py" \
+                  "$SRC/meta/familles.json" 2>/dev/null
     find "$SRC/hooks" "$SRC/agents" "$SRC/capsule" "$SRC/planet" \
          "$SRC/companion" "$SRC/tests" -type f \
          ! -path "*/node_modules/*" ! -name "*.pyc" ! -name ".DS_Store" \
@@ -258,11 +259,30 @@ sync_dir tests 'plugin_manifest.py' 'english_only.py' 'update_tag_family.sh' \
   'recall_benchmark.py' 'recall_cache.py' 'update_rollback.sh' 'plugin_install.sh' \
   '__pycache__' '*.pyc'
 
-# --- 8. Statusline (vit dans ~/.claude, pas dans le tronc) ----------------
+# --- 8. Registre des familles thématiques ---------------------------------
+# `meta/` est le dossier des fiches de méthode de l'auteur : il ne part PAS.
+# Mais UN fichier y est du produit, pas du contenu — `familles.json`, le
+# registre des 13 familles thématiques. Trois programmes DÉJÀ publiés le lisent
+# par chemin en dur : hooks/brain_recall.py, hooks/brain_doctor.py,
+# hooks/index_lecons.py. Sans lui, le paquet embarquait un moteur sans registre.
+#
+# ⚠ DESTINATION `skeleton/`, PAS la racine du dépôt. Les trois programmes lisent
+# `BRAIN/meta/familles.json` où BRAIN vaut `~/.c-brain/trunk` — le TRONC de
+# l'utilisateur — jamais le moteur. Le tronc naît de `skeleton/` (install.sh
+# ligne « cp -R skeleton/. TRUNK/ »). Une copie posée à la racine du dépôt
+# serait donc lue par PERSONNE, tout en ayant l'air d'être là.
+# Vérifié le 2026-08-15 par exécution : brain_doctor lancé depuis le paquet
+# cherche bien `~/.c-brain/trunk/meta/familles.json`.
+#
+# ⚠ Un fichier, pas le dossier : `sync_file`, jamais `sync_dir`. `sync_dir`
+# tourne avec --delete et déverserait toutes les fiches de méthode de l'auteur.
+sync_file "$SRC/meta/familles.json" "skeleton/meta/familles.json"
+
+# --- 9. Statusline (vit dans ~/.claude, pas dans le tronc) ----------------
 sync_file "$CLAUDE_DIR/statusline.py" "statusline.py"
 
 echo
-# --- 9. Généralisation ----------------------------------------------------
+# --- 10. Généralisation ---------------------------------------------------
 # ENCHAÎNÉE, jamais optionnelle : la copie qui vient d'avoir lieu a RÉINTRODUIT
 # les noms de l'auteur, de ses clients et de ses projets. Un sync sans
 # généralisation laisse le paquet en état de fuite, et rien ne le signalerait

@@ -121,6 +121,37 @@ def check_json_still_valid():
     return not broken
 
 
+def check_python_still_compiles():
+    """Le jumeau de la vérification JSON, pour Python — et il a déjà mordu.
+
+    Le filet `proprietaire-nomme-filet` remplace le prénom nu par « l'auteur ».
+    Cette valeur porte une APOSTROPHE : posée à l'intérieur d'un littéral Python
+    écrit en quotes simples, elle le referme au milieu. C'est arrivé pour de bon
+    dans hooks/etat_projets.py — le paquet publié embarquait un hook qui ne
+    compilait même pas, et rien ne le disait : ni sync.sh, ni generalize.py, ni
+    leakcheck.py ne regardent la SYNTAXE de ce qu'ils viennent de réécrire.
+
+    On compile ici, tout de suite, où l'on sait encore quelle règle vient de
+    passer — plutôt qu'à l'exécution chez l'utilisateur, où l'on ne sait plus rien.
+    """
+    broken = []
+    for path in ROOT.rglob("*.py"):
+        if {".git", "node_modules", "__pycache__", ".venv"} & set(path.relative_to(ROOT).parts):
+            continue
+        try:
+            compile(path.read_text(encoding="utf-8"), str(path), "exec")
+        except SyntaxError as e:
+            broken.append((path.relative_to(ROOT).as_posix(), e))
+    for rel, e in broken:
+        print(f"  ⛔ {rel}:{e.lineno} — Python invalide après généralisation : {e.msg}")
+        if e.text:
+            print(f"       {e.text.strip()}")
+    if broken:
+        print("       (piège connu : une valeur de remplacement qui contient une "
+              "apostrophe, posée dans un littéral en quotes simples)")
+    return not broken
+
+
 def main():
     if not RULES.is_file():
         sys.exit(f"❌ rules.json introuvable ({RULES})")
@@ -134,6 +165,7 @@ def main():
     ok = apply_blocks(rules.get("blocks", []), report)
     ok = apply_replacements(rules.get("replacements", []), report) and ok
     ok = check_json_still_valid() and ok
+    ok = check_python_still_compiles() and ok
 
     print(f"🧹 Généralisation — {len(report)} règle(s) appliquée(s), "
           f"{sum(r[1] for r in report)} remplacement(s)\n")

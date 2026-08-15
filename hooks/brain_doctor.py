@@ -82,14 +82,35 @@ def frontmatter(text):
 
 
 def _familles():
+    """Le registre des familles, et POURQUOI il est vide s'il l'est.
+
+    Un `except: return set()` nu confond deux états très différents : « le
+    registre est là et ne contient rien » et « le registre est ABSENT ». Le
+    second arrive pour de bon — meta/familles.json est resté hors de la liste
+    blanche de sync.sh jusqu'au 2026-08-15, donc le paquet public embarquait
+    les trois programmes qui le lisent sans le registre lui-même.
+
+    Sans cette distinction, brain_doctor rougissait quand même, mais en
+    disant 223 fois « famille inconnue ['controle-qui-ment'] » — un message
+    qui accuse les FICHES alors que c'est la PIÈCE MAÎTRESSE qui manque.
+    Cf. nommer-le-manque-ne-suffit-pas-nommer-l-etape-suivante.
+    """
+    p = os.path.join(BRAIN, "meta", "familles.json")
     try:
-        with open(os.path.join(BRAIN, "meta", "familles.json"), encoding="utf-8") as f:
-            return set(json.load(f).get("familles", {}))
-    except Exception:
-        return set()
+        with open(p, encoding="utf-8") as f:
+            return set(json.load(f).get("familles", {})), None
+    except FileNotFoundError:
+        return set(), (f"meta/familles.json ABSENT ({p}) — le registre des familles "
+                       "thématiques ne suit pas le code qui le lit ; le rappel perd son "
+                       "pont de vocabulaire, sans autre signe. → restaure-le : "
+                       "`git checkout meta/familles.json` dans le tronc, ou relance "
+                       "./install.sh (le paquet le livre dans skeleton/meta/).")
+    except Exception as e:
+        return set(), (f"meta/familles.json illisible ({p}) : {e} — le registre est là "
+                       "mais ne se charge pas ; répare le JSON avant de juger les tags.")
 
 
-FAMILLES = _familles()
+FAMILLES, FAMILLES_ERREUR = _familles()
 
 
 def main():
@@ -106,7 +127,11 @@ def main():
                 # axe thématique (2026-08-14) : une leçon sans famille est invisible pour
                 # le pont de vocabulaire du rappel — et la prochaine fiche écrite sortira
                 # sans tag si RIEN ne l'exige, cf. le-premier-fichier-d-un-type-nouveau…
-                "lecons_sans_famille": [], "index_derive": []}
+                "lecons_sans_famille": [], "index_derive": [],
+                # la PIÈCE elle-même, avant les fiches qui s'y réfèrent
+                "registre_familles": []}
+    if FAMILLES_ERREUR:
+        problems["registre_familles"].append(FAMILLES_ERREUR)
 
     # Les cartes structurelles contribuent les liens qu'elles portent, sans devenir
     # elles-mêmes des fiches soumises aux invariants de frontmatter/nommage.
@@ -169,7 +194,10 @@ def main():
                     problems["lecons_sans_famille"].append(f"{base} : aucun tag")
                 elif len(noms) > 2:
                     problems["lecons_sans_famille"].append(f"{base} : {len(noms)} tags (plafond 2)")
-                else:
+                elif not FAMILLES_ERREUR:
+                    # Muet SI le registre est absent : sans lui, chacune des 223 leçons
+                    # sortirait « famille inconnue », et le vrai défaut (une pièce
+                    # manquante) serait noyé sous 223 accusations de fiches saines.
                     inconnus = [n for n in noms if n not in FAMILLES]
                     if inconnus:
                         problems["lecons_sans_famille"].append(f"{base} : famille inconnue {inconnus}")
@@ -227,7 +255,8 @@ def main():
         # bien `problems`, comptaient dans le total et faisaient sortir en 1 — mais n'imprimaient
         # RIEN. Un contrôle qui détecte sans le dire est un contrôle muet. L'assertion en dessous
         # empêche la prochaine addition de retomber dedans.
-        labels = {"liens_morts": "Liens morts", "orphelins": "Orphelins",
+        labels = {"registre_familles": "Registre des familles",
+                  "liens_morts": "Liens morts", "orphelins": "Orphelins",
                   "frontmatter": "Frontmatter", "nommage": "Nommage",
                   "hors_index": "Hors carte",
                   "memory_trop_lourd": "MEMORY.md trop lourd",

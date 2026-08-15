@@ -12,6 +12,11 @@
 /state/
 /lessons/
 /projects/
+# ⚠ `/meta/` reste ignoré EN ENTIER, registre des familles compris. Le registre
+# est bien du produit, mais sa place dans le paquet est `skeleton/meta/` — le
+# tronc-modèle — parce que brain_recall.py et brain_doctor.py le lisent sous
+# ~/.c-brain/trunk, jamais sous le moteur. Une copie à la racine du dépôt ne
+# serait lue par personne et divergerait en silence.
 /meta/
 /life/
 /sessions/

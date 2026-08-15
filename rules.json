@@ -467,6 +467,14 @@
       "why": "Les commentaires de la capsule et de l'orbe créditent nommément l'auteur des retours (« Signalé par Dylan le … »). C'est juste dans le tronc privé, hors sujet dans un paquet public : ce qui compte est qu'un UTILISATEUR ait signalé le défaut, pas lequel. Règle ajoutée le 2026-08-03 avec l'arrivée de l'orbe, qui apporte quatre fichiers de plus portant ce genre de crédit."
     },
     {
+      "id": "attente-decision-litteral-quotes-simples",
+      "files": ["hooks/*.py"],
+      "pattern": "décisions en attente de Dylan",
+      "replace": "décisions en attente du propriétaire",
+      "expect": 1,
+      "why": "AVANT le filet, et volontairement SANS apostrophe. Le filet remplace le prénom nu par « l'auteur » ; ici la phrase vit dans un littéral Python écrit en quotes SIMPLES (hooks/etat_projets.py ligne 180), et l'apostrophe de « l'auteur » refermait la chaîne au milieu. Résultat mesuré le 2026-08-15 : le paquet publié embarquait un hook qui ne compilait pas. Le garde-fou qui l'attrape désormais est check_python_still_compiles() dans generalize.py ; cette règle est le correctif, pas le garde-fou."
+    },
+    {
       "id": "proprietaire-nomme-filet",
       "files": [
         "hooks/**/*.py",
@@ -480,6 +488,7 @@
         "tests/**/*.py",
         "skills/**/*.md",
         "skeleton/**/*.md",
+        "skeleton/**/*.json",
         "brain"
       ],
       "pattern": "Dylan(?! Peellaert)",

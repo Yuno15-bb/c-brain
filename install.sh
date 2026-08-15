@@ -127,6 +127,22 @@ else
 fi
 run mkdir -p "$TRUNK/state" "$TRUNK/sessions/archive"
 
+# Rattrapage des fichiers PRODUIT du tronc, sur une mise à jour.
+# Un tronc existant n'est jamais écrasé — c'est le savoir de l'utilisateur. Mais
+# tout ce qui vit dans le tronc n'est pas du savoir : `meta/familles.json` est un
+# REGISTRE livré avec le moteur, lu sous `$TRUNK/meta/` par brain_recall.py,
+# brain_doctor.py et index_lecons.py. Sans ce rattrapage, une mise à jour livrait
+# le code qui le lit SANS le fichier qu'il lit — rappel dégradé, en silence.
+# Copié seulement s'il MANQUE : jamais par-dessus des familles que l'utilisateur
+# aurait ajoutées aux siennes.
+for f in meta/familles.json; do
+  if [ -f "$ENGINE/skeleton/$f" ] && [ ! -f "$TRUNK/$f" ]; then
+    run mkdir -p "$TRUNK/$(dirname "$f")"
+    run cp "$ENGINE/skeleton/$f" "$TRUNK/$f"
+    say "+ $f ajouté au tronc (registre livré avec le moteur)"
+  fi
+done
+
 # ─── 3. Le moteur, relié dans le tronc ────────────────────────────────────
 step "Moteur relié au tronc"
 for d in hooks agents capsule planet companion tests; do

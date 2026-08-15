@@ -49,7 +49,19 @@ def lire_lecons():
 
 
 def rendre():
-    familles = json.load(open(os.path.join(BRAIN, "meta", "familles.json"), encoding="utf-8"))["familles"]
+    # Le registre est la PIÈCE MAÎTRESSE : sans lui il n'y a pas d'index à écrire.
+    # On sort en nommant l'étape suivante plutôt qu'en déroulant une trace Python —
+    # un `FileNotFoundError` nu dit ce qui manque, jamais quoi faire.
+    reg = os.path.join(BRAIN, "meta", "familles.json")
+    try:
+        familles = json.load(open(reg, encoding="utf-8"))["familles"]
+    except FileNotFoundError:
+        sys.exit(f"❌ registre des familles absent : {reg}\n"
+                 "   → `git checkout meta/familles.json` dans le tronc, ou relance "
+                 "./install.sh (le paquet le livre dans skeleton/meta/).")
+    except (ValueError, KeyError) as e:
+        sys.exit(f"❌ registre des familles illisible : {reg} ({e})\n"
+                 "   → répare le JSON ; l'INDEX n'est pas réécrit tant qu'il ne charge pas.")
     lecons = lire_lecons()
     sans = [l["nom"] for l in lecons if not l["tags"]]
 
