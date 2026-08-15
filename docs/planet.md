@@ -68,12 +68,21 @@ five others in the meaning view is a link you have not written yet.
 A ▷ blinks softly: **double-click** opens the capture, which you can then turn by
 dragging and zoom with the wheel. `Esc` returns to the map.
 
-### The hover panel
+### Hover, then click — two panels, not one
 
-Point at a note: its links light up, and the panel gives its region, its
-neighbours, its description and the file it lives in. Connections sit **at the
-end** of the panel, after the text — you read what the note says first, and what
-it is wired to second.
+**Point at a note** and its links light up on the globe, while the panel gives
+you three things and stops there: the region it belongs to, its title, and its
+summary. Nothing else. Hovering is how you *sweep* — you read one thing and move
+on — so the panel stays a size you can read without stopping.
+
+**Click the note** and the same panel opens out: the plain-language section
+first, the full note folded behind it, and **the connections at the end** — the
+other notes this one is wired to, each with its region when it comes from
+another part of the map.
+
+Connections used to appear on hover. They made a passing panel long enough to
+scroll, under a cursor that was still moving. They are an exploration, not a
+label, so they wait for you to decide to stop.
 
 ---
 

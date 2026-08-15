@@ -54,6 +54,12 @@ ALLOWED = re.compile(r"\b(caf[ée]|r[ée]sum[ée]|na[ïi]ve|expos[ée]|clich[ée
 PATTERNS = [
     re.compile(r"'([^'\\\n]{4,})'"),
     re.compile(r'"([^"\\\n]{4,})"'),
+    # BACKTICKS (2026-08-15). Absent until now, and the planet's top bar is built
+    # from template literals: `◉ ${region} EN VOLUME — glisser pour tourner` sat in
+    # the published English branch, unreachable by every pattern above. A checker
+    # that cannot see the syntax the code is written in reports on a smaller
+    # program than the one that ships.
+    re.compile(r"`([^`\\\n]{4,})`"),
     re.compile(r">([^<>{}\n]{4,})<"),
 ]
 
@@ -84,14 +90,122 @@ def strip_comments(text, suffix):
     `//`, so it is still scanned and a real string on it is still caught.
     """
     if suffix in (".py", ".sh", ""):
+        # DOCSTRINGS TOO (2026-08-15). A docstring is a comment that happens to be
+        # a string literal, and the README states plainly that hook comments stay
+        # French. The accent rule never reached them by luck — most carry an accent
+        # somewhere and were already being skipped for other reasons; the moment the
+        # accent-free rule below landed, one unaccented French docstring surfaced as
+        # a "user-visible string". It is not visible to any user.
+        # Blanked via `ast`, not a regex: a regex for triple quotes trips over the
+        # quotes inside them, and would silently eat half a file.
+        if suffix == ".py":
+            try:
+                import ast
+                arbre = ast.parse(text)
+                lignes = text.splitlines()
+                for noeud in ast.walk(arbre):
+                    if not isinstance(noeud, (ast.Module, ast.FunctionDef,
+                                              ast.AsyncFunctionDef, ast.ClassDef)):
+                        continue
+                    corps = getattr(noeud, "body", None)
+                    if not corps or not isinstance(corps[0], ast.Expr):
+                        continue
+                    val = corps[0].value
+                    if isinstance(val, ast.Constant) and isinstance(val.value, str):
+                        for i in range(val.lineno - 1, val.end_lineno):
+                            if i < len(lignes):
+                                lignes[i] = ""
+                text = "\n".join(lignes)
+            except SyntaxError:
+                pass          # un fichier qui ne compile pas : on le scanne tel quel
         return "\n".join(l for l in text.splitlines() if not l.lstrip().startswith("#"))
     if suffix in (".js", ".html", ".css"):
         # blocs d'abord (ils enjambent les lignes), lignes ensuite
         text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
         text = re.sub(r"<!--.*?-->", " ", text, flags=re.S)
-        return "\n".join(l for l in text.splitlines()
-                         if not l.lstrip().startswith("//"))
+        # INLINE `//` TOO, not just whole comment lines (2026-08-15). Leaving them
+        # in was survivable while the only signal was an accent; the accent-free
+        # rule turned them into a noise source overnight — `// Y = la rotation du
+        # globe, X = l'inclinaison` was reported as a user-visible string, cut out
+        # of a comment between two apostrophes.
+        # `(?<!:)` spares `https://`, the one `//` that is never a comment. A real
+        # string followed by a comment keeps its string: only what comes AFTER the
+        # slashes is dropped.
+        text = re.sub(r"(?<!:)//[^\n]*", " ", text)
+        return text
     return text
+
+
+# ── French WITHOUT accents — the hole the accent rule cannot see ────────────────
+# The accent signal is cheap and precise, and it is blind to a whole class of real
+# leaks. Measured on 2026-08-15: the planet shipped `◉ 3D — S pour le sens` and
+# `glisser pour tourner` to the public branch. Not one accented character; the
+# check said "no French left" while a French sentence sat in the top bar of the
+# published product. The failure had even been written down beforehand — "French
+# WITHOUT accents, invisible to the heuristic" — and the checker still had the gap.
+#
+# Function words, not vocabulary: a content-word list is endless and dates. These
+# are the joints of the language, and they cannot be avoided in a real sentence.
+#
+# TWO of them, in the same string. One alone false-positives on things that are
+# not prose at all — `sans-serif` in CSS, a `pour` inside a URL, a variable named
+# `les`. Two distinct joints is what a SENTENCE has and a token does not.
+FR_MOTS = {
+    # articles and short joints — the ones a sentence cannot do without
+    "le", "la", "les", "des", "du", "au", "aux", "une", "ce", "cet", "cette",
+    "se", "ne", "il", "ils", "elle", "elles", "nous", "vous", "leur",
+    # prepositions and connectives
+    "pour", "dans", "avec", "sans", "vers", "chez", "sous", "entre", "pendant",
+    "depuis", "avant", "apres", "parce", "quand", "comme", "ainsi", "donc",
+    "alors", "puis", "mais", "aussi", "encore", "jamais", "toujours", "ici",
+    # verbs and pronouns that carry a sentence
+    "est", "sont", "qui", "que", "quoi", "tout", "tous", "toute",
+    "rien", "peut", "faut",
+    # UI infinitives — this checker looks at INTERFACE strings, and an interface
+    # in French says these. A general vocabulary list would be endless; the verbs
+    # a button or a hint can use are not.
+    "glisser", "cliquer", "tourner", "ressortir", "entrer", "sortir", "afficher",
+    "charger", "ouvrir", "fermer", "revenir", "choisir", "valider", "annuler",
+    "enregistrer", "supprimer", "rechercher", "relancer", "reprendre", "lancer",
+    # and the nouns an interface of THIS product says, none of them English
+    "clair", "fiche", "fiches", "lien", "liens", "survol", "panneau", "amas",
+    "tronc", "reglage", "reglages", "accueil", "retour", "aide", "essai",
+    "chargement", "toi", "moi",
+}
+# DELIBERATELY ABSENT: "en", "on", "sur", "un", "et", "a", "plus". Every one of them is an
+# ordinary English word or a common attribute value (`lang="en"`), and one false
+# positive in a checker like this is worth more than one miss: a report full of
+# noise gets silenced, and then the real leak goes out with it.
+FR_JETON = re.compile(r"[a-zA-Z]+")
+
+
+# `${…}` interpolations and `<…>` tags are removed BEFORE the words are counted.
+# Rejecting any candidate that merely contained them was the first attempt, and it
+# was worse than useless: the planet builds its whole top bar and its whole panel
+# from template literals full of both, so the rule went blind on exactly the lines
+# it was written for. Two sabotages proved it — a French string put back inside a
+# template literal stayed green. Strip the machinery, keep the words.
+MACHINERIE = re.compile(
+    r"\$\{[^}]*\}"                       # interpolations
+    r"|<[^>]*>"                          # balises
+    r"|&[a-z]+;"                         # entités
+    r"|\w*_\w[\w_]*"                     # snake_case : `on_fiche_write` n'est pas une phrase
+    r"|[\w./~-]+\.(?:py|js|mjs|cjs|sh|md|json|html|css|webp|png)"   # chemins de fichiers
+)
+
+
+def sans_accent(s):
+    """The French joints present in `s`, if there are at least two distinct ones.
+
+    The CSS classes matter here: the planet has classes literally named `qui`,
+    `quoi` and `clair`, so an ENGLISH label wrapped in them used to score two
+    "French words" on the strength of its own markup. Stripping tags removes the
+    attribute names along with them, which is the point.
+    """
+    texte = MACHINERIE.sub(" ", s)
+    mots = {m.lower() for m in FR_JETON.findall(texte)}
+    trouves = mots & FR_MOTS
+    return sorted(trouves) if len(trouves) >= 2 else []
 
 
 OPT_OUT = re.compile(r"i18n-ok|BILINGUAL")
@@ -124,7 +238,7 @@ def main():
         lines = text.splitlines()
         body = strip_comments(text, p.suffix)
         for s in visible_strings(body):
-            hit = [c for c in s if c in ACCENTS]
+            hit = [c for c in s if c in ACCENTS] or sans_accent(s)
             if not hit or ALLOWED.search(s):
                 continue
             line = text[: text.find(s)].count("\n") + 1

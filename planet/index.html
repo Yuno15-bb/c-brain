@@ -1493,7 +1493,13 @@ function showPanel(mesh, expanded){
   if(n.media){ mEl.textContent='▷ replayable 3D capture — double-click to open'; mEl.classList.add('show'); }
   else { mEl.classList.remove('show'); mEl.textContent=''; }
   // connexions : les fiches reliées à ce point (titre descriptif + région si autre catégorie)
-  const others=(mesh.userData.links||[]).map(L=> L.a===mesh?L.b:L.a), CAP=16, rn=regionOf(n);
+  // ⚠ AU CLIC SEULEMENT. Demande de l'auteur (2026-08-15) : au survol, le panneau montre le
+  // titre et le résumé, rien d'autre. On lit UNE chose et on passe ; seize pastilles sous le
+  // résumé faisaient du panneau volant un mur, et allongeaient la fiche au point de la faire
+  // défiler alors que le curseur bouge encore. Les connexions sont une exploration, pas une
+  // information de survol : elles arrivent quand on a décidé de s'arrêter (clic → `expanded`).
+  const others=expanded ? (mesh.userData.links||[]).map(L=> L.a===mesh?L.b:L.a) : [];
+  const CAP=16, rn=regionOf(n);
   let lh='';
   if(others.length){
     const chips=others.slice(0,CAP).map(o=>{ const d=o.userData.data, col='#'+colorOf(d).getHexString();
@@ -1513,8 +1519,8 @@ function showPanel(mesh, expanded){
   if(expanded){
     const bloc = [];
     if(n.en_clair) bloc.push(
-      `<section class="bl clair"><header><span class="qui">pour toi</span>`
-      + `<span class="quoi">en clair, sans jargon</span></header>`
+      `<section class="bl clair"><header><span class="qui">for you</span>`
+      + `<span class="quoi">in plain words, no jargon</span></header>`
       + `<div class="txt">${esc(n.en_clair)}</div></section>`);
     // Le corps de la fiche ne voyage plus dans graph.json (il en pesait la moitié) : il est
     // dans `textes.json`, chargé au PREMIER dépliage puis gardé en mémoire. Le panneau s'ouvre
@@ -2123,8 +2129,8 @@ function tick(now){
     if(!liveCount){ const s=document.getElementById('session'); if(s) s.textContent=''; }  // pas d'activité fantôme
   }
   updateLinks(time);
-  vtag.textContent = view<0.5 ? (focusRegion ? `◉ ${focusRegion} EN VOLUME — glisser pour tourner · Échap pour ressortir`
-                                              : '◉ 3D — S pour le sens')
+  vtag.textContent = view<0.5 ? (focusRegion ? `◉ ${focusRegion} IN VOLUME — drag to turn · Esc to come back out`
+                                              : '◉ 3D — S for meaning')
     : (sem>0.5 ? '✦ MEANING IN VOLUME — proximity = meaning, every note · S structure'
                : '▦ STRUCTURE — the 20 families, laid flat · click a family = in volume');
   syncModeButtons();
