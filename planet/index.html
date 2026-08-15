@@ -1505,7 +1505,7 @@ function showPanel(mesh, expanded){
     const chips=others.slice(0,CAP).map(o=>{ const d=o.userData.data, col='#'+colorOf(d).getHexString();
       const cross = regionOf(d)!==rn ? ` <em>· ${regionOf(d)}</em>` : '';
       return `<span class="c" style="--cc:${col}"><i></i>${d.title||(d.name||'').replace(/-/g,' ')}${cross}</span>`; }).join('');
-    lh=`<span class="hd">connexions (${others.length})</span>${chips}`+(others.length>CAP?`<span class="c">+${others.length-CAP}</span>`:'');
+    lh=`<span class="hd">connections (${others.length})</span>${chips}`+(others.length>CAP?`<span class="c">+${others.length-CAP}</span>`:'');
   }
   tip.querySelector('.lnk').innerHTML=lh;
   // « En clair » d'abord, texte complet replié derrière (format tranché par l'auteur le

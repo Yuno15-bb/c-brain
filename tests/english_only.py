@@ -176,6 +176,17 @@ FR_MOTS = {
 # ordinary English word or a common attribute value (`lang="en"`), and one false
 # positive in a checker like this is worth more than one miss: a report full of
 # noise gets silenced, and then the real leak goes out with it.
+# SINGLE WORDS THAT SETTLE IT ON THEIR OWN. The two-word rule cannot see a French
+# LABEL — one word in a chip, a header, a button — and that is not a corner case:
+# the planet shipped `connexions (12)` as the heading of the panel's link list, one
+# letter away from the English word, on the English branch. These are words whose
+# French spelling is not an English word at all, so a single occurrence is proof.
+# Keep the list SHORT and only add a word when its English spelling differs — a
+# word that exists in both languages belongs in the two-word rule, never here.
+FR_SEULS = {"connexion", "connexions", "fiche", "fiches", "survol", "panneau",
+            "reglages", "chargement", "brouillon", "apercu", "recherche",
+            "enregistrer", "supprimer", "annuler", "retour", "accueil", "amas",
+            "tronc", "arborescence", "etiquette", "etiquettes"}
 FR_JETON = re.compile(r"[a-zA-Z]+")
 
 
@@ -204,6 +215,14 @@ def sans_accent(s):
     """
     texte = MACHINERIE.sub(" ", s)
     mots = {m.lower() for m in FR_JETON.findall(texte)}
+    # A single strong word only counts inside something that reads like a LABEL:
+    # it has a space, and it carries no bracket. Without that guard the rule fired
+    # ten times on this repo and every one was code — a CSS class `.retour`, a dict
+    # key `fiches[e[0]]`, a bare `tronc` in a bench page. None of them is on anyone's
+    # screen, and ten false alarms is how a checker gets turned off.
+    seuls = mots & FR_SEULS
+    if seuls and " " in texte.strip() and not re.search(r"[\[\]{}]", texte):
+        return sorted(seuls)
     trouves = mots & FR_MOTS
     return sorted(trouves) if len(trouves) >= 2 else []
 
