@@ -171,6 +171,10 @@ FR_MOTS = {
     "clair", "fiche", "fiches", "lien", "liens", "survol", "panneau", "amas",
     "tronc", "reglage", "reglages", "accueil", "retour", "aide", "essai",
     "chargement", "toi", "moi",
+    # « vue d'ensemble » — the planet's breadcrumb carried it into the English
+    # product. Both words are ordinary on their own ("ensemble" is English), so
+    # they belong HERE, where two are needed, and never in the single-word list.
+    "vue", "ensemble",
 }
 # DELIBERATELY ABSENT: "en", "on", "sur", "un", "et", "a", "plus". Every one of them is an
 # ordinary English word or a common attribute value (`lang="en"`), and one false

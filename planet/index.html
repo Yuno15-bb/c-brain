@@ -1167,7 +1167,7 @@ const filEl=document.getElementById('fil');
 
 function majFil(){
   if(focusRegion){
-    filEl.innerHTML = `<span class="retour">← vue d'ensemble</span>  ·  <b>${focusRegion}</b> `
+    filEl.innerHTML = `<span class="retour">← overview</span>  ·  <b>${focusRegion}</b> `
       + `<span class="ici">— ${REGION_COUNT[focusRegion]||0} notes · Esc to exit</span>`;
     filEl.querySelector('.retour').onclick = sortirRegion;
   } else if(semTarget>0.5){
@@ -1912,6 +1912,7 @@ addEventListener('resize', ()=>{ if(vOpen) vResize(); });
 
 // ---------- boucle ----------
 const vtag=document.getElementById('viewtag');
+const titleEl=document.getElementById('title');
 let _last=0, _lastF=0;
 function tick(now){
   requestAnimationFrame(tick);
@@ -2129,6 +2130,13 @@ function tick(now){
     if(!liveCount){ const s=document.getElementById('session'); if(s) s.textContent=''; }  // pas d'activité fantôme
   }
   updateLinks(time);
+  // The TITLE follows the view. It was frozen in the HTML on "— MEANING" and never
+  // moved: in structure, laid flat, or inside a region, the header still announced
+  // meaning. Found on 2026-08-15 by LOOKING at the README captures, not at the code —
+  // a wrong label raises nothing, it just gets read.
+  const _t = view<0.5 ? (focusRegion ? `[ REGION — ${focusRegion.toUpperCase()} ]` : '[ TRUNK PLANET ]')
+                      : (sem>0.5 ? '[ TRUNK MAP — MEANING ]' : '[ TRUNK MAP — STRUCTURE ]');
+  if(titleEl && titleEl.textContent !== _t) titleEl.textContent = _t;   // written only when it changes
   vtag.textContent = view<0.5 ? (focusRegion ? `◉ ${focusRegion} IN VOLUME — drag to turn · Esc to come back out`
                                               : '◉ 3D — S for meaning')
     : (sem>0.5 ? '✦ MEANING IN VOLUME — proximity = meaning, every note · S structure'
