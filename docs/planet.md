@@ -84,6 +84,15 @@ Connections used to appear on hover. They made a passing panel long enough to
 scroll, under a cursor that was still moving. They are an exploration, not a
 label, so they wait for you to decide to stop.
 
+<table>
+<tr>
+<td width="50%"><img src="media/planet-hover.webp" alt="The hover panel: region, title, a two-line summary and the file path — no connection list" width="100%"></td>
+<td width="50%"><img src="media/planet-note.webp" alt="The opened panel: a FOR YOU section in plain words, FOR THE MODEL folded behind it, and a list of twelve connection chips at the end" width="100%"></td>
+</tr>
+<tr><td><sub>Hover — four lines, and you keep moving.</sub></td>
+    <td><sub>Click — the note opens, connections last.</sub></td></tr>
+</table>
+
 ---
 
 ## The top bar

@@ -195,9 +195,10 @@ Every note is a dot, every `[[link]]` an arc. The globe is rebuilt from your
 trunk on each launch — projects become cities, cross-cutting lessons become
 regions.
 
-Turn the globe, point at a note: its links light up, and the panel gives you its
-region, its neighbours, its description and the file it lives in — one
-double-click away from the note itself.
+Turn the globe, point at a note: its links light up and the panel gives you the
+region, the title and the summary — nothing more, because hovering is how you
+sweep. Click it and the panel opens out: the plain-language section, the full
+note behind it, and the connections at the end.
 
 Two views, and that is where it earns its place: `V` shows the **filing** — where
 you put a note; `S` shows the **meaning** — what it resembles, folders ignored. A
@@ -207,13 +208,42 @@ meaning view is a link you have not written yet.
 Points warm up as you read them and fade on their own; the ⚠ ✦ ↻ ▷ markers flag
 what was challenged, held as a conviction, left open, or is replayable in 3D.
 
+<p align="center">
+  <img src="docs/media/planet.webp" alt="The knowledge planet, one continuous pass: the globe turns in meaning view, the cursor lands on a note and a panel gives its title and summary, the note opens to reveal its plain-language section and its twelve connections, the map switches to structure, lies flat, then a region opens as an inner sphere of its own" width="900">
+</p>
+<p align="center"><sub>A showcase trunk of 375 notes and 1 474 links — the real shape of a working trunk, with generated titles. Yours starts empty.</sub></p>
+
+#### Every screen of it
+
+<table>
+<tr>
+<td width="50%"><img src="docs/media/planet-globe.webp" alt="The trunk planet: a wireframe globe in phosphor orange on black, clusters of notes sitting on its surface, each cluster labelled with its region name and count. The left column lists the regions by size; the header reads TRUNK PLANET" width="100%"></td>
+<td width="50%"><img src="docs/media/planet-meaning.webp" alt="The meaning map: the same notes laid flat, arranged by resemblance rather than by folder, with arcs running between them. The header reads TRUNK MAP — MEANING" width="100%"></td>
+</tr>
+<tr>
+<td><b>The planet</b> — the filing, in volume. One cluster per region, sized by how much it holds. Click one to go in.</td>
+<td><b>The meaning map</b> — the same notes, arranged by what they resemble. Folders ignored. Two notes side by side here and far apart on the globe is a link you have not written.</td>
+</tr>
+<tr>
+<td><img src="docs/media/planet-structure.webp" alt="The structure map: the regions laid flat as separate clusters, joined by long arcs, the header reading TRUNK MAP — STRUCTURE" width="100%"></td>
+<td><img src="docs/media/planet-region.webp" alt="Inside a region: the note cloud of a single region rendered as its own sphere with its internal links drawn, the header reading REGION — PRINCIPLES and the breadcrumb offering to go back to the overview" width="100%"></td>
+</tr>
+<tr>
+<td><b>The structure map</b> — the filing, flat. Where the regions sit relative to each other, and what crosses between them.</td>
+<td><b>Inside a region</b> — one region becomes a sphere of its own, with only its own links drawn. <code>Esc</code> comes back out.</td>
+</tr>
+<tr>
+<td><img src="docs/media/planet-hover.webp" alt="The hover panel: a framed panel in the top right showing the region, the note title MECHANIC, a two-line summary and the file path. No list of connections" width="100%"></td>
+<td><img src="docs/media/planet-note.webp" alt="The opened note panel: the same note with a FOR YOU section in plain words, a FOR THE MODEL section folded behind it, and a connections list of twelve chips, each carrying the region it comes from" width="100%"></td>
+</tr>
+<tr>
+<td><b>Hover</b> — region, title, summary, file. That is the whole panel: you are still moving.</td>
+<td><b>Click</b> — <code>for you</code>, then <code>for the model</code> folded behind it, then <code>connections (N)</code> at the end.</td>
+</tr>
+</table>
+
 📖 **[Full planet documentation](docs/planet.md)** — the two views, reading a
 point, the markers, and what the map cannot do.
-
-<p align="center">
-  <img src="docs/media/planet.webp" alt="The knowledge planet: the globe turns, the cursor lands on a note, its linked arcs light up and a panel opens showing the note's region, its seven connections, its description and its file path" width="900">
-</p>
-<p align="center"><sub>A demo trunk of 57 notes and 178 links. Yours starts empty.</sub></p>
 
 ## Commands
 
