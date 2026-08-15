@@ -57,11 +57,14 @@ const ETATS = [
   // Le troisième champ est le DÉTAIL affiché sous l'état : il vaut un sujet
   // fictif, pas « demo ». Un mot de débogage sous une vignette de README se lit
   // comme un oubli, et c'est ce qu'il est.
-  ['idle',        'idle', 2400, ''],
-  ['gardening',   'busy', 3800, 'filing three new notes'],
-  ['challenging', 'busy', 3800, 'checking twelve claims'],
-  ['committing',  'busy', 3800, 'one zone per commit'],
-  ['idle',        'idle', 2600, ''],
+  // ⚠ LA DURÉE SE PAIE EN OCTETS, ET LA QUALITÉ N'EST PAS NÉGOCIABLE : le verre
+  //   repart en macro-blocs sous q≈88 (voir l'en-tête). À 45 i/s et q90, chaque
+  //   seconde coûte ~300 Ko dans le README — donc on coupe des SECONDES, jamais
+  //   la qualité. Le plancher reste « deux fois le fondu », soit 3 s.
+  ['idle',        'idle', 2000, ''],
+  ['gardening',   'busy', 3200, 'filing three new notes'],
+  ['committing',  'busy', 3200, 'one zone per commit'],
+  ['idle',        'idle', 2200, ''],
 ];
 // ⚠ NI `PAS`, NI `capturePage()`. Un aller-retour de capture coûte ~50 ms : la
 //   boucle plafonnait à 20 i/s, et l'auteur l'a vue saccader à côté de la carte,

@@ -29,6 +29,18 @@ BRAIN = os.path.realpath((os.environ.get("BRAIN_HOME") or os.path.expanduser("~/
 SKIP_DIRS = {
     ".git", "node_modules", "capsule", "capsule-v2", "corpus", "audits",
     "agents", "state", "tools",
+    #   • skills/ : entré dans le tronc le 2026-08-15 (les 24 compétences vivent
+    #     désormais ici, `~/.claude/skills` est un symlink). Ce sont des MODES
+    #     D'EMPLOI et leurs références — de l'outillage, comme `agents/` juste
+    #     au-dessus, pas du savoir distillé. Mesuré à chaud : sans cette ligne,
+    #     438 docs indexés dont **65 venant de skills/** (15 % du corpus), et le
+    #     rappel proposait `skills/blender-motion/references/fcurve-modifiers.md`
+    #     sur la requête « pousse les modifs ». Le déplacement dans le tronc et
+    #     l'exclusion du rappel doivent aller ENSEMBLE : ranger une couche
+    #     d'outillage dans le Brain sans l'exclure ici la fait concurrencer les
+    #     fiches. Les skills restent trouvables par leur fiche,
+    #     [[systeme-skills-standard]]. cf. [[ce-qui-vit-dans-la-config-ne-vit-pas-dans-le-brain]]
+    "skills",
     # `archive/` = la couche FROIDE (journaux détachés des fiches, cf.
     # tools/archiver-journal.py). Mesuré le 2026-08-14 : sans cette ligne, un
     # journal archivé ressortait **en 1re position** devant la fiche courante —
