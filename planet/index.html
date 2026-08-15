@@ -856,7 +856,9 @@ function layoutSens(data){
   return { brut, sens:sortie, ancres, familles:liste.length };
 }
 
+let _reconstructions = 0;          // observable : combien de fois la scène a été refaite
 function build(data){
+  _reconstructions++;
   if(data.live_window_min) LIVE_WINDOW_S = data.live_window_min*60;   // fenêtre décidée côté hooks, pas en dur ici
   _liveShown=-1;                                                     // force le rafraîchissement du compteur
   clearGroup();
@@ -1816,7 +1818,20 @@ function updateLinks(time){
 }
 
 // ---------- chargement ----------
-let lastStamp='';
+let lastStamp='', lastSig=null;
+// Applique les seules valeurs qui bougent en continu — chaleur d'usage, activité en direct —
+// sans toucher à un objet de la scène. C'est ce qui garde le signal « live » sans payer une
+// reconstruction complète toutes les trois secondes.
+function majVivant(data){
+  const par = new Map(data.nodes.map(n => [n.id, n]));
+  for(const m of nodeObjs){
+    const n = par.get(m.userData.data.id);
+    if(!n) continue;
+    m.userData.heat = n.heat || 0;
+    if(n.active_ts) m.userData.activeTs = n.active_ts;
+    if(m.userData.activeRing) m.userData.activeRing.visible = !!n.active_ts;
+  }
+}
 async function poll(){
   try{
     // `?_=Date.now()` forçait le RETÉLÉCHARGEMENT du fichier entier toutes les 3 secondes —
@@ -1824,8 +1839,22 @@ async function poll(){
     // change que quelques fois par jour. `cache:'no-cache'` revalide auprès du serveur : il
     // répond 304 tant que rien n'a bougé, et on ne paie que l'aller-retour.
     const r=await fetch('graph.json', {cache:'no-cache'}); const data=await r.json();
-    if(data.generated_at!==lastStamp){
-      lastStamp=data.generated_at; const before=prevIds.size; build(data);
+    // ⚠️ NE PAS RECONSTRUIRE SUR L'HORODATAGE (l'auteur, 2026-08-15 : « rechargement intempestif
+    // de la page »). `generated_at` change à CHAQUE régénération du graphe — et `track_read.py`
+    // en déclenche une à chaque fichier lu pendant une session de travail. La planète refaisait
+    // donc ses 373 objets toutes les quelques secondes, ce qui se voit exactement comme un
+    // rechargement : les amas se re-hachent, la capsule repart à zéro, la famille visée se perd.
+    // On compare ce qui EXIGE une reconstruction — les fiches, leurs liens, leurs marqueurs — et
+    // pas ce qui change tout seul. La chaleur et l'activité en direct s'appliquent EN PLACE :
+    // ce sont des nombres posés sur des objets qui existent déjà.
+    const sig = data.nodes.map(n => n.id + ':' + (n.tags||[]).join('.') + ':'
+                  + [n.challenge, n.conviction, n.resume, n.regle, n.media, n.frontier]
+                      .map(v => v ? 1 : 0).join('')).join('|')
+              + '#' + data.links.length + '#' + ((data.coact||[]).length);
+    lastStamp = data.generated_at;
+    if(sig === lastSig){ majVivant(data); return; }
+    {
+      lastSig = sig; const before=prevIds.size; build(data);
       const added=data.counts.nodes-before;
       if(before && added>0){ const g=document.getElementById('grow');
         g.textContent=`✦ +${added} fiche${added>1?'s':''} — la planète grandit`;
@@ -1860,7 +1889,12 @@ window.__planete = { showPanel, entrerRegion, sortirRegion, setMode,
                      // qui est réellement affiché — il ne saurait que relire le fichier source.
                      get vue(){ return { view:+view.toFixed(2), sem:+sem.toFixed(2),
                                          mode: view<0.5 ? '3d' : (sem>0.5 ? 'sens' : 'struct') }; },
-                     get capsule(){ return { familles:podBlobs.length, vise:podHover, epingle:podPin,
+                     // `familles` = les amas du mode COURANT. La capsule en porte deux jeux
+                     // depuis qu'elle bascule dossiers ⇄ sujets : compter les deux ferait dire
+                     // « 33 familles » à un contrôle qui en attend 20, sur une page parfaitement saine.
+                     get capsule(){ return { mode:podMode,
+                                             familles:podBlobs.filter(p=>p.userData.mode===podMode).length,
+                                             vise:podHover, epingle:podPin,
                                              rotation:+podGroup.rotation.y.toFixed(3),
                                              legende: podCap.innerText.trim() }; },
                      region_de: m => regionOf(m.userData ? m.userData.data : m),
@@ -1914,6 +1948,7 @@ window.__planete = { showPanel, entrerRegion, sortirRegion, setMode,
                      // en « points à taille pleine ». L'observable d'une coupure, à l'image près.
                      get coupure(){ return +_coupurePic.toFixed(2); },
                      remettre_coupure_a_zero(){ _coupurePic = 0; return true; },
+                     get reconstructions(){ return _reconstructions; },
                      get occlusion(){ return OCCLUSION; },
                      set occlusion(v){ OCCLUSION = !!v; },
                      get camera(){ return camera.position.toArray().map(v => +v.toFixed(2)); },
