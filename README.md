@@ -15,12 +15,14 @@ time it matters. From any project, and without leaving your machine.**
   <img src="docs/media/capsule.webp" alt="The capsule: a glass orb sitting on the desktop, its material and hue changing as each agent works — distilling, gardening, filing, correcting, mapping, architecting, challenging, archiving, synthesizing, auditing, committing — with the code being written scrolling inside it" width="168">
 </td>
 <td width="74%" align="center">
-  <img src="docs/media/planet.webp" alt="The knowledge map, turning: hundreds of notes arranged by resemblance in phosphor orange on black, arcs running between them, the region list down the left column. The cursor lands on a note and a panel gives its title and summary; the note opens to show its plain-language section and its twelve connections" width="100%">
+  <video src="docs/media/planet.mp4" autoplay loop muted playsinline width="100%">
+    <img src="docs/media/planet.webp" alt="The knowledge map, turning: hundreds of notes arranged by resemblance in phosphor orange on black. The cursor lands on a note and a panel gives its region, title and summary; then the structure button is clicked and the map reorganises into the filing; then a family is clicked and opens as a sphere of its own" width="100%">
+  </video>
 </td>
 </tr>
 <tr>
-<td align="center"><sub><b>The capsule</b> — your agents, working.<br>Live, in the corner of your screen.</sub></td>
-<td align="center"><sub><b>The planet</b> — everything they wrote, as one map.<br>Rebuilt from your notes on every launch.</sub></td>
+<td align="center"><sub><b>Agents</b></sub></td>
+<td align="center"><sub><b>Map</b></sub></td>
 </tr>
 </table>
 
@@ -53,7 +55,7 @@ conversation history, which only gets longer.
 | | |
 |---|---|
 | **A capsule** | a glass orb on your desktop showing the agents at work, live |
-| **A planet** | your knowledge as a navigable 3D globe, rebuilt on every launch |
+| **A map** | everything you wrote as one navigable 3D map, rebuilt on every launch |
 
 <p align="center">
   <img src="docs/media/architecture.png" alt="How a session becomes memory: the trunk — ~/.c-brain/trunk, holding the notes, MEMORY.md and state — is read and written by three hook stages inside your session. On every prompt, inject_recall uses BM25 plus embeddings to pick the few notes that match what you asked and pastes them into the prompt. During the session, post_diff, track_read, on_fiche_write and pre_snapshot record what is written and read. At session end, archive_session and auto_maintain archive the session and wake the agents, in two layers: layer 1 always runs the distiller then the gardener, the gardener gated on the distiller actually succeeding; layer 2 wakes at most one of the challenger, architect, archivist or mechanic, and only if its sensor crosses a threshold and twelve hours have passed. Below, three ways to look at it: the capsule reading state/status.json, the planet built from graph_export, and the brain CLI — status, review, selftest, update — every automatic step runnable by hand" width="900">
@@ -223,7 +225,9 @@ Points warm up as you read them and fade on their own; the ⚠ ✦ ↻ ▷ marke
 what was challenged, held as a conviction, left open, or is replayable in 3D.
 
 <p align="center">
-  <img src="docs/media/planet.webp" alt="The knowledge map, turning: hundreds of notes arranged by resemblance, arcs running between them. The cursor lands on a note and the panel gives its region, title and summary; the note then opens to show its plain-language section, the full note folded behind it, and its twelve connections" width="900">
+  <video src="docs/media/planet.mp4" autoplay loop muted playsinline width="100%">
+    <img src="docs/media/planet.webp" alt="The knowledge map, turning: hundreds of notes arranged by resemblance in phosphor orange on black. The cursor lands on a note and a panel gives its region, title and summary; then the structure button is clicked and the map reorganises into the filing; then a family is clicked and opens as a sphere of its own" width="100%">
+  </video>
 </p>
 <p align="center"><sub>A showcase trunk of 375 notes and 1 474 links — the real shape of a working trunk, with generated titles. Yours starts empty.</sub></p>
 
