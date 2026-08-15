@@ -8,7 +8,7 @@ The order matters: each step assumes the previous one is green.
 ## 0. The extraction chain (on the `fr` branch)
 
 ```bash
-git checkout fr
+cd ~/c-brain-fr        # the `fr` working copy — `git worktree add ~/c-brain-fr fr`
 ./sync.sh --check      # rc=0 → the package matches the living Brain
 ./sync.sh              # copy + generalization, chained
 python3 leakcheck.py --history
@@ -60,7 +60,8 @@ original state**, the engine symlinks are gone.
 ## 4. Every CLI command
 
 ```bash
-for c in version status doctor audit review next "recall memory" coherence utility selftest; do
+for c in version status doctor audit review next "recall memory" coherence utility \
+         credit demo "demo --remove" selftest; do
   HOME=$T bash -c "PATH=\$HOME/.local/bin:\$PATH; brain $c" >/dev/null || echo "FAILED: $c"
 done
 ```
@@ -68,6 +69,10 @@ done
 **Expected**: nothing printed. Then read the output of `brain audit` and
 `brain review` with your eyes — French strings without accents slip past every
 grep, and only reading catches them.
+
+> `demo` and `demo --remove` go together, in that order. `demo` alone leaves its
+> notes in the trunk, and every later step would then be measuring a trunk this
+> recipe filled itself.
 
 ## 5. Capsule
 
@@ -150,3 +155,16 @@ It refuses to push if the package has drifted, if the tree is dirty, if the leak
 check is red, or if the tag already exists. **Never bypass it** — that guard
 exists precisely because a leak check once ran at the end of a pipe, where `tail`
 always succeeds and the exit code tested was the wrong one.
+
+It also **warns, without refusing**, when a document has not been reviewed since
+the code it describes moved:
+
+```bash
+python3 tests/docs_aligned.py
+```
+
+Prose has no test, so it never fails — it keeps rendering while describing a
+program that stopped behaving that way. This check does not read the prose and
+does not judge whether a sentence is true; it asks whether a watched path moved
+after the document was last edited. Re-aligning is not a command: you open the
+document and edit it, and that commit is the new baseline.

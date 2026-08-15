@@ -30,27 +30,48 @@ would catch it: no test reads prose. Only a reader would notice, much later.
 
 ## What the sync does NOT take
 
-Three files live **only in the package** and are excluded from the sync, because
+Some files live **only in the package** and are excluded from the sync, because
 `rsync --delete` would wipe them on the first pass:
 
 | File | Why it is not in the living Brain |
 |---|---|
 | `hooks/hooks.json` | the Claude Code plugin's hook manifest |
 | `tests/plugin_manifest.py` | checks the package's own manifests |
+| `tests/plugin_install.sh` | installs the package as a plugin, end to end |
 | `tests/english_only.py` | watches the translation, on `main` only |
+| `tests/update_tag_family.sh` | the tag families a user can be updated across |
+| `tests/update_rollback.sh` | a bad update, and the way back |
+| `tests/recall_benchmark.py` | recall speed, held to a number |
+| `tests/recall_cache.py` | the recall cache invalidates when it should |
+| `tests/docs_aligned.py` | has the code a doc describes moved since it was written |
 
 This is the worst failure mode available here: an erased `hooks.json` does not
 crash — the plugin simply **stops recording**.
 
+**The list only grows, and every addition has to be made twice** — once as an
+`rsync --exclude`, once in the fingerprint that `--check` compares. A file
+excluded on one side only never moves but still counts as changed, so the drift
+report stays red forever and says nothing useful about why.
+
 ## Workflow when the Brain evolves
 
+**Two working copies, not one branch you keep switching.** `sync.sh` refuses to
+run anywhere but `fr`; the working copy you edit sits on `main`; and switching
+branches under someone who is mid-edit is worse than doing nothing. So `fr` gets
+a working copy of its own, where the guard is already satisfied — satisfied, not
+bypassed:
+
 ```bash
-git checkout fr
+git worktree add ~/c-brain-fr fr     # once
+```
+
+```bash
+cd ~/c-brain-fr
 ./sync.sh                  # copy + generalize, French
 python3 leakcheck.py       # must be green
 git commit -am "sync: <what moved>"
 
-git checkout main
+cd ~/c-brain            # the `main` working copy — no branch switching
 git diff fr@{1} fr -- .    # what actually changed
 # port those changes, translated, onto main
 python3 leakcheck.py --history
@@ -59,6 +80,15 @@ python3 leakcheck.py --history
 
 Read the diff before translating. Most syncs move a handful of lines; a blind
 `git merge fr` would drag the whole French tree back onto `main`.
+
+**The first half now runs on its own** (2026-08-15). At session end the author's
+machine copies, leak-checks, commits and pushes `fr` without being asked. The
+tool that does it is not in this package on purpose: it pushes, and it knows this
+repository's branches. A user who added a remote to their own trunk never asked
+for their private notes to be pushed at the end of every session.
+
+**The second half — translating onto `main` — stays manual, and cannot be
+automated.** It is the step that needs someone to read.
 
 ## `main` is the product, `fr` is a staging buffer (2026-08-13)
 

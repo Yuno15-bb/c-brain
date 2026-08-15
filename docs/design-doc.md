@@ -157,7 +157,9 @@ c-brain/
   generalize.py       # applies rules.json AFTER the copy (chained by sync.sh)
   rules.json          # declarative rules: code blocks + text substitutions
   leakcheck.py        # zero marker, otherwise exit 1 (blocks the commit)
-  brain               # CLI (status|doctor|audit|review|recall|next|selftest|update|push…)
+  brain               # CLI, 17 subcommands (status|doctor|audit|review|recall|next|
+                      #   coherence|utility|credit|embed|push|metrics|selftest|backup|
+                      #   update|demo|version)
   hooks/              # the hooks + .plist.template  (desktop-sync EXCLUDED)
   agents/             # 8 agent definitions, generalized (no client or project names)
   capsule/            # Electron, without node_modules, without dead assets
@@ -167,7 +169,10 @@ c-brain/
   cbrain/             # update.sh, check_update.py, migrations/ — C Brain specific
   skeleton/           # the EMPTY trunk created on the user's machine
   skills/             # EMPTY + README.md = the house standard (no skill shipped)
-  docs/               # this design doc, the install guide, the verification recipe
+  demo/               # a throwaway trunk `brain demo` places and removes (open question 3)
+  tests/              # the checks that hold this contract, runnable by anyone
+  docs/               # this design doc, the install guide, the verification recipe,
+                      #   plus _coverage.json — which code each doc claims to describe
 ```
 
 **Contract invariants** (checked by `selftest`, not by re-reading):
@@ -176,6 +181,9 @@ c-brain/
 - `state/`, `planet/graph.json`, `capsule/node_modules/`, `corpus/`, `.venv/` are never committed;
 - `install.sh` run twice yields the same state;
 - **no engine script writes into `lessons|projects|meta|life`** — except the agents, the only legitimate write path, and they go through the user's trunk.
+- **the automatic save commits ONE ZONE PER COMMIT** (`hooks/commit_par_zone.py`). It used to be a single `git add -A`: one such commit swallowed nineteen files of an unfinished piece of work, and 612 commits of that shape are in the history. A mixed commit cannot be read back, so the trunk's pre-commit hook refuses them and the automatic save leans on that refusal instead of working around it.
+- **the maintenance loop asks before it spends** (`hooks/quota_probe.py`, surfaced as `brain credit`). An agent pass that starts with no credit left does not fail loudly — it half-runs and marks work as done. The probe is what makes the degraded mode a decision rather than an accident.
+- **prose is held to the same standard as code** (`tests/docs_aligned.py`). Not by reading it — a check that needs a model to decide is not a check — but by asking whether the code a document claims to describe has moved since that document was last edited. `publish.sh` reports it; it does not yet refuse.
 
 ## Impact & risks
 
@@ -216,9 +224,14 @@ Critical path: **L0 → L1 → L2 → L6**. L3/L4/L5 parallelize after L2.
 
 ## Open questions
 
-1. **Tag signing**: GPG or a plain annotated tag? The first proves an update really comes from the author; the second is simpler.
-2. **`sync.sh` cadence**: by hand, or a hook that warns when the package has fallen more than N days behind the living trunk?
-3. **Is the empty trunk really empty?** A sample `MEMORY.md` and two or three demonstration notes would help a newcomer grasp the format — but they must be **written**, not extracted from somebody's real notes.
+1. **Tag signing**: GPG or a plain annotated tag? The first proves an update really comes from the author; the second is simpler. **Still open.**
+
+2. ~~**`sync.sh` cadence**: by hand, or a hook that warns when the package has fallen more than N days behind the living trunk?~~ — **Settled 2026-08-15, and neither answer was right.** A warning was the wrong shape: the drift detector had been reporting "up to date" for twelve days while the package served a two-week-old planet, because one exclusion was written by filename and silently hid the file it was meant to keep. A sensor nobody can trust is worse than no sensor. What actually shipped is *propagation*, not warning: at session end the author's machine copies, leak-checks, commits and pushes the `fr` branch on its own. The obstacle had never been risk — it was that `sync.sh` refuses to run anywhere but `fr`, the working copy sits on `main`, and switching branches under someone who is editing is worse than doing nothing. A second working copy pinned to `fr` (`git worktree`) satisfies the guard instead of bypassing it.
+   **What stays a human gesture, and why**: translating `fr` → `main`, and stamping a version. Both are judgement. The tool that pushes is deliberately *not* in this package — a user who added a remote to their trunk never asked for their private notes to be pushed at the end of every session.
+
+3. ~~**Is the empty trunk really empty?**~~ — **Settled.** `demo/` ships a throwaway trunk that `brain demo` places and `brain demo --remove` takes away, so a newcomer can see the format without anyone's real notes leaking into the package. The trunk a user gets is still empty.
+
+4. **Should `publish.sh` refuse on unreviewed docs, or only warn?** It warns today, because four documents were behind the day the check landed and a gate nobody can satisfy only teaches people to skip the script. The honest answer is "refuse, once the backlog is zero" — but nothing currently forces that day to arrive.
 
 ---
 
