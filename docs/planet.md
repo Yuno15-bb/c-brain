@@ -118,6 +118,13 @@ Written here rather than discovered in use.
 - **Links are not occluded.** Lines on the far side are painted over the near
   side. On a dense trunk, nearly one link in two crosses the globe end to end, and
   the grey haze comes from a handful of very large nodes.
+- **Stacked family names fade instead of merging.** Family labels are placed in
+  3D, so two clusters far apart in *depth* but lined up with the camera used to
+  print their names on top of each other — an illegible blob in the middle of the
+  view, worst on a young trunk where the clusters are still small and packed. The
+  nearest name now stays readable and the ones it covers drop to a faint ghost:
+  enough to tell you something is there, turn the view and it comes back. Nothing
+  is moved, so a name never drifts away from the cluster it belongs to.
 - **One region can crush the others.** If most of your knowledge is in
   cross-cutting lessons, that region will weigh half the map and the colour code
   will lose its force.

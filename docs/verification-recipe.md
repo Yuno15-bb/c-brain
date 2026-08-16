@@ -35,6 +35,10 @@ HOME=$T bash $T/dev-c-brain/install.sh --no-launchd
 ```
 
 **Expected**: `✅ selftest OK`, `✅ doctor — tree consistent`, `✅ C Brain installed.`
+followed by `▸ Your trunk is empty.` — and *only* on a genuinely empty trunk. On a
+re-install over notes it must read `▸ Your trunk is already growing.` instead. That
+line had no test at all until 2026-08-16: it announced an empty trunk to somebody
+holding 23 notes, and then offered `brain demo`, which writes into a live trunk.
 
 ## 2. Non-destructive and idempotent
 
