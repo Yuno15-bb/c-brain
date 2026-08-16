@@ -91,7 +91,11 @@ def main():
 
     all_links = set()
     problems = {"dead_links": [], "orphans": [], "frontmatter": [],
-                "naming": [], "off_index": [], "memory_too_heavy": []}
+                "naming": [], "off_index": [], "memory_too_heavy": [],
+                # Counted as a real defect: a dirty engine silently blocks every
+                # future update. An unversioned trunk is reported too, but NOT
+                # counted — it is a legitimate choice, only an undisclosed one.
+                "engine_dirty": []}
 
     # Structural maps contribute the links they carry, without themselves becoming
     # notes subject to the frontmatter/naming invariants.
@@ -146,15 +150,47 @@ def main():
 
     # 7. drift git
     drift = []
+    trunk_versionne = True
     try:
         r = subprocess.run(["git", "-C", BRAIN, "status", "--porcelain"],
                            capture_output=True, text=True, timeout=10)
         drift = [l for l in r.stdout.splitlines() if l.strip()]
+        trunk_versionne = r.returncode == 0
     except Exception:
         pass
 
+    # 8. THE TWO BLIND SPOTS THIS DIAGNOSTIC USED TO HAVE (reported 2026-08-16,
+    #    Maissane Lagsir). Both were invisible precisely when they mattered, and
+    #    `brain doctor` is the output users are asked to paste into a bug report.
+    #
+    #    (a) THE ENGINE'S OWN WORKTREE. The gardening agents reach engine files
+    #        through the symlinks mounted in the trunk, and dirty the engine repo.
+    #        `cbrain/update.sh` then refuses to update a dirty engine — so the user
+    #        silently falls behind for ever. Doctor looked only at the TRUNK, came
+    #        back fully green, and could not see the one thing that was stuck.
+    #
+    #    (b) AN UNVERSIONED TRUNK. `hooks/commit_par_zone.py` treats it as "the
+    #        normal case: nobody ran git init" and returns quietly. Consequence:
+    #        the per-zone auto-save runs at the end of every session and saves
+    #        NOTHING. Observed on a real install: three days, 23 notes, no history,
+    #        no way back if an agent overwrites a note. It is a legitimate choice,
+    #        but it must be a CHOICE — not a silent default nobody was told about.
+    moteur_sale = []
+    engine = os.path.realpath(os.path.expanduser("~/.c-brain/engine"))
+    if os.path.isdir(engine) and os.path.realpath(engine) != BRAIN:
+        try:
+            r = subprocess.run(["git", "-C", engine, "status", "--porcelain",
+                                "--untracked-files=no"],
+                               capture_output=True, text=True, timeout=10)
+            moteur_sale = [l for l in r.stdout.splitlines() if l.strip()]
+        except Exception:
+            pass
+
+    problems["engine_dirty"] = [l.split()[-1] for l in moteur_sale]
+
     total = sum(len(v) for v in problems.values())
     report = {"ok": total == 0, "total": total, "notes": len(checked_files),
+              "trunk_versioned": trunk_versionne,
               "links": len(all_links), "memory_bytes": memory_bytes,
               "drift_git": len(drift), **problems}
 
@@ -189,7 +225,25 @@ def main():
         for k, lab in labels.items():
             if problems[k]:
                 print(f"  ⚠️  {lab} ({len(problems[k])}): " + ", ".join(map(str, problems[k][:12])))
-        if report["ok"]:
+
+        # The engine is a different repository. Its dirt is not a tidiness issue:
+        # it is what stops updates from ever arriving, without saying so.
+        if problems["engine_dirty"]:
+            print(f"  ⚠️  Engine modified ({len(problems['engine_dirty'])}): "
+                  + ", ".join(problems["engine_dirty"][:8]))
+            print("      → this BLOCKS every future update (update.sh refuses a dirty engine).")
+            print("      → if a gardening agent did it, it is not your work:")
+            print("        git -C ~/.c-brain/engine checkout -- .")
+
+        # Advisory, never counted: nothing is broken, but a feature the user believes
+        # is running is in fact saving nothing.
+        if not trunk_versionne:
+            print("  ℹ️  Trunk not under git — per-zone auto-save is INERT.")
+            print("      It runs at the end of every session and saves nothing:")
+            print("      no history, no way back if an agent overwrites a note.")
+            print("      → turn it on:  git -C ~/.c-brain/trunk init")
+
+        if report["ok"] and trunk_versionne:
             print("  Nothing to report — the tree is consistent.")
 
     sys.exit(0 if report["ok"] else 1)
