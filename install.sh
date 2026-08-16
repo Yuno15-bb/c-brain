@@ -129,13 +129,18 @@ run mkdir -p "$TRUNK/state" "$TRUNK/sessions/archive"
 
 # Rattrapage des fichiers PRODUIT du tronc, sur une mise à jour.
 # Un tronc existant n'est jamais écrasé — c'est le savoir de l'utilisateur. Mais
-# tout ce qui vit dans le tronc n'est pas du savoir : `meta/familles.json` est un
-# REGISTRE livré avec le moteur, lu sous `$TRUNK/meta/` par brain_recall.py,
-# brain_doctor.py et index_lecons.py. Sans ce rattrapage, une mise à jour livrait
-# le code qui le lit SANS le fichier qu'il lit — rappel dégradé, en silence.
-# Copié seulement s'il MANQUE : jamais par-dessus des familles que l'utilisateur
-# aurait ajoutées aux siennes.
-for f in meta/familles.json; do
+# tout ce qui vit dans le tronc n'est pas du savoir. Deux fichiers sont des
+# RÉGLAGES livrés avec le moteur, lus sous `$TRUNK/` et non sous le moteur :
+#   · `meta/familles.json`  — le registre des familles thématiques, lu par
+#     brain_recall.py, brain_doctor.py et index_lecons.py ;
+#   · `config/ranking.json` — les poids du classement du rappel (ADR-0007), lus
+#     par brain_recall.py.
+# Sans ce rattrapage, une mise à jour livre le code qui les lit SANS les fichiers
+# qu'il lit. Le premier dégradait le rappel en silence ; le second est plus
+# sournois encore — brain_recall.py retombe sur des défauts identiques, donc
+# tout marche, et l'utilisateur n'a simplement jamais le réglage annoncé.
+# Copiés seulement s'ils MANQUENT : jamais par-dessus ce que l'utilisateur a réglé.
+for f in meta/familles.json config/ranking.json; do
   if [ -f "$ENGINE/skeleton/$f" ] && [ ! -f "$TRUNK/$f" ]; then
     run mkdir -p "$TRUNK/$(dirname "$f")"
     run cp "$ENGINE/skeleton/$f" "$TRUNK/$f"

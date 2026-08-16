@@ -1,0 +1,35 @@
+{
+  "_lisez_moi": "Les poids du classement du rappel, sortis du code le 2026-08-15. Jusqu'ici ils vivaient en dur dans hooks/brain_recall.py : personne ne pouvait les lire sans lire le moteur, et aucun résultat ne pouvait dire d'où venait son score. RIEN N'A CHANGÉ DE COMPORTEMENT en les sortant — les valeurs ci-dessous sont exactement celles qui étaient en dur, et tests/golden_recall.py le vérifie. JSON et pas TOML : le python3 système est en 3.9, sans tomllib, et le Brain tient à sa règle zéro dépendance (cf. meta/decisions/adr-0001-bm25-reste-le-moteur-de-rappel.md). Même convention que meta/familles.json. Si ce fichier disparaît, le rappel repart sur ces mêmes valeurs par défaut : il ne peut pas tomber en panne à cause de sa configuration.",
+
+  "_avant_de_toucher_a_un_poids": "python3 tests/golden_recall.py --check AVANT, la modification, puis APRÈS. Un poids qui gagne sur une requête et casse quinze autres est le défaut que ce garde-fou existe pour attraper. Si la référence doit bouger, ça se décide et ça s'écrit — ça ne se contourne pas en éditant _baseline.",
+
+  "version": "ranking-v1",
+
+  "index": {
+    "_pourquoi": "Poids appliqués au TEXTE INDEXÉ, pas au score : le nom et la description sont répétés N fois dans le document tokenisé. ⚠️ Toucher à cette section change l'index, donc invalide le cache — c'est voulu et automatique (config/ranking.json entre dans l'empreinte de _fingerprint).",
+    "poids_nom": 3,
+    "poids_description": 3,
+    "poids_pont_familles": 1,
+    "_pourquoi_le_pont_pese_1": "Mesuré le 2026-08-14 : à ×2, une fiche qui HÉRITE d'un mot par sa famille passe devant une fiche qui l'ÉCRIT dans sa description. Le pont rattrape ce que les mots ratent, il ne couvre jamais ce qu'ils trouvent. Cf. meta/decisions/adr-0002-familles-thematiques-second-axe.md"
+  },
+
+  "bm25": {
+    "_pourquoi": "Paramètres Okapi BM25 standards. k1 = saturation de la fréquence d'un terme, b = force de la normalisation par la longueur du document. Jamais réglés spécifiquement pour ce corpus — ce sont les valeurs de référence de la littérature.",
+    "k1": 1.5,
+    "b": 0.75
+  },
+
+  "utilite": {
+    "_pourquoi": "Multiplicateur d'usage : score × (1 + alpha × log(1 + hits)), où hits = fiche suggérée PUIS réellement ouverte dans la même session. Logarithmique — le 1er succès pèse beaucoup, le 10e presque plus.",
+    "alpha": 0.2,
+    "_pourquoi_0_2": "MESURÉ, pas choisi. Part du top-3 occupée par des fiches à historique, sur 10 requêtes : alpha=0 → 3/30 · 0,2 → 8/30 · 0,5 → 12/30 · 1,0 → 15/30. Au-delà de ~0,3 l'historique DICTE le classement et le lexical n'est plus le juge. 0,2 = l'usage départage sans dominer. Cf. meta/decisions/adr-0003-feedback-utilite-alpha-0-2.md"
+  },
+
+  "exploration": {
+    "_pourquoi": "Places réservées aux fiches peu vues, pour casser la boucle auto-renforçante que le multiplicateur d'utilité crée mécaniquement. ⚠️ INDISSOCIABLE de utilite.alpha : mettre alpha > 0 sans exploration EST le défaut, pas la fonctionnalité. Cf. meta/decisions/adr-0004-exploration-une-place-sur-trois.md",
+    "denominateur": 3,
+    "_denominateur": "1 place sur N. À 3 et k=3, une place sur trois. Le quota des systèmes de recommandation (5-10 %) serait NUL ici : sur k=3, 5 % arrondit à zéro et la règle serait décorative.",
+    "seuil_peu_proposee": 3,
+    "_seuil": "En dessous de ce nombre de suggestions, une fiche est « peu vue » et a droit à une place d'exploration."
+  }
+}

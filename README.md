@@ -38,7 +38,7 @@ historique de conversation, qui ne fait que s'allonger.
 | 🕰️ **Il connaît son âge** | les fiches jamais revérifiées entrent dans une file de revue, datée par l'historique git |
 | 🤖 **8 agents** | ils distillent, rangent, relient, contestent, synthétisent, élaguent, réparent, surveillent la machine |
 | 🔁 **Boucle fermée** | fin de session → archivage → distillation → rangement, sans rien demander |
-| ⬆️ **Mises à jour** | le moteur se met à jour ; **tes fiches ne sont jamais touchées** |
+| ⬆️ **Mises à jour** | le moteur s'actualise **tout seul** à chaque session ; **tes fiches ne sont jamais touchées** |
 
 **Et deux façons de le regarder**, qui sont des extensions et s'installent à
 part — `./install.sh --core-only` laisse les deux de côté :
@@ -158,8 +158,12 @@ touche jamais (`--no-shortcut` si tu n'en veux pas).
   lances lisent des fiches entières. Les deux partent chez ton fournisseur de
   modèle, comme le reste de ton message. [`SECURITY.md`](SECURITY.md) dit
   précisément où passe la ligne.
-- **Ça n'installe rien tout seul.** Une nouvelle version est *signalée* ; tu
-  lances `brain update` quand ça t'arrange.
+- **Ça se met à jour tout seul, et il faut le savoir.** Chaque démarrage de
+  session installe la dernière version publiée, en arrière-plan — donc du code
+  venu du dépôt tourne chez toi sans que tu l'aies demandé. Le tronc n'est
+  jamais touché, une version dont le selftest est rouge est défaite
+  automatiquement, et `brain update --auto-off` rend le comportement d'avant
+  (signaler sans installer).
 - **Ça ne livre aucun contenu.** Ton arbre démarre vide — voir
   [`skills/README.md`](skills/README.md) pour la philosophie : on transmet la
   méthode, pas le vécu de quelqu'un d'autre.
@@ -214,6 +218,7 @@ brain review          audit global du tronc
 brain next            tes points de reprise
 brain selftest        vérifier l'installation
 brain update          mettre à jour le moteur  (--check · --rollback)
+                      automatique à chaque session : --auto-off / --auto-on
 brain version         version installée
 ```
 

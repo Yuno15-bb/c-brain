@@ -13,7 +13,7 @@
 #
 # Ce que ça NE fait PAS : lire, modifier ou envoyer une seule de tes fiches.
 #
-# Usage : brain update [--check] [--rollback] [--force]
+# Usage : brain update [--check] [--rollback] [--force] [--auto]
 set -euo pipefail
 
 CB="$HOME/.c-brain"
@@ -23,16 +23,92 @@ APPLIED="$STATE/migrations-appliquees.txt"
 PREVIOUS="$STATE/version-precedente"
 mkdir -p "$STATE"
 
+# ─── Mise à jour automatique ──────────────────────────────────────────────
+# Fichiers d'état partagés avec `cbrain/check_update.py`, qui déclenche le mode
+# `--auto` au démarrage de session.
+AUTO=0
+VERROU="$STATE/auto-update.lock"          # un dossier : `mkdir` est atomique
+JOURNAL="$STATE/auto-update.log"
+RESULTAT="$STATE/last-auto-update"        # lu, affiché puis effacé par le hook
+ARRET_AUTO="$STATE/auto-update-off"
+
 MODE="update"
 for a in "$@"; do
   case "$a" in
     --check) MODE="check" ;;
     --rollback) MODE="rollback" ;;
     --force) MODE="force" ;;
+    --auto) AUTO=1; MODE="update" ;;
+    --auto-off) MODE="auto-off" ;;
+    --auto-on)  MODE="auto-on" ;;
     --passer-en-anglais|--switch-en) MODE="switch" ;;
-    *) echo "Usage : brain update [--check] [--rollback] [--force] [--passer-en-anglais]"; exit 1 ;;
+    *) echo "Usage : brain update [--check] [--rollback] [--force] [--auto|--auto-off|--auto-on] [--passer-en-anglais]"; exit 1 ;;
   esac
 done
+
+# ─── L'interrupteur ───────────────────────────────────────────────────────
+# Il vient AVANT tout le reste, exprès : couper l'automatique ne doit dépendre
+# ni du réseau, ni de l'état du dépôt, ni de rien qui puisse échouer. C'est la
+# seule commande de ce fichier qui doit marcher même quand tout va mal.
+if [ "$MODE" = "auto-off" ]; then
+  mkdir -p "$STATE"; : > "$ARRET_AUTO"
+  echo "✅ Mise à jour automatique COUPÉE."
+  echo "   Le démarrage de session signalera les nouvelles versions sans les installer."
+  echo "   Pour la remettre :  brain update --auto-on"
+  exit 0
+fi
+if [ "$MODE" = "auto-on" ]; then
+  rm -f "$ARRET_AUTO"
+  echo "✅ Mise à jour automatique REMISE."
+  echo "   Chaque démarrage de session installera la dernière version publiée."
+  exit 0
+fi
+
+# ─── Préambule du mode automatique ────────────────────────────────────────
+# POURQUOI CE MODE EXISTE. Jusqu'ici la mise à jour était un geste : le hook
+# signalait, l'utilisateur tapait `brain update`. Personne ne tapait. Le moteur
+# publié restait des semaines derrière celui de l'auteur, et le seul signe était
+# une ligne au démarrage qu'on apprend à ne plus lire.
+#
+# Ce que ça change côté sûreté, dit franchement : du code venu du dépôt distant
+# s'installe désormais SANS qu'on le demande. C'est un canal d'exécution. Trois
+# contreparties, non négociables :
+#   · `$ARRET_AUTO` (ou CBRAIN_NO_AUTO_UPDATE=1) rend le comportement d'avant —
+#     on signale, on n'applique pas. La porte de sortie existe AVANT la porte
+#     d'entrée.
+#   · le selftest décide. En automatique personne ne regarde l'écran : une mise
+#     à jour qui casse l'outil et le LAISSE cassé serait pire que pas de mise à
+#     jour du tout. Donc rouge = retour arrière immédiat, par le script.
+#   · rien ne bloque jamais une session — c'est le hook qui détache, ici on ne
+#     fait que travailler en silence dans un journal.
+if [ "$AUTO" = "1" ]; then
+  if [ -e "$ARRET_AUTO" ] || [ -n "${CBRAIN_NO_AUTO_UPDATE:-}" ]; then exit 0; fi
+
+  # Un verrou, parce que plusieurs sessions démarrent en même temps. `mkdir`
+  # échoue si le dossier existe : c'est le test-et-pose atomique du shell, là où
+  # `[ -f ] && touch` laisse une fenêtre entre les deux.
+  # Verrou périmé : une machine qui s'endort ou une session tuée en plein milieu
+  # laisserait le dossier pour toujours, et l'auto-update mourrait en silence —
+  # exactement le genre de panne muette qu'on cherche à éviter.
+  if ! mkdir "$VERROU" 2>/dev/null; then
+    if [ -n "$(find "$VERROU" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
+      rm -rf "$VERROU"; mkdir "$VERROU" 2>/dev/null || exit 0
+    else
+      exit 0                      # une autre session s'en occupe déjà
+    fi
+  fi
+  trap 'rm -rf "$VERROU"' EXIT INT TERM
+
+  # Tout ce que le script raconte part au journal : en automatique il n'y a pas
+  # d'écran. Le journal est écrasé à chaque passage — on veut la dernière panne
+  # lisible, pas un fichier qui grossit sans que personne n'y revienne.
+  exec >"$JOURNAL" 2>&1
+  echo "=== auto-update $(date '+%Y-%m-%d %H:%M:%S') ==="
+fi
+
+# Écrit le compte rendu que le hook affichera à la session SUIVANTE. Une seule
+# ligne, deux champs : l'état, puis la version concernée.
+resultat() { [ "$AUTO" = "1" ] && printf '%s\t%s\n' "$1" "$2" > "$RESULTAT"; return 0; }
 
 say()  { echo "  $*"; }
 warn() { echo "  ⚠️  $*"; }
@@ -215,6 +291,10 @@ fi
 if ! git -C "$ENGINE" diff --quiet || ! git -C "$ENGINE" diff --cached --quiet; then
   echo "❌ Le moteur a des modifications locales non commitées."
   echo "   Range-les (git stash / git commit) avant de mettre à jour."
+  # En automatique, ce n'est pas une panne : c'est un refus délibéré d'écraser le
+  # travail de quelqu'un. Mais il doit se VOIR, sinon l'installation décroche
+  # version après version pendant que le démarrage reste silencieux.
+  resultat "bloquee" "$NEW"
   exit 1
 fi
 
@@ -245,12 +325,47 @@ done
 say "réinstallation (idempotente)…"
 bash "$ENGINE/install.sh" >/tmp/c-brain-update.log 2>&1 || warn "install.sh a signalé un problème (/tmp/c-brain-update.log)"
 
+# ⚠ REMETTRE LE MOTEUR PROPRE — sans ça, `brain update` marche UNE FOIS.
+#
+# Mesuré le 2026-08-16 : `install.sh` lance `npm install` dans la capsule, et npm
+# RÉÉCRIT `capsule/package-lock.json`. Le moteur se retrouve avec une
+# modification non commitée… que le contrôle ci-dessus refuse. La deuxième mise
+# à jour répondait donc « ❌ modifications locales » et TOUTES les suivantes
+# aussi. Panne définitive, sur une machine où personne ne soupçonne d'avoir
+# touché quoi que ce soit. La cause de fond (lock incohérent avec package.json)
+# est corrigée dans rules.json ; cette ligne est le filet, pour le prochain
+# fichier généré qu'on n'a pas vu venir.
+#
+# Restaurer est SANS RISQUE ici, et c'est le contrôle plus haut qui le garantit :
+# il a exigé un arbre propre AVANT de commencer. Tout ce qui est sale à cet
+# instant a donc été produit par l'installeur lui-même, jamais par l'utilisateur.
+# `checkout -- .` ne touche que les fichiers SUIVIS : `node_modules/` et le reste
+# du non-suivi restent en place.
+if ! git -C "$ENGINE" diff --quiet; then
+  say "l'installeur a modifié des fichiers du moteur — remise à l'état de $NEW"
+  git -C "$ENGINE" checkout -- . 2>/dev/null || warn "restauration partielle du moteur"
+fi
+
 if bash "$HOME/.c-brain/trunk/hooks/selftest.sh" >/tmp/c-brain-update-selftest.log 2>&1; then
   echo
   echo "✅ Mis à jour en $NEW — selftest vert. Tes fiches n'ont pas été touchées."
+  resultat "ok" "$NEW"
 else
   echo
   warn "selftest en ÉCHEC après mise à jour (/tmp/c-brain-update-selftest.log)"
-  warn "Retour arrière conseillé :  brain update --rollback"
+  if [ "$AUTO" = "1" ]; then
+    # ⚠ LA DIFFÉRENCE ENTRE LES DEUX MODES EST ICI, et c'est la seule qui compte.
+    # À la main, conseiller le retour arrière suffit : quelqu'un lit l'écran.
+    # En automatique, ce conseil ne serait lu par personne — l'outil resterait
+    # cassé jusqu'à ce que l'utilisateur s'en aperçoive tout seul, sans savoir
+    # que c'est une mise à jour qu'il n'a pas demandée qui l'a cassé. Donc on
+    # revient, tout de suite, et on le DIT à la session suivante.
+    warn "mode automatique : retour à $CUR"
+    git -C "$ENGINE" checkout -q "$CUR" || true
+    bash "$ENGINE/install.sh" >/dev/null 2>&1 || warn "install.sh a signalé un problème au retour"
+    resultat "retour-arriere" "$NEW"
+  else
+    warn "Retour arrière conseillé :  brain update --rollback"
+  fi
   exit 1
 fi

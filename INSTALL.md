@@ -51,8 +51,9 @@ Il ne supprime rien, n'envoie rien sur le réseau, et ne lit aucune de tes donn�
 ## Dépôt privé : s'authentifier une fois
 
 C Brain est distribué sur invitation. Sans identifiants git, le clone **et** les
-mises à jour échouent — `brain update` te dira alors « impossible de récupérer
-les versions distantes », sans jamais bloquer ta session.
+mises à jour échouent — la mise à jour automatique note alors « impossible de
+récupérer les versions distantes » dans `~/.c-brain/state/auto-update.log` et
+réessaie à la session suivante, sans jamais bloquer ta session.
 
 Le plus simple, une seule fois :
 

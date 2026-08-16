@@ -17,7 +17,21 @@ risque :
   que rien ne tourne sans surveillance.
 - **Il ne fait aucun appel réseau à part `git pull`.** Zéro télémétrie, zéro
   analytics, zéro rapport de plantage, zéro appel maison à l'installation.
-  `brain update` est annoncé, jamais automatique.
+- **Il se met à jour tout seul — dis-le-toi avant d'installer.** Depuis
+  v1.28.0, chaque démarrage de session récupère les tags publiés et installe la
+  dernière version, en arrière-plan. C'est du **code distant qui s'exécute sur
+  ta machine sans que tu l'aies demandé** : c'est le compromis le plus lourd de
+  ce paquet, et il est délibéré — un correctif que personne n'installe ne
+  corrige rien. Ce qui le borne :
+  - la mise à jour suit les **tags publiés**, jamais une branche de travail ;
+  - le **selftest décide** : rouge, la version d'avant est remise
+    automatiquement, et la session suivante te le dit ;
+  - le **tronc n'est jamais touché** — seul `~/.c-brain/engine` est remplacé ;
+  - `brain update --auto-off` rend le comportement d'avant (on signale, on
+    n'installe pas). `--auto-on` le remet.
+
+  Si tu veux inspecter avant que ça tourne, coupe l'automatique **dès
+  l'installation** : `brain update --auto-off`.
 - **Il lit tes fiches en local, et c'est comme ça qu'il marche.** Le rappel,
   l'index, le graphe et les agents ouvrent tous les fichiers — on ne peut pas
   retrouver une fiche sans en lire une. Ça se passe sur ta machine, et rien ne

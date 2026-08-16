@@ -209,6 +209,19 @@ def _fingerprint(files):
             h.update(b"\0familles\0"); h.update(f.read())
     except OSError:
         h.update(b"\0familles\0absent")
+    # Même raison pour la configuration : sa section `index` (poids du nom, de la
+    # description, du pont) décide du TEXTE tokenisé. Sans cette ligne, changer un poids
+    # relirait le cache d'avant et la modification serait ignorée en silence — exactement
+    # l'incident du 14/08 ci-dessus. On hache le fichier ENTIER plutôt que la seule section
+    # `index` : découper le hachage sur une partie du contenu est le genre de finesse qui
+    # se désynchronise du jour où quelqu'un déplace une clé. Le coût est une reconstruction
+    # d'index (~0,4 s) après une retouche de poids qui n'en avait pas besoin. C'est le bon
+    # sens de l'erreur : reconstruire pour rien est gratuit, servir un index périmé ne l'est pas.
+    try:
+        with open(os.path.join(BRAIN, "config", "ranking.json"), "rb") as f:
+            h.update(b"\0ranking\0"); h.update(f.read())
+    except OSError:
+        h.update(b"\0ranking\0absent")
     return h.hexdigest()
 
 
@@ -220,7 +233,61 @@ def _fingerprint(files):
 #   v4 (2026-08-14) : le texte indexé inclut le pont de vocabulaire des familles thématiques.
 #   v5 (2026-08-14) : le registre des familles entre dans l'empreinte (cf. _fingerprint) —
 #       sans ça, toute retouche de lexique était ignorée en silence.
-_CACHE_VERSION = 5
+#   v6 (2026-08-15) : les poids d'indexation viennent de config/ranking.json, qui entre
+#       lui aussi dans l'empreinte. Les VALEURS n'ont pas bougé (3/3/1) : un cache v5 et un
+#       cache v6 contiennent les mêmes documents. On incrémente quand même, parce qu'un
+#       numéro de version qui ne bouge pas quand la SOURCE des poids change est un piège
+#       posé pour la prochaine fois.
+_CACHE_VERSION = 6
+
+
+# ---------------------------------------------------------------- configuration du classement
+# POURQUOI CE BLOC. Les poids vivaient en dur ici : personne ne pouvait les lire sans lire
+# le moteur, et aucun résultat ne pouvait dire d'où venait son score. Ils sortent dans
+# config/ranking.json — À COMPORTEMENT IDENTIQUE, c'est la condition de l'opération, et
+# tests/golden_recall.py la vérifie.
+#
+# Les défauts ci-dessous ne sont pas décoratifs : ce sont EXACTEMENT les anciennes valeurs
+# en dur. Fichier absent, illisible ou tronqué → le rappel classe comme avant. Une
+# configuration ne doit jamais pouvoir mettre le rappel en panne ; au pire elle ne s'applique pas.
+_DEFAUTS = {
+    "version": "ranking-v1-defaut",
+    "index": {"poids_nom": 3, "poids_description": 3, "poids_pont_familles": 1},
+    "bm25": {"k1": 1.5, "b": 0.75},
+    "utilite": {"alpha": 0.2},
+    "exploration": {"denominateur": 3, "seuil_peu_proposee": 3},
+}
+_CONFIG_CACHE = None
+
+
+def config():
+    """Poids du classement, fusionnés sur les défauts. Chargés une fois par processus.
+
+    Fusion CLÉ PAR CLÉ et non remplacement de section : un fichier qui ne redéfinit que
+    `utilite.alpha` ne doit pas faire disparaître `bm25.k1`. Les clés commençant par `_`
+    sont de la documentation (le fichier est fait pour être lu par un humain), jamais des
+    paramètres — elles sont ignorées ici.
+    """
+    global _CONFIG_CACHE
+    if _CONFIG_CACHE is not None:
+        return _CONFIG_CACHE
+    cfg = {k: (dict(v) if isinstance(v, dict) else v) for k, v in _DEFAUTS.items()}
+    try:
+        with open(os.path.join(BRAIN, "config", "ranking.json"), encoding="utf-8") as f:
+            brut = json.load(f)
+        for section, valeurs in brut.items():
+            if section.startswith("_"):
+                continue
+            if isinstance(valeurs, dict) and isinstance(cfg.get(section), dict):
+                for cle, val in valeurs.items():
+                    if not cle.startswith("_") and isinstance(val, (int, float)):
+                        cfg[section][cle] = val
+            elif not isinstance(valeurs, dict):
+                cfg[section] = valeurs
+    except Exception:
+        pass        # absent / illisible / cassé : on classe avec les défauts, sans bruit
+    _CONFIG_CACHE = cfg
+    return cfg
 
 
 def load_corpus():
@@ -307,13 +374,20 @@ def _read_corpus(files):
         # perdait `une-assertion-negative…` au profit de fiches qui ne parlent pas de ça.
         # Le pont doit rattraper ce que les mots ratent, jamais couvrir ce qu'ils trouvent.
         tags = _fm_tags(fm.group(1) if fm else "")
+        cfg_idx = config()["index"]
         pont = ""
         for t in tags:
             f = _FAMILLES.get(t)
             if f:
                 pont += " " + f["titre"] + " " + " ".join(f["lexique"])
-        boosted = ((name.group(1) + " ") * 3 if name else "") + \
-                  ((desc.group(1) + " ") * 3 if desc else "") + pont + " " + body
+        pont = (pont + " ") * int(cfg_idx["poids_pont_familles"])
+        boosted = ((name.group(1) + " ") * int(cfg_idx["poids_nom"]) if name else "") + \
+                  ((desc.group(1) + " ") * int(cfg_idx["poids_description"]) if desc else "") + \
+                  pont + " " + body
+        # `mots_pont` sert UNIQUEMENT à --explain : savoir si une fiche doit sa place au
+        # pont de vocabulaire plutôt qu'à ses propres mots est la question qu'on se pose en
+        # premier quand un résultat surprend. Ce n'est pas un terme du score.
+        mots_pont = sorted(set(tokenize(pont)))
         docs.append({
             "path": rel,
             # succession : cette fiche est-elle un alias (redirectsTo) et/ou en
@@ -323,6 +397,7 @@ def _read_corpus(files):
             "name": name.group(1).strip() if name else os.path.basename(rel)[:-3],
             "desc": desc.group(1).strip() if desc else "",
             "tokens": tokenize(boosted),
+            "mots_pont": mots_pont,
         })
     return docs
 
@@ -338,8 +413,10 @@ def _read_corpus(files):
 # historique : α=0 → 3/30 · 0,2 → 8/30 · 0,5 → 12/30 · 1,0 → 15/30 (et une seule requête
 # sur dix garde son top-3 d'origine). Au-delà de ~0,3 l'historique dicte le classement et
 # le lexical n'est plus le juge. 0,2 = l'usage départage sans dominer.
-ALPHA = 0.2
-SEUIL_PEU_PROPOSEE = 3      # en dessous, une fiche est « peu vue » et a droit à l'exploration
+# Les deux valeurs vivent maintenant dans config/ranking.json, avec leur justification.
+# Ces noms restent pour ne pas casser ce qui les importe (tests, sondes, banc).
+ALPHA = config()["utilite"]["alpha"]
+SEUIL_PEU_PROPOSEE = config()["exploration"]["seuil_peu_proposee"]
 _UTILITE_CACHE = None
 
 
@@ -397,7 +474,10 @@ def _perimees(docs):
 
 class BM25:
     """Backend lexical v0 — Okapi BM25. Remplaçable par un backend embeddings."""
-    def __init__(self, docs, k1=1.5, b=0.75):
+    def __init__(self, docs, k1=None, b=None):
+        cfg = config()["bm25"]
+        k1 = cfg["k1"] if k1 is None else k1
+        b = cfg["b"] if b is None else b
         self.docs, self.k1, self.b = docs, k1, b
         self.N = len(docs)
         self.dl = [len(d["tokens"]) for d in docs]
@@ -409,50 +489,156 @@ class BM25:
                 df[t] += 1
         self.idf = {t: math.log(1 + (self.N - n + 0.5) / (n + 0.5)) for t, n in df.items()}
 
-    def search(self, query, k=5, feedback=True):
+    def _contrib(self, i, t):
+        """Contribution BM25 du terme `t` au document `i`.
+
+        LA FORMULE N'EST ÉCRITE QU'ICI. Le classement servi et l'explication du score
+        appellent la même fonction : il est donc impossible que le rappel explique un
+        calcul et en serve un autre. Deux écritures de la même formule divergent toujours,
+        et la divergence ne se voit pas — cf. [[un-detecteur-partage-par-concept]].
+        """
+        f = self.tf[i].get(t, 0)
+        if not f:
+            return 0.0
+        denom = f + self.k1 * (1 - self.b + self.b * self.dl[i] / (self.avgdl or 1))
+        return self.idf.get(t, 0) * (f * (self.k1 + 1)) / denom
+
+    def classer(self, query, k=5, feedback=True):
+        """Le classement AVEC sa décomposition — la source unique de search() et de --explain.
+
+        Retourne une liste de dicts ordonnée, un par résultat retenu :
+          doc · bm25 · detail_bm25 · hits · facteur_utilite · score · exploration · rang
+
+        `search()` n'en garde que (score, doc) pour ne rien casser chez ses appelants.
+        """
         q = tokenize(query)
         scored = []
         for i, d in enumerate(self.docs):
             s = 0.0
             for t in q:
-                if t not in self.tf[i]:
-                    continue
-                f = self.tf[i][t]
-                denom = f + self.k1 * (1 - self.b + self.b * self.dl[i] / (self.avgdl or 1))
-                s += self.idf.get(t, 0) * (f * (self.k1 + 1)) / denom
+                s += self._contrib(i, t)
             if s > 0:
-                scored.append((s, d))
+                scored.append((s, d, i))
         if not scored:
             return []
         morts = _perimees(self.docs)
         if morts:
-            vivants = [(sc, d) for sc, d in scored if d["name"] not in morts]
+            vivants = [t for t in scored if t[1]["name"] not in morts]
             scored = vivants or scored        # jamais de résultat vide à cause du filtre
         util = _utilite() if feedback else {}
-        ajuste = [(s * (1 + ALPHA * math.log(1 + util.get(d["path"], {}).get("hit", 0))), d)
-                  for s, d in scored]
-        ajuste.sort(key=lambda x: x[0], reverse=True)
+        alpha = config()["utilite"]["alpha"]
+        ajuste = []
+        for s, d, i in scored:
+            hits = util.get(d["path"], {}).get("hit", 0)
+            facteur = 1 + alpha * math.log(1 + hits)
+            ajuste.append({"doc": d, "idx": i, "bm25": s, "hits": hits,
+                           "facteur_utilite": facteur, "score": s * facteur,
+                           "exploration": False})
+        ajuste.sort(key=lambda r: r["score"], reverse=True)
+
+        def finir(retenues):
+            """Détail par terme calculé UNIQUEMENT sur les résultats retenus.
+
+            Le faire sur les centaines de fiches qui marquent un point coûterait à chaque
+            prompt pour une information que personne ne lit. C'est le même `_contrib`, donc
+            le détail ne peut pas raconter autre chose que le score.
+            """
+            for rang, r in enumerate(retenues, start=1):
+                r["rang"] = rang
+                r["detail_bm25"] = {t: round(self._contrib(r["idx"], t), 4)
+                                    for t in q if self._contrib(r["idx"], t) > 0}
+            return retenues
+
         if not util:
-            return ajuste[:k]
+            return finir(ajuste[:k])
 
         # QUOTA D'EXPLORATION — 1 place sur 3. Sans lui, la boucle s'auto-renforce : une
         # fiche déjà ouverte remonte, donc elle est plus souvent proposée, donc plus
         # souvent ouverte. Les fiches rares mais justes disparaîtraient du rappel sans
         # que rien ne le signale. On réserve donc des places aux PEU proposées.
-        n_explo = k // 3
+        cfg_ex = config()["exploration"]
+        n_explo = k // int(cfg_ex["denominateur"])
+        seuil = cfg_ex["seuil_peu_proposee"]
         retenues = ajuste[:k - n_explo]
-        deja = {id(d) for _, d in retenues}
-        neuves = [(s, d) for s, d in ajuste[k - n_explo:]
-                  if id(d) not in deja
-                  and util.get(d["path"], {}).get("sugg", 0) < SEUIL_PEU_PROPOSEE]
-        for s, d in neuves[:n_explo]:
-            retenues.append((s, d)); deja.add(id(d))
-        for s, d in ajuste[k - n_explo:]:          # pas assez de neuves : on complète normalement
+        deja = {id(r["doc"]) for r in retenues}
+        neuves = [r for r in ajuste[k - n_explo:]
+                  if id(r["doc"]) not in deja
+                  and util.get(r["doc"]["path"], {}).get("sugg", 0) < seuil]
+        for r in neuves[:n_explo]:
+            r["exploration"] = True               # cette place est due au quota, pas au score
+            retenues.append(r); deja.add(id(r["doc"]))
+        for r in ajuste[k - n_explo:]:            # pas assez de neuves : on complète normalement
             if len(retenues) >= k:
                 break
-            if id(d) not in deja:
-                retenues.append((s, d)); deja.add(id(d))
-        return retenues[:k]
+            if id(r["doc"]) not in deja:
+                retenues.append(r); deja.add(id(r["doc"]))
+        return finir(retenues[:k])
+
+    def search(self, query, k=5, feedback=True):
+        """(score, doc) — la forme historique, pour ne rien casser chez les appelants."""
+        return [(r["score"], r["doc"]) for r in self.classer(query, k, feedback)]
+
+
+def _imprimer_explication(records, query, as_json):
+    """« Pourquoi cette fiche, et pourquoi à cette place ? »
+
+    HONNÊTETÉ DU SCHÉMA. On n'invente pas de composantes qui n'existent pas dans le
+    calcul. Aujourd'hui le score est MULTIPLICATIF (bm25 × facteur d'utilité), pas une
+    somme de bonus — donc `utilite` est publié comme le DELTA qu'il ajoute réellement,
+    et sa nature est nommée. De même :
+      • le pont des familles n'est PAS un terme du score : il est fondu dans le texte
+        indexé, donc dans `bm25`. On publie les mots de la requête qui viennent de lui,
+        ce qui répond à la vraie question (« cette fiche doit-elle sa place à ses propres
+        mots ou à ceux de sa famille ? ») sans fabriquer un chiffre.
+      • l'exploration n'est PAS un bonus numérique : c'est une PLACE réservée. On publie
+        un booléen, parce que c'est ce que c'est.
+    Publier `"family": 0.70` alors que rien dans le code ne calcule 0,70 serait une
+    explication fausse — pire qu'une absence d'explication, parce qu'on s'y fierait.
+    """
+    cfg = config()
+    sortie = []
+    for r in records:
+        d = r["doc"]
+        pont = sorted(set(d.get("mots_pont") or []) & set(r["detail_bm25"]))
+        sortie.append({
+            "fiche": d["name"],
+            "chemin": d["path"],
+            "rang": r["rang"],
+            "score_final": round(r["score"], 4),
+            "composantes": {
+                "bm25": round(r["bm25"], 4),
+                "utilite": round(r["score"] - r["bm25"], 4),
+            },
+            "nature": {
+                "utilite": f"MULTIPLICATIF ×{r['facteur_utilite']:.4f} "
+                           f"(alpha={cfg['utilite']['alpha']}, hits={r['hits']})",
+                "pont_familles": "fondu dans bm25, jamais un terme séparé",
+                "exploration": "place réservée, jamais un bonus de score",
+            },
+            "detail_bm25": dict(sorted(r["detail_bm25"].items(),
+                                       key=lambda kv: kv[1], reverse=True)),
+            "mots_venus_du_pont": pont,
+            "place_exploration": r["exploration"],
+            "config_version": cfg.get("version"),
+        })
+    if as_json:
+        print(json.dumps(sortie, ensure_ascii=False, indent=2))
+        return
+    print(f"🔬 Décomposition du score pour « {query} »\n")
+    for e in sortie:
+        drapeau = "  ⟵ place d'exploration" if e["place_exploration"] else ""
+        print(f"  #{e['rang']}  [{e['score_final']:6.2f}] {e['fiche']}{drapeau}")
+        c = e["composantes"]
+        print(f"        bm25 {c['bm25']:6.2f}   utilité {c['utilite']:+6.2f}"
+              f"   ({e['nature']['utilite']})")
+        if e["detail_bm25"]:
+            termes = "  ".join(f"{t} {v:.2f}" for t, v in list(e["detail_bm25"].items())[:6])
+            print(f"        termes : {termes}")
+        if e["mots_venus_du_pont"]:
+            print(f"        ⚠️  doit au pont des familles : {', '.join(e['mots_venus_du_pont'])}")
+        print()
+    print(f"  config : {sortie[0]['config_version'] if sortie else '—'}"
+          f"  (config/ranking.json)")
 
 
 def main():
@@ -472,6 +658,9 @@ def main():
     as_json = "--json" in args
     if as_json:
         args.remove("--json")
+    explain = "--explain" in args
+    if explain:
+        args.remove("--explain")
     k = 5
     if "-k" in args:
         i = args.index("-k")
@@ -481,7 +670,11 @@ def main():
             pass
     query = " ".join(args).strip()
     if not query:
-        print('Usage : brain_recall.py [-k N] [--json] "ta requête"'); sys.exit(1)
+        print('Usage : brain_recall.py [-k N] [--json] [--explain] "ta requête"'); sys.exit(1)
+
+    if explain:
+        _imprimer_explication(BM25(load_corpus()).classer(query, k), query, as_json)
+        return
 
     results = BM25(load_corpus()).search(query, k)
     if as_json:

@@ -1,0 +1,69 @@
+{
+  "_lisez_moi": "Le registre des SABOTAGES. Règle du dépôt depuis le 2026-08-16 : tout banc branché au pre-commit doit avoir ici la preuve qu'il sait rougir, avec le geste exact et le rouge observé. Un banc dont personne n'a vu le rouge n'est pas une barrière, c'est une décoration — et il passera au vert le jour où le mécanisme qu'il surveille deviendra inerte. cf. lessons/test-d-equivalence-vert-aussi-quand-le-code-est-inerte.md",
+  "_pourquoi_pas_execute_a_chaque_commit": "Plusieurs sabotages écrivent sur le disque (déposer un .md, modifier config/ranking.json). Les rejouer à chaque commit ferait courir un risque pour un gain nul : ce sont des PREUVES DATÉES, pas des tests. Ils se rejouent à la main quand on touche au banc concerné, ou quand on doute.",
+  "_en_json_pas_en_md": "tests/ est indexé par le rappel. Un registre en Markdown ici entrerait dans le corpus — l'invariant que tests/pas_de_fuite_evaluation.py fait respecter.",
+  "sabotages": [
+    {
+      "banc": "tests/golden_recall.py",
+      "surveille": "la qualité du classement du rappel sur le corpus réel",
+      "geste": "BM25 rendu sourd à la fréquence des termes : k1=0.01, b=0 (en mémoire, aucun fichier touché)",
+      "rouge_observe": "P@1 0.67 → 0.20 · P@3 0.80 → 0.27 · MRR 0.73 → 0.22 · exit 0 → 1",
+      "date": "2026-08-15"
+    },
+    {
+      "banc": "config/ranking.json (chemin d'influence du classement)",
+      "surveille": "que la configuration est réellement lue, et pas décorative",
+      "geste": "deux sabotages, un par chemin : alpha 0,2 → 0,9 (calcul) et poids_nom 3 → 9 (indexation, donc derrière le cache)",
+      "rouge_observe": "alpha : 29 requêtes sur 30 changent · poids_nom : 30 sur 30, ce qui prouve en plus que l'empreinte du cache prend la config",
+      "date": "2026-08-15",
+      "note": "Un sabotage PAR CHEMIN d'influence, jamais par fichier. Le second n'est pas un doublon du premier : il teste le seul chemin capable d'avaler une modification en silence."
+    },
+    {
+      "banc": "tests/provenance_invariants.py",
+      "surveille": "les invariants I1→I7 sur le frontmatter d'une fiche",
+      "geste": "réparation ciblée : chaque fixture en violation est réparée sur son SEUL défaut",
+      "rouge_observe": "V2, V3, V4, V6, V9 refusées → valides après réparation ; V7 cesse d'être refusée quand le parent passe de web à user_decision",
+      "date": "2026-08-16",
+      "note": "Prouve que chaque règle porte SON cas — aucune ne passe pour active pendant que sa voisine travaille."
+    },
+    {
+      "banc": "tests/authority_conflicts.py",
+      "surveille": "la résolution d'autorité entre deux connaissances contradictoires",
+      "geste": "--sans-scope et --scope-large : le domaine est ignoré ou élargi à tout le monde",
+      "rouge_observe": "conflict_resolution_accuracy 1.00 → 0.85 · authority_selection_accuracy 1.00 → 0.75 · scope_violation_rate 0.00 → 0.15 · exit 0 → 1",
+      "date": "2026-08-16",
+      "note": "⚠️ LE PREMIER SABOTAGE N'A PAS ROUGI. Sur les 11 cas d'origine, les poids de classe décidaient de tout et le scope était décoratif. Deux cas discriminants (C12, C13) ont été ajoutés, où le côté hors scope gagnerait sur les poids. C'est le jeu qui était faible, pas le résolveur."
+    },
+    {
+      "banc": "tests/pas_de_fuite_evaluation.py",
+      "surveille": "qu'aucune donnée d'évaluation n'entre dans le corpus récupérable",
+      "geste": "déposer un fichier .md dans tests/ — le geste exact que quelqu'un fera dans six mois",
+      "rouge_observe": "fichier détecté et nommé, exit 0 → 1 ; retiré → exit 0",
+      "date": "2026-08-16",
+      "note": "Le premier relevé lisait le code de sortie de `tail` à travers un pipe et annonçait exit 0 sous sabotage. Le contrôle était bon, l'instrument ne l'était pas."
+    },
+    {
+      "banc": "tests/propagation_provenance.py",
+      "surveille": "que la transformation ne blanchit pas une origine (I7)",
+      "geste": "--sans-propagation : la transformation repart d'une provenance neuve, comme le ferait un distillateur qui « range » sans conserver",
+      "rouge_observe": "4/4 chaînes conformes → 0/4 · exit 0 → 1 · trois symptômes distincts : kind promu, origine perdue, profondeur de chaîne à zéro",
+      "date": "2026-08-16"
+    },
+    {
+      "banc": "kind_effectif — source unique partagée (tests/provenance_invariants.py)",
+      "surveille": "que le résolveur d'autorité ET la propagation consomment la MÊME lecture de I7",
+      "geste": "remplacer kind_effectif par une constante ('internal_experience') et rejouer les deux bancs",
+      "rouge_observe": "résolveur 14/14 → 13/14 (C14 bascule en UNRESOLVED) · propagation 4/4 → 1/4",
+      "date": "2026-08-16",
+      "note": "⚠️ LE PREMIER PASSAGE N'A ROUGI QUE D'UN CÔTÉ : le résolveur restait à 13/13 parce que le filtre de scope et le bonus `validated` portaient tous ses cas — la fonction n'y était pas éprouvée. C14 a été ajouté (mêmes ingrédients, rôles inversés, aucun autre discriminant) pour que seule la lecture des `basis` puisse trancher. Un sabotage qui ne rougit que chez un consommateur ne prouve rien sur l'autre."
+    },
+    {
+      "banc": "tests/provenance_fiches.py",
+      "surveille": "la provenance sur les VRAIES fiches — déclarations valides partout, provenance exigée sur les fiches AJOUTÉES",
+      "geste": "deux gestes, un par règle : (1) un tronc jouet (BRAIN_HOME) où une fiche descend d'une fiche `web` et se déclare `internal_experience` ; (2) commiter une fiche neuve sans bloc provenance",
+      "rouge_observe": "(1) refusée avec « I7 : descend d'une fiche 'web' » — exit 1, puis exit 0 après retrait · (2) commit refusé, exit 1 ; la même fiche AVEC provenance passe, exit 0",
+      "date": "2026-08-16",
+      "note": "Le parent est lu SUR LE PARENT, sur disque : une fiche ne décide pas de l'origine dont elle descend. Le tronc jouet évite de créer de fausses fiches dans le tronc vivant pour tester le contrôle — même isolation par BRAIN_HOME que le banc de valeur."
+    }
+  ]
+}

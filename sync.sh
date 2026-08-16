@@ -73,7 +73,7 @@ MANIFEST="$DEST/.sync-manifest"
 empreinte_source() {
   {
     shasum -a 256 "$SRC/brain" "$CLAUDE_DIR/statusline.py" \
-                  "$SRC/meta/familles.json" 2>/dev/null
+                  "$SRC/meta/familles.json" "$SRC/config/ranking.json" 2>/dev/null
     find "$SRC/hooks" "$SRC/agents" "$SRC/capsule" "$SRC/planet" \
          "$SRC/companion" "$SRC/tests" -type f \
          ! -path "*/node_modules/*" ! -name "*.pyc" ! -name ".DS_Store" \
@@ -83,6 +83,7 @@ empreinte_source() {
          ! -name "com.dgc.fraicheur.plist.template" \
          ! -name "com.dylan.desktop-sync.plist.template" \
          ! -name "com.claudebrain.resume.plist" \
+         ! -name "golden_recall.py" ! -name "golden_recall.json" \
          ! -path "*/capsule/assets/*" \
          ! -path "*/capsule/lottie/*" \
          ! -path "*/capsule/hand/*" \
@@ -255,9 +256,23 @@ sync_dir companion '__pycache__' '*.pyc'
 # --- 7. Tests --------------------------------------------------------------
 # EXCLUS : les tests propres au PAQUET (manifeste de plugin, anglais seul).
 # Ils n'ont pas d'équivalent dans le Brain vivant ; --delete les emporterait.
+#
+# ⚠ ET UN EXCLU D'UNE TOUTE AUTRE NATURE : `golden_recall.*`. Les précédents
+# sont exclus parce qu'ils n'existent pas dans la source ; celui-là est exclu
+# parce qu'il ne DOIT PAS sortir. C'est le banc de non-régression du classement
+# mesuré sur le corpus RÉEL : ses questions citent des clients et ses réponses
+# attendues sont des chemins de fiches personnelles. Son propre en-tête le dit —
+# « les vraies fiches sont personnelles et ne peuvent pas être publiées ».
+# Arrivé dans le paquet le 2026-08-16 au premier sync qui a suivi sa création,
+# et bloqué par leakcheck : le garde-fou a fait son travail, la liste blanche
+# n'avait simplement rien à dire sur un fichier neuf dans un dossier connu.
+# Sans équivalent publiable : un golden set sur corpus synthétique existe déjà
+# (`recall_benchmark.py`), et il ne mesure pas la même chose.
 sync_dir tests 'plugin_manifest.py' 'english_only.py' 'update_tag_family.sh' \
   'recall_benchmark.py' 'recall_cache.py' 'update_rollback.sh' 'plugin_install.sh' \
+  'update_auto.sh' \
   'docs_aligned.py' \
+  'golden_recall.py' 'golden_recall.json' \
   '__pycache__' '*.pyc'
 
 # --- 8. Registre des familles thématiques ---------------------------------
@@ -278,6 +293,25 @@ sync_dir tests 'plugin_manifest.py' 'english_only.py' 'update_tag_family.sh' \
 # ⚠ Un fichier, pas le dossier : `sync_file`, jamais `sync_dir`. `sync_dir`
 # tourne avec --delete et déverserait toutes les fiches de méthode de l'auteur.
 sync_file "$SRC/meta/familles.json" "skeleton/meta/familles.json"
+
+# --- 8 bis. Poids du classement -------------------------------------------
+# MÊME HISTOIRE, MÊME MOIS, FICHIER DIFFÉRENT. `config/ranking.json` est sorti
+# le 2026-08-15 pour que les poids du rappel cessent de vivre en dur dans
+# brain_recall.py (cf. ADR-0007). Le code qui le lit est parti dans le paquet
+# le jour même ; le fichier, non — `config/` n'était dans aucune liste, donc
+# invisible, y compris à `--check` (un fichier hors liste blanche n'est pas
+# « en retard », il n'existe pas).
+#
+# C'est la DEUXIÈME fois en deux semaines, après meta/familles.json juste
+# au-dessus : `le-premier-fichier-d-un-type-nouveau-tombe-hors-des-regles`.
+# La différence, c'est que celui-ci ne casse rien — brain_recall.py retombe sur
+# des défauts identiques aux anciennes valeurs en dur. Le paquet marchait donc
+# « bien », en privant simplement l'utilisateur du réglage. Une panne qui ne se
+# voit pas est une panne qui dure.
+#
+# Destination `skeleton/` pour la même raison qu'au-dessus : c'est le TRONC qui
+# est lu, jamais le moteur.
+sync_file "$SRC/config/ranking.json" "skeleton/config/ranking.json"
 
 # --- 9. Statusline (vit dans ~/.claude, pas dans le tronc) ----------------
 sync_file "$CLAUDE_DIR/statusline.py" "statusline.py"

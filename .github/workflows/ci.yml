@@ -155,6 +155,14 @@ jobs:
           # ci-dessus.
           bash tests/update_rollback.sh
 
+      - name: la mise à jour AUTOMATIQUE s'applique, se coupe et se défait
+        run: |
+          set -euo pipefail
+          # Le chemin que prend désormais TOUTE installation au démarrage de
+          # session. Il fait tourner du code distant sans qu'on le demande :
+          # c'est celui qui mérite le moins d'être cru sur parole.
+          bash tests/update_auto.sh
+
       - name: la désinstallation rend les réglages et garde le tronc
         run: |
           set -euo pipefail

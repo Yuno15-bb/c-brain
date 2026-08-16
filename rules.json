@@ -48,11 +48,27 @@
       "replace": ""
     },
     {
+      "id": "capsule-dependance-morte-lock",
+      "file": "capsule/package-lock.json",
+      "_note": "JUMEAU OBLIGATOIRE de `capsule-dependance-morte`. Retirer `three` de package.json SANS le retirer du lock ne fait pas disparaître la dépendance : ça rend les deux fichiers INCOHÉRENTS, et npm réécrit alors le lock à chaque `npm install`. Le moteur devient sale — et `update.sh` REFUSE toute mise à jour sur un moteur sale : `brain update` marchait une fois, puis plus jamais. Mesuré le 2026-08-16, npm confirmé en bac à sable.",
+      "pattern": "      \"dependencies\": \\{\\n        \"three\": \"\\^0\\.160\\.0\"\\n      \\},\\n",
+      "why": "Le lock doit décrire le MÊME arbre que package.json, sinon npm le réécrit et salit le dépôt du moteur.",
+      "replace": ""
+    },
+    {
+      "id": "capsule-dependance-morte-lock-entree",
+      "file": "capsule/package-lock.json",
+      "_note": "Second bloc du même fichier : l'entrée résolue du paquet. La virgule finale part avec le bloc, l'entrée suivante fournit la sienne.",
+      "pattern": "    \"node_modules/three\": \\{\\n      \"version\": \"0\\.160\\.0\",\\n      \"resolved\": \"https://registry\\.npmjs\\.org/three/-/three-0\\.160\\.0\\.tgz\",\\n      \"integrity\": \"sha512-[^\"]+\",\\n      \"license\": \"MIT\"\\n    \\},\\n",
+      "why": "Même raison : sans cette entrée, npm considère que le lock décrit un arbre différent de package.json.",
+      "replace": ""
+    },
+    {
       "id": "cli-commande-update",
       "file": "brain",
       "pattern": "  \\*\\)\\n    echo \"Usage : brain <status\\|doctor\\|audit\\|review\\|recall\\|next\\|coherence\\|utility\\|credit\\|embed\\|push\\|metrics\\|selftest\\|backup>\"",
-      "why": "`brain update`, `brain demo` et `brain version` n'existent que dans C Brain : sur la machine d'origine ils n'auraient aucun sens (elle EST la source). Injectés par règle et non écrits à la main, sinon le prochain sync.sh les effacerait. ⚠ Le motif épouse la ligne d'usage MOT POUR MOT, et c'est voulu : quand le CLI de la source gagne une commande (`credit`, le 2026-08-13), la règle ne mord plus et le sync ROUGIT. Un motif tolérant (`<[^\"]*>`) continuerait de mordre en publiant une ligne d'usage amputée de la commande neuve — une dérive muette au lieu d'un arrêt franc.",
-      "replace": "  update)\n    # Mise à jour du MOTEUR uniquement. Le tronc — tes fiches — n'est jamais touché.\n    bash \"$HOME/.c-brain/engine/cbrain/update.sh\" \"${@:2}\"\n    ;;\n  demo)\n    # Trois fiches d'exemple, posées puis retirées à la demande. Un tronc\n    # vide au premier lancement ne montre rien de ce que l'outil sait faire.\n    bash \"$HOME/.c-brain/engine/cbrain/demo.sh\" \"${@:2}\"\n    ;;\n  version)\n    cat \"$HOME/.c-brain/VERSION\" 2>/dev/null || echo \"(version inconnue)\"\n    ;;\n  *)\n    echo \"Usage : brain <status|doctor|audit|review|recall|next|coherence|utility|credit|embed|push|metrics|selftest|backup|update|demo|version>\""
+      "why": "`brain update`, `brain demo` et `brain version` n'existent que dans C Brain : sur la machine d'origine ils n'auraient aucun sens (elle EST la source). Injectés par règle et non écrits à la main, sinon le prochain sync.sh les effacerait. ⚠ Le motif épouse la ligne d'usage MOT POUR MOT, et c'est voulu : quand le CLI de la source gagne une commande (`credit`, le 2026-08-13), la règle ne mord plus et le sync ROUGIT. Un motif tolérant (`<[^\"]*>`) continuerait de mordre en publiant une ligne d'usage amputée de la commande neuve — une dérive muette au lieu d'un arrêt franc. ⚠ 2026-08-16 : la ligne « update est AUTOMATIQUE » vit ICI et pas dans `brain`. Écrite à la main dans le paquet, elle a été effacée par le sync suivant, sans trace — le fichier `brain` est synchronisé depuis la source, où `update` n'existe même pas.",
+      "replace": "  update)\n    # Mise à jour du MOTEUR uniquement. Le tronc — tes fiches — n'est jamais touché.\n    bash \"$HOME/.c-brain/engine/cbrain/update.sh\" \"${@:2}\"\n    ;;\n  demo)\n    # Trois fiches d'exemple, posées puis retirées à la demande. Un tronc\n    # vide au premier lancement ne montre rien de ce que l'outil sait faire.\n    bash \"$HOME/.c-brain/engine/cbrain/demo.sh\" \"${@:2}\"\n    ;;\n  version)\n    cat \"$HOME/.c-brain/VERSION\" 2>/dev/null || echo \"(version inconnue)\"\n    ;;\n  *)\n    echo \"Usage : brain <status|doctor|audit|review|recall|next|coherence|utility|credit|embed|push|metrics|selftest|backup|update|demo|version>\"\n    echo \"        (update est AUTOMATIQUE à chaque session — --auto-off pour le couper)\""
     },
     {
       "id": "detecteur-home-perime",
@@ -468,7 +484,9 @@
     },
     {
       "id": "attente-decision-litteral-quotes-simples",
-      "files": ["hooks/*.py"],
+      "files": [
+        "hooks/*.py"
+      ],
       "pattern": "décisions en attente de Dylan",
       "replace": "décisions en attente du propriétaire",
       "expect": 1,
@@ -486,6 +504,7 @@
         "agents/**/*.md",
         "companion/**/*.py",
         "tests/**/*.py",
+        "tests/**/*.json",
         "skills/**/*.md",
         "skeleton/**/*.md",
         "skeleton/**/*.json",
@@ -495,7 +514,7 @@
       "replace": "l'auteur",
       "expect": 1,
       "why": "FILET DE SÉCURITÉ, en DERNIER. Les règles fines réécrivent des tournures précises ; ce filet attrape le nom nu là où il reste. Ajouté le 2026-08-13 : 9 mentions étaient apparues dans des commentaires écrits depuis le sync précédent (« demande de X », « retour de X », « constat de X »). Une règle par tournure est perdue d'avance : il s'en écrit une nouvelle à chaque session. `expect` étant un MINIMUM, ce filet ne fait jamais échouer la passe.",
-      "_note": "⚠ `(?! Peellaert)` : le filet a REECRIT la ligne de copyright de tests/recall_cache.py et tests/recall_benchmark.py en « Copyright (c) 2026 l'auteur Peellaert » — Apache 2.0 EXIGE le nom du titulaire, et un nom a moitie remplace n'est ni le vrai nom ni un anonymat. leakcheck ne l'a pas vu : il exempte justement les lignes de copyright de ce marqueur. Les deux outils se completent — ce que ce negatif laisse passer hors ligne de copyright, leakcheck le signale."
+      "_note": "⚠ `(?! Peellaert)` : le filet a REECRIT la ligne de copyright de tests/recall_cache.py et tests/recall_benchmark.py en « Copyright (c) 2026 l'auteur Peellaert » — Apache 2.0 EXIGE le nom du titulaire, et un nom a moitie remplace n'est ni le vrai nom ni un anonymat. leakcheck ne l'a pas vu : il exempte justement les lignes de copyright de ce marqueur. Les deux outils se completent — ce que ce negatif laisse passer hors ligne de copyright, leakcheck le signale. ⚠ 2026-08-16 : `tests/**/*.json` AJOUTÉ. La liste couvrait tests/**/*.py depuis toujours, mais les premiers fixtures JSON de tests sont nés le 2026-08-15 (provenance, conflits d'autorité) et tombaient donc hors du filet — nom en clair dans le paquet, arrêté par leakcheck. Un filet décrit par une liste d'extensions ne protège que les extensions qui existaient le jour où on l'a écrite."
     }
   ],
   "_regles_gelees": [
