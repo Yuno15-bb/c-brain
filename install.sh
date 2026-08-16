@@ -127,8 +127,13 @@ fi
 run mkdir -p "$TRUNK/state" "$TRUNK/sessions/archive"
 
 # ─── 3. The engine, linked into the trunk ────────────────────────────────────
+# The list is NOT inline here any more: cbrain/engine-paths.txt is the single
+# definition, also read by update.sh (to tell engine dirt from user work) and by
+# brain_doctor (to report it). Three consumers, one list — see that file for why.
 step "Engine linked into the trunk"
-for d in hooks agents capsule planet companion tests; do
+ENGINE_PATHS=$(grep -vE '^\s*(#|$)' "$ENGINE/cbrain/engine-paths.txt" 2>/dev/null)
+[ -n "$ENGINE_PATHS" ] || ENGINE_PATHS="hooks agents capsule planet companion tests"
+for d in $ENGINE_PATHS; do
   link "$CB/engine/$d" "$TRUNK/$d"
 done
 
@@ -368,10 +373,29 @@ echo "✅ C Brain installed."
 echo
 # Offered FIRST, not as a footnote: an empty trunk on first launch shows nothing
 # of what the tool can do. That is the screen where people give up.
-echo "   ▸ Your trunk is empty. To see it working:"
-echo "       brain demo                place 3 example notes"
-echo "       brain recall cache        what recall finds"
-echo "       brain demo --remove       take them away, leaving no trace"
+#
+# ⚠️ BUT ONLY IF IT IS ACTUALLY EMPTY. There used to be no test at all: the block
+# fired on every install, re-installs included. Reported 2026-08-16 (Maissane
+# Lagsir) on a machine where it announced an empty trunk holding 23 notes — and
+# then offered `brain demo`, which injects demo notes into a live trunk. Telling
+# someone their knowledge is gone, then handing them the command that writes into
+# it, is the worst possible pairing.
+TRUNK_VIDE=1
+for z in projects lessons meta life; do
+  if [ -n "$(find "$TRUNK/$z" -name '*.md' -print -quit 2>/dev/null)" ]; then
+    TRUNK_VIDE=0; break
+  fi
+done
+if [ "$TRUNK_VIDE" = "1" ]; then
+  echo "   ▸ Your trunk is empty. To see it working:"
+  echo "       brain demo                place 3 example notes"
+  echo "       brain recall cache        what recall finds"
+  echo "       brain demo --remove       take them away, leaving no trace"
+else
+  echo "   ▸ Your trunk is already growing. Where it stands:"
+  echo "       brain doctor              is the tree consistent"
+  echo "       brain recall <subject>    what it remembers"
+fi
 echo
 echo "   brain status     where the trunk stands"
 # Said HERE, before they run it: right after an install, `brain status` reports

@@ -171,5 +171,63 @@ class ContextSignal(unittest.TestCase):
             inject_recall.read_context_tokens = original
 
 
+class WritingAgentsKnowTheEngineIsOffLimits(unittest.TestCase):
+    """INVARIANT: every agent that can WRITE knows the engine's files are not notes.
+
+    THE BUG (2026-08-16, Maissane Lagsir). `install.sh` mounts `agents/`, `hooks/`,
+    `capsule/`, `planet/`, `companion/` and `tests/` inside the trunk as symlinks into
+    the ENGINE's git repository. Nothing told the gardening agents, so the architect
+    wove `[[...]]` links into the agent briefs — its exact job, done to the wrong repo.
+    That closed a loop: each pass dirtied the engine, `update.sh` refuses to update a
+    dirty engine, and the install fell behind for ever without a signal.
+
+    WHY THIS TEST AND NOT JUST THE PROSE. The fix is the same paragraph in FIVE briefs.
+    A rule copied five times drifts — this repository watched exactly that happen the
+    same day, with two recall engines that had silently disagreed on 65 documents. So
+    the copies are compared to each other, and to the canonical path list they cite.
+    """
+
+    AGENTS_QUI_ECRIVENT = ("architect", "archivist", "distiller", "gardener", "synthesizer")
+    ANCRE = "The engine's files are NOT note content"
+
+    def _brief(self, nom):
+        with open(os.path.join(CODE, "agents", f"{nom}.md"), encoding="utf-8") as f:
+            return f.read()
+
+    def test_every_writing_agent_carries_the_rule(self):
+        for nom in self.AGENTS_QUI_ECRIVENT:
+            self.assertIn(self.ANCRE, self._brief(nom),
+                          f"{nom}.md can write but was never told the engine is off-limits")
+
+    def test_the_rule_is_identical_everywhere(self):
+        """Five copies that have drifted are five different rules."""
+        def extraire(txt):
+            i = txt.index(self.ANCRE)
+            fin = txt.find("\n## ", i)
+            return txt[i:fin if fin != -1 else len(txt)].strip()
+
+        versions = {nom: extraire(self._brief(nom)) for nom in self.AGENTS_QUI_ECRIVENT}
+        distinctes = set(versions.values())
+        self.assertEqual(len(distinctes), 1,
+                         "the rule has drifted between briefs: "
+                         + ", ".join(sorted(versions)))
+
+    def test_the_rule_matches_the_canonical_path_list(self):
+        """The briefs must not name a set of directories the installer no longer mounts."""
+        liste = os.path.join(CODE, "cbrain", "engine-paths.txt")
+        self.assertTrue(os.path.exists(liste), "cbrain/engine-paths.txt is missing")
+        with open(liste, encoding="utf-8") as f:
+            attendus = [l.strip() for l in f
+                        if l.strip() and not l.lstrip().startswith("#")]
+        brief = self._brief("architect")
+        for d in attendus:
+            self.assertIn(f"`{d}/`", brief,
+                          f"{d}/ is mounted into the trunk but the rule never names it")
+
+    def test_the_mechanic_still_carries_the_mirror_rule(self):
+        """The separation of powers only holds if BOTH halves are written."""
+        self.assertIn("You do NOT touch note content", self._brief("mechanic"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

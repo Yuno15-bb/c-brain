@@ -230,9 +230,42 @@ fi
 
 # ─── Applying ──────────────────────────────────────────────────────────
 # A hand-edited engine is somebody's work. We do not overwrite it.
-if ! git -C "$ENGINE" diff --quiet || ! git -C "$ENGINE" diff --cached --quiet; then
+#
+# EXCEPT when the "work" is the gardening agents editing their own briefs. Those
+# directories are mounted inside the trunk as symlinks, so an agent weaving
+# `[[...]]` links across the trunk reaches them and dirties the ENGINE repo. That
+# used to close a loop: every pass dirtied the engine, the next update refused,
+# and the user fell behind for ever, silently. Reported 2026-08-16 by Maissane
+# Lagsir on an install stranded exactly this way.
+#
+# Tolerating it costs nothing: the block further down already runs
+# `git checkout -- .` after a successful update, so these edits were always going
+# to be discarded. The only thing the refusal protected was the user's ability to
+# update — which is what it was destroying.
+#
+# ⚠️ The refusal STAYS for anything outside those paths: a genuinely hand-edited
+# engine is still somebody's work, and still blocks.
+ENGINE_PATHS=$(grep -vE '^\s*(#|$)' "$ENGINE/cbrain/engine-paths.txt" 2>/dev/null \
+               || echo "hooks agents capsule planet companion tests")
+SALE=$(git -C "$ENGINE" status --porcelain --untracked-files=no | awk '{print $NF}')
+HORS_MOTEUR=""
+for f in $SALE; do
+  garde=1
+  for d in $ENGINE_PATHS; do
+    case "$f" in "$d"/*) garde=0; break ;; esac
+  done
+  [ "$garde" = "1" ] && HORS_MOTEUR="$HORS_MOTEUR $f"
+done
+if [ -n "$SALE" ] && [ -z "$HORS_MOTEUR" ]; then
+  say "engine dirty only under agent-owned paths — the gardening pass did that, not you"
+  say "restoring them before updating (they are discarded after the update anyway)"
+  git -C "$ENGINE" checkout -- . 2>/dev/null || true
+fi
+
+if [ -n "$HORS_MOTEUR" ] && { ! git -C "$ENGINE" diff --quiet || ! git -C "$ENGINE" diff --cached --quiet; }; then
   echo "❌ The engine has uncommitted local changes."
   echo "   Put them away (git stash / git commit) before updating."
+  echo "   Files:$HORS_MOTEUR"
   # In automatic mode this is not a failure: it is a deliberate refusal to
   # overwrite somebody's work. But it has to be SEEN, otherwise the install
   # falls behind version after version while session start stays silent.
