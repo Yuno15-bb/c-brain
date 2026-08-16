@@ -24,12 +24,33 @@ import json, os, time, sys
 STATE_DIR = os.path.expanduser("~/.c-brain/trunk/state")
 STATUS = os.path.join(STATE_DIR, "status.json")
 
+
+def _tmp_path():
+    """A temp file THIS process owns alone.
+
+    No sweeper is needed: `os.replace` consumes the file on the happy path, and the
+    `except Exception: pass` path leaves at most one small orphan per crashed process.
+    """
+    return f"{STATUS}.{os.getpid()}.tmp"
+
 def write_status(state, activity=None, detail=None, source=None):
     if source is None:
         source = "agent" if os.environ.get("CLAUDE_BRAIN_GARDENING") == "1" else "you"
     try:
         os.makedirs(STATE_DIR, exist_ok=True)
-        tmp = STATUS + ".tmp"
+        # ⚠️ THE TEMP PATH MUST BE UNIQUE PER PROCESS. It used to be a single fixed
+        # `status.json.tmp` shared by both writers of this file, and during a gardening
+        # pass there are two BY DESIGN: the heartbeat calling `touch` every 5 s, and the
+        # pipeline calling `busy <activity>` at each stage. `os.replace` is atomic for the
+        # RENAME; it serialises nothing about the writes INTO the temp file. One writer
+        # truncating with "w" while the other had written a longer payload leaves a splice
+        # of both, and the reader gets `Extra data: line 1 column 120`. Observed on a real
+        # install, 2026-08-16 (Maissane Lagsir):
+        #     {"state": "busy", …, "ts": 1786874328.244719}79}
+        # the trailing `79}` being the tail of the other writer's timestamp.
+        # With one temp file per process, `os.replace` becomes the only contended
+        # operation — which is the whole reason it was chosen.
+        tmp = _tmp_path()
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump({"state": state, "activity": activity, "detail": detail,
                        "source": source, "ts": time.time()}, f, ensure_ascii=False)
@@ -47,7 +68,7 @@ def touch_status():
         with open(STATUS, "r", encoding="utf-8") as f:
             cur = json.load(f)
         cur["ts"] = time.time()
-        tmp = STATUS + ".tmp"
+        tmp = _tmp_path()          # per-process, same reason as in write_status()
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(cur, f, ensure_ascii=False)
         os.replace(tmp, STATUS)
