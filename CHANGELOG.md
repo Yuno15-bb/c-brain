@@ -5,6 +5,98 @@ Every entry is the message that was attached to the tag when the version was pub
 
 The French branch publishes the same releases under `-fr` tags; they are not listed here.
 
+## v1.27.1 — 2026-08-13
+
+Fix the red CI: a self-test that guessed a path, and an index build over its gate
+
+## v1.27.0 — 2026-08-13
+
+Recall that learns from use, and knows its own age
+
+## v1.26.7 — 2026-08-04
+
+Orb: a second line names the note being worked on
+
+## v1.26.6 — 2026-08-04
+
+Orb: see-through liquid glass, legible code pad, no cast shadow under the label
+
+## v1.26.5 — 2026-08-03
+
+The demo breathes
+
+## v1.26.4 — 2026-08-03
+
+Slower code scroll
+
+## v1.26.3 — 2026-08-03
+
+Smoother, cleaner demo
+
+## v1.26.2 — 2026-08-03
+
+The orb opens the README
+
+## v1.26.1 — 2026-08-03
+
+Orb polish: pad contained, label laid in the shadow, seamless demo
+
+## v1.26.0 — 2026-08-03
+
+The orb replaces the creature: glass, live code inside it, drag with the mouse
+
+## v1.25.0 — 2026-07-30
+
+Says what actually leaves the machine: the recall hook puts note names and descriptions into prompts that go to your model provider, and agents send whole notes — the README claimed it read and sent nothing. brain update now shows the remote and the target commit before applying, held by two assertions. Two stale claims fixed in the design doc.
+
+## v1.24.0 — 2026-07-29
+
+The plugin path told new users two things that were not true
+
+## v1.23.0 — 2026-07-29
+
+Three skills that drive the tool — the plugin finally has a surface you can type
+
+## v1.22.0 — 2026-07-29
+
+The core is the memory; the capsule and the planet are extensions — and --core-only proves it
+
+## v1.21.0 — 2026-07-29
+
+update and rollback are tested end to end — and the test was reading the wrong code
+
+## v1.20.0 — 2026-07-29
+
+Recall is measured for the first time — and was costing 243 ms on every prompt
+
+## v1.19.1 — 2026-07-29
+
+sync.sh: the new update test joins the package-only exclusions
+
+## v1.19.0 — 2026-07-29
+
+brain update no longer switches a user's language: the tag family follows the installation
+
+## v1.18.0 — 2026-07-29
+
+sync.sh no longer deletes the plugin manifest; the version gate follows its branch
+
+## v1.17.0 — 2026-07-28
+
+C Brain installs as a Claude Code plugin — one command, no installer
+
+## v1.16.0 — 2026-07-28
+
+README: a picture of where C Brain lands in your home folder
+
+## v1.15.0 — 2026-07-28
+
+A visible C Brain shortcut in the home folder — the trunk stops being invisible
+
+## v1.14.0 — 2026-07-28
+
+Repository signals: badges, CONTRIBUTING, SECURITY, generated CHANGELOG, issue templates
+
 ## v1.13.0 — 2026-07-28
 
 CI: leak check, English-only guard, install/selftest/uninstall, migrations replayed twice
