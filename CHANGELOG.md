@@ -3,7 +3,10 @@
 Generated from the annotated git tags by `cbrain/changelog.sh` — do not edit by hand.
 Every entry is the message that was attached to the tag when the version was published.
 
-The French branch publishes the same releases under `-fr` tags; they are not listed here.
+The `fr` branch stopped being a released product on 2026-08-13 — it is the staging
+buffer the engine is synced onto, and `publish.sh` refuses to tag from it. The `-fr`
+tags up to v1.27.0-fr stay published (moving a tag breaks the fetch of anyone still on
+it), and are not listed here.
 
 ## v1.28.0 — 2026-08-16
 

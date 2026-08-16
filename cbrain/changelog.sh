@@ -26,7 +26,10 @@ OUT="CHANGELOG.md"
   echo "Generated from the annotated git tags by \`cbrain/changelog.sh\` — do not edit by hand."
   echo "Every entry is the message that was attached to the tag when the version was published."
   echo
-  echo "The French branch publishes the same releases under \`-fr\` tags; they are not listed here."
+  echo "The \`fr\` branch stopped being a released product on 2026-08-13 — it is the staging"
+  echo "buffer the engine is synced onto, and \`publish.sh\` refuses to tag from it. The \`-fr\`"
+  echo "tags up to v1.27.0-fr stay published (moving a tag breaks the fetch of anyone still on"
+  echo "it), and are not listed here."
   echo
 
   git tag --sort=-creatordate --format='%(refname:short)|%(creatordate:short)|%(contents:subject)' \
