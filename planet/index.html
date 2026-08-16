@@ -740,6 +740,60 @@ function clearGroup(){ group.removeFromParent(); group.traverse(o=>{ o.geometry?
 // Étiquette lisible : les 20 bulles de la vue d'ensemble portent leur NOM. C'est la différence
 // entre « une carte » et « un joli nuage » — 354 points ne peuvent pas être étiquetés, 20 si.
 const LABEL_W = 4.6, LABEL_H = 0.62;
+
+// ── DÉCOLLAGE DES ÉTIQUETTES EN ESPACE ÉCRAN ────────────────────────────────────────────
+// LE DÉFAUT (2026-08-16, rapporté par Maissane Lagsir sur un tronc de 5 familles) :
+// les amas sont écartés en 3D (boucle « ÉCARTEMENT CALCULÉ » plus bas), jamais à l'écran.
+// Deux familles très éloignées EN PROFONDEUR mais alignées sur l'axe de la caméra
+// impriment donc leurs noms l'un sur l'autre — `agents 8` et `principles 3` se sont
+// soudés en une tache illisible au centre de la vue.
+//
+// ⚠️ ET C'EST PIRE SUR UN PETIT TRONC, c'est-à-dire chez tout nouvel utilisateur : le rayon
+// d'un amas vaut `SENS_TAILLE * cbrt(n)`, donc à 8 et 3 fiches les amas sont minuscules, le
+// nuage se tasse, et le recouvrement devient quasi certain. La mise en page était calibrée
+// sur un tronc de 177 fiches dans une seule famille — le contraire du premier jour.
+//
+// ON ESTOMPE, ON NE DÉPLACE PAS. Pousser les noms le long de Y les décrocherait de leur amas :
+// on gagnerait la lisibilité du texte en perdant ce qu'il désigne. Le plus proche de la caméra
+// garde sa pleine opacité, ceux qu'il couvre s'effacent — et tourner la vue les rend, ce qui
+// est déjà le geste que les utilisateurs trouvent tout seuls.
+// On réutilise `toScreen()` (défini plus bas) plutôt que d'ouvrir une seconde projection :
+// deux écritures du même calcul divergent toujours, et la divergence ne se voit pas.
+const _posEtiq = new THREE.Vector3(), _bordEtiq = new THREE.Vector3(), _droiteEtiq = new THREE.Vector3();
+function decollerEtiquettes(){
+  // Axe horizontal de la caméra = 1re colonne de sa matrice monde. Recalculé ici plutôt que
+  // repris de `magnet()` : magnet() tourne APRÈS cette passe, sa valeur aurait une image de retard.
+  _droiteEtiq.setFromMatrixColumn(camera.matrixWorld, 0);
+  const vus = [];
+  for(const b of regionObjs){
+    const lab = b.userData.lab;
+    if(!lab.visible || lab.material.opacity <= 0.02) continue;
+    lab.getWorldPosition(_posEtiq);
+    const centre = toScreen(_posEtiq);
+    if(!centre) continue;                          // derrière la caméra : rien à arbitrer
+    // Demi-largeur RÉELLE à l'écran : on projette un second point décalé de LABEL_W/2 le long
+    // de l'axe horizontal de la caméra. Un ratio fixe en pixels serait faux dès qu'on zoome.
+    _bordEtiq.copy(_posEtiq).addScaledVector(_droiteEtiq, LABEL_W * 0.5);
+    const bord = toScreen(_bordEtiq);
+    const dx = bord ? Math.abs(bord.x - centre.x) || 6 : 6;
+    vus.push({ lab, x:centre.x, y:centre.y, dx, dy: dx * (LABEL_H / LABEL_W),
+               prof: _posEtiq.distanceTo(camera.position) });
+  }
+  vus.sort((a, b) => a.prof - b.prof);            // le plus proche décide, les autres cèdent
+  const gardes = [];
+  for(const e of vus){
+    let couvert = false;
+    for(const g of gardes){
+      if(Math.abs(e.x - g.x) < (e.dx + g.dx) * 0.9 &&
+         Math.abs(e.y - g.y) < (e.dy + g.dy) * 0.9){ couvert = true; break; }
+    }
+    // 0,12 et non 0 : un nom qui disparaît complètement fait croire à une famille absente.
+    // Assez faible pour ne plus brouiller le nom de devant, assez présent pour dire « il y a
+    // quelque chose ici, tourne ».
+    if(couvert) e.lab.material.opacity *= 0.12;
+    else gardes.push(e);
+  }
+}
 function texteTex(txt){
   const dpr=2, w=320, h=44, cv=document.createElement('canvas');
   cv.width=w*dpr; cv.height=h*dpr;
@@ -2038,6 +2092,7 @@ function tick(now){
                                   Math.min(b.userData.radSens*0.85, 4.5), sem) + LABEL_H*0.45;
     b.userData.lab.visible = kLab > 0.01;
   }
+  decollerEtiquettes();
   for(const L of regionLinks){
     const k=1-niveau2;
     if(k<=0.01){ L.mat.opacity=0; if(L.ligne) L.ligne.visible=false; continue; }
@@ -2140,7 +2195,10 @@ function tick(now){
   vtag.textContent = view<0.5 ? (focusRegion ? `◉ ${focusRegion} IN VOLUME — drag to turn · Esc to come back out`
                                               : '◉ 3D — S for meaning')
     : (sem>0.5 ? '✦ MEANING IN VOLUME — proximity = meaning, every note · S structure'
-               : '▦ STRUCTURE — the 20 families, laid flat · click a family = in volume');
+               // The count was frozen at 20 — the author's trunk. Every other trunk read a
+               // number that contradicted the panel a few hundred pixels away, which computes
+               // it correctly from the same list. Reported 2026-08-16 on a 5-family trunk.
+               : `▦ STRUCTURE — the ${REGION_LIST.length} ${REGION_LIST.length > 1 ? 'families' : 'family'}, laid flat · click a family = in volume`);
   syncModeButtons();
   composer.render();                            // rendu via le post-process (bloom + output)
   podTick(dtF);                                 // la capsule tourne au même rythme, sans post-process
