@@ -5,6 +5,10 @@ Every entry is the message that was attached to the tag when the version was pub
 
 The French branch publishes the same releases under `-fr` tags; they are not listed here.
 
+## v1.28.0 — 2026-08-16
+
+Automatic updates: session start installs the latest version by itself, and undoes it if the selftest goes red
+
 ## v1.27.1 — 2026-08-13
 
 Fix the red CI: a self-test that guessed a path, and an index build over its gate
