@@ -64,6 +64,14 @@
       "rouge_observe": "(1) refusée avec « I7 : descend d'une fiche 'web' » — exit 1, puis exit 0 après retrait · (2) commit refusé, exit 1 ; la même fiche AVEC provenance passe, exit 0",
       "date": "2026-08-16",
       "note": "Le parent est lu SUR LE PARENT, sur disque : une fiche ne décide pas de l'origine dont elle descend. Le tronc jouet évite de créer de fausses fiches dans le tronc vivant pour tester le contrôle — même isolation par BRAIN_HOME que le banc de valeur."
+    },
+    {
+      "banc": "tests/contrat_distillateur.py",
+      "surveille": "que le producteur de fiches écrit un bloc provenance acceptable pour les 4 cas autorisés",
+      "geste": "--sans-provenance : le distillateur d'AVANT, qui n'écrit rien",
+      "rouge_observe": "5/5 sources conformes → 0/5 · exit 0 → 1",
+      "date": "2026-08-16",
+      "note": "Le distillateur est un prompt, donc intestable comme fonction. Son CONTRAT, lui, est déterministe : ce banc l'écrit et le passe au contrôleur d'invariants. Le prompt pointe cette référence exécutable au lieu de décrire un format en prose — une prose ne rougit jamais."
     }
   ]
 }
