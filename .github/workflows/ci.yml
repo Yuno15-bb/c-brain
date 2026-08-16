@@ -150,6 +150,14 @@ jobs:
           # upstream, so it must not share state with the install above.
           bash tests/update_rollback.sh
 
+      - name: automatic updates apply, switch off, and undo themselves
+        run: |
+          set -euo pipefail
+          # The path every installation now takes at session start. It runs
+          # remote code without being asked: the one that least deserves to be
+          # taken on trust.
+          bash tests/update_auto.sh
+
       - name: uninstall gives the settings back, and keeps the trunk
         run: |
           set -euo pipefail

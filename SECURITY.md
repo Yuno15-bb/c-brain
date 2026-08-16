@@ -13,8 +13,21 @@ Worth stating plainly, because it is the honest basis for judging risk:
   on your CLI agent's events, and two `launchd` jobs run on a timer. Install
   `--no-launchd` if you would rather nothing ran unattended.
 - **It makes no network call except `git pull`.** No telemetry, no analytics, no
-  crash reporting, no phone-home on install. `brain update` is announced, never
-  automatic.
+  crash reporting, no phone-home on install.
+- **It updates itself — know this before you install.** Since v1.28.0, every
+  session start fetches the published tags and installs the latest version, in
+  the background. That is **remote code running on your machine without you
+  asking for it**: the heaviest trade-off in this package, and a deliberate one —
+  a fix nobody installs fixes nothing. What bounds it:
+  - updates follow **published tags**, never a working branch;
+  - the **selftest decides**: on red, the previous version is restored
+    automatically and the next session tells you so;
+  - the **trunk is never touched** — only `~/.c-brain/engine` is replaced;
+  - `brain update --auto-off` restores the old behaviour (report, do not
+    install). `--auto-on` brings it back.
+
+  If you want to inspect before anything runs, turn it off **at install time**:
+  `brain update --auto-off`.
 - **It reads your notes locally, and that is how it works.** Recall, the index,
   the graph and the agents all open the files — there is no way to find a note
   without reading one. It happens on your machine, and nothing is written back

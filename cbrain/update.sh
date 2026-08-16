@@ -13,7 +13,7 @@
 #
 # What it does NOT do: read, modify or send a single one of your notes.
 #
-# Usage: brain update [--check] [--rollback] [--force]
+# Usage: brain update [--check] [--rollback] [--force] [--auto]
 set -euo pipefail
 
 CB="$HOME/.c-brain"
@@ -23,15 +23,91 @@ APPLIED="$STATE/applied-migrations.txt"
 PREVIOUS="$STATE/previous-version"
 mkdir -p "$STATE"
 
+# ─── Automatic updates ────────────────────────────────────────────────────
+# State files shared with `cbrain/check_update.py`, which triggers `--auto` at
+# session start.
+AUTO=0
+LOCK="$STATE/auto-update.lock"            # a directory: `mkdir` is atomic
+JOURNAL="$STATE/auto-update.log"
+RESULT="$STATE/last-auto-update"          # read, shown, then deleted by the hook
+AUTO_OFF="$STATE/auto-update-off"
+
 MODE="update"
 for a in "$@"; do
   case "$a" in
     --check) MODE="check" ;;
     --rollback) MODE="rollback" ;;
     --force) MODE="force" ;;
-    *) echo "Usage: brain update [--check] [--rollback] [--force]"; exit 1 ;;
+    --auto) AUTO=1; MODE="update" ;;
+    --auto-off) MODE="auto-off" ;;
+    --auto-on)  MODE="auto-on" ;;
+    *) echo "Usage: brain update [--check] [--rollback] [--force] [--auto|--auto-off|--auto-on]"; exit 1 ;;
   esac
 done
+
+# ─── The switch ───────────────────────────────────────────────────────────
+# It comes BEFORE everything else, on purpose: turning automatic updates off
+# must not depend on the network, on the state of the repo, or on anything that
+# can fail. It is the one command in this file that has to work when nothing
+# else does.
+if [ "$MODE" = "auto-off" ]; then
+  mkdir -p "$STATE"; : > "$AUTO_OFF"
+  echo "✅ Automatic updates are OFF."
+  echo "   Session start will report new versions without installing them."
+  echo "   To turn them back on:  brain update --auto-on"
+  exit 0
+fi
+if [ "$MODE" = "auto-on" ]; then
+  rm -f "$AUTO_OFF"
+  echo "✅ Automatic updates are back ON."
+  echo "   Every session start will install the latest published version."
+  exit 0
+fi
+
+# ─── Automatic mode preamble ──────────────────────────────────────────────
+# WHY THIS MODE EXISTS. Updating used to be a gesture: the hook reported, the
+# user typed `brain update`. Nobody typed it. The published engine stayed weeks
+# behind the author's, and the only sign was a line at session start that people
+# learn to stop reading.
+#
+# What it costs, said plainly: code from the remote repo now installs itself
+# WITHOUT being asked. That is an execution channel. Three counterweights, none
+# of them optional:
+#   · `$AUTO_OFF` (or CBRAIN_NO_AUTO_UPDATE=1) restores the previous behaviour —
+#     report, do not apply. The way out exists before the way in.
+#   · the selftest decides. In automatic mode nobody is watching the screen: an
+#     update that breaks the tool and LEAVES it broken would be worse than no
+#     update at all. So red means roll back, immediately, by the script itself.
+#   · nothing ever blocks a session — the hook is what detaches; here we only
+#     work quietly into a log.
+if [ "$AUTO" = "1" ]; then
+  if [ -e "$AUTO_OFF" ] || [ -n "${CBRAIN_NO_AUTO_UPDATE:-}" ]; then exit 0; fi
+
+  # A lock, because several sessions start at the same time. `mkdir` fails when
+  # the directory exists: that is the shell's atomic test-and-set, where
+  # `[ -f ] && touch` leaves a window between the two.
+  # Stale lock: a machine that goes to sleep or a session killed mid-run would
+  # leave the directory behind forever, and automatic updates would die in
+  # silence — exactly the mute failure this is meant to avoid.
+  if ! mkdir "$LOCK" 2>/dev/null; then
+    if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
+      rm -rf "$LOCK"; mkdir "$LOCK" 2>/dev/null || exit 0
+    else
+      exit 0                      # another session is already on it
+    fi
+  fi
+  trap 'rm -rf "$LOCK"' EXIT INT TERM
+
+  # Everything this script says goes to the log: in automatic mode there is no
+  # screen. The log is overwritten on each pass — we want the last failure
+  # readable, not a file that grows while nobody ever goes back to it.
+  exec >"$JOURNAL" 2>&1
+  echo "=== auto-update $(date '+%Y-%m-%d %H:%M:%S') ==="
+fi
+
+# Writes the report the hook will show at the NEXT session. One line, two
+# fields: the outcome, then the version it concerns.
+result() { [ "$AUTO" = "1" ] && printf '%s\t%s\n' "$1" "$2" > "$RESULT"; return 0; }
 
 say()  { echo "  $*"; }
 warn() { echo "  ⚠️  $*"; }
@@ -157,6 +233,10 @@ fi
 if ! git -C "$ENGINE" diff --quiet || ! git -C "$ENGINE" diff --cached --quiet; then
   echo "❌ The engine has uncommitted local changes."
   echo "   Put them away (git stash / git commit) before updating."
+  # In automatic mode this is not a failure: it is a deliberate refusal to
+  # overwrite somebody's work. But it has to be SEEN, otherwise the install
+  # falls behind version after version while session start stays silent.
+  result "blocked" "$NEW"
   exit 1
 fi
 
@@ -187,12 +267,45 @@ done
 say "reinstalling (idempotent)…"
 bash "$ENGINE/install.sh" >/tmp/c-brain-update.log 2>&1 || warn "install.sh reported a problem (/tmp/c-brain-update.log)"
 
+# ⚠ PUT THE ENGINE BACK CLEAN — without this, `brain update` works ONCE.
+#
+# Measured on 2026-08-16: `install.sh` runs `npm install` in the capsule, and npm
+# REWRITES `capsule/package-lock.json`. The engine ends up with an uncommitted
+# change… which the check above refuses. So the second update answered
+# "❌ local changes" and so did every one after it. A permanent failure, on a
+# machine where nobody suspects having touched anything. The root cause (a lock
+# inconsistent with package.json) is fixed in rules.json; this line is the net,
+# for the next generated file we do not see coming.
+#
+# Restoring is SAFE here, and the check above is what guarantees it: it demanded
+# a clean tree BEFORE starting. Anything dirty at this point was therefore
+# produced by the installer itself, never by the user. `checkout -- .` only
+# touches TRACKED files: `node_modules/` and the rest of the untracked tree stay.
+if ! git -C "$ENGINE" diff --quiet; then
+  say "the installer modified engine files — restoring them to $NEW"
+  git -C "$ENGINE" checkout -- . 2>/dev/null || warn "engine only partially restored"
+fi
+
 if bash "$HOME/.c-brain/trunk/hooks/selftest.sh" >/tmp/c-brain-update-selftest.log 2>&1; then
   echo
   echo "✅ Updated to $NEW — selftest green. Your notes were not touched."
+  result "ok" "$NEW"
 else
   echo
   warn "selftest FAILED after update (/tmp/c-brain-update-selftest.log)"
-  warn "Rollback advised:  brain update --rollback"
+  if [ "$AUTO" = "1" ]; then
+    # ⚠ THE DIFFERENCE BETWEEN THE TWO MODES IS HERE, and it is the only one
+    # that matters. By hand, advising a rollback is enough: somebody reads the
+    # screen. In automatic mode that advice would be read by nobody — the tool
+    # would stay broken until the user noticed on their own, with no way to know
+    # that an update they never asked for is what broke it. So we go back, right
+    # away, and we SAY so at the next session.
+    warn "automatic mode: rolling back to $CUR"
+    git -C "$ENGINE" checkout -q "$CUR" || true
+    bash "$ENGINE/install.sh" >/dev/null 2>&1 || warn "install.sh reported a problem while rolling back"
+    result "rolled-back" "$NEW"
+  else
+    warn "Rollback advised:  brain update --rollback"
+  fi
   exit 1
 fi

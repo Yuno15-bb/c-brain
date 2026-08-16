@@ -99,6 +99,7 @@ if b and time.time() < b:
     echo "Usage: brain <status|doctor|audit|review|recall|next|coherence|utility|credit|embed|push|metrics|selftest|backup|update|demo|version>"
     echo "        (credit: can the agents spend? — --unblock lifts a block that has become false)"
     echo "       (recall accepts --semantic for the embeddings backend)"
+    echo "        (update is AUTOMATIC every session — --auto-off to turn it off)"
     exit 1
     ;;
 esac

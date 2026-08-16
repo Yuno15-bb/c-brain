@@ -45,7 +45,7 @@ conversation history, which only gets longer.
 | **It knows its own age** | notes never re-checked enter a review queue, dated from the git history |
 | **8 agents** | they distill, file, link, challenge, synthesize, prune, repair, and watch the machine |
 | **A closed loop** | session ends → archive → distill → file, without being asked |
-| **Updates** | the engine updates itself; **your notes are never touched** |
+| **Updates** | the engine updates itself **every session**; **your notes are never touched** |
 
 **And two ways to look at it**, which are extensions and install separately —
 `./install.sh --core-only` leaves both out:
@@ -158,8 +158,12 @@ part that is yours is the one part you can see.
   were sending anyway, and agents you start read whole notes. Both go to your
   model provider, like the rest of your message. [`SECURITY.md`](SECURITY.md)
   spells out where the line is.
-- **It installs nothing on its own.** A new version is *announced*; you run
-  `brain update` whenever suits you.
+- **It updates itself, and you should know that.** Every session start installs
+  the latest published version, in the background — so code from the repo runs
+  on your machine without you asking. The trunk is never touched, a version
+  whose selftest goes red is undone automatically, and
+  `brain update --auto-off` restores the old behaviour (report without
+  installing).
 - **It ships no knowledge.** Your tree starts empty, and the three skills it
   does ship only drive the tool. See [`skills/README.md`](skills/README.md) for
   the reasoning: we pass on the method, not somebody else's lived experience.
@@ -254,6 +258,7 @@ brain review          full audit of the trunk
 brain next            your resume points
 brain selftest        verify the installation
 brain update          update the engine  (--check · --rollback)
+                      automatic every session: --auto-off / --auto-on
 brain version         installed version
 ```
 
