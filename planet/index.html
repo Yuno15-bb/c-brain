@@ -784,8 +784,14 @@ function decollerEtiquettes(){
   for(const e of vus){
     let couvert = false;
     for(const g of gardes){
+      // 0,9 horizontalement (les noms tolèrent de se frôler sur les côtés), mais 1,6
+      // VERTICALEMENT. Mesuré sur le cas rapporté : six étiquettes empilées dans 15 px, et
+      // `principles` à 12 px du nom de devant restait à pleine opacité — juste hors d'un seuil
+      // symétrique. Une étiquette est très plate (0,62 pour 4,6 de large) : sa demi-hauteur
+      // vaut 13 % de sa demi-largeur, donc un seuil vertical calculé au même facteur ne
+      // rattrape presque aucun empilement, qui est pourtant LA forme que prend le défaut.
       if(Math.abs(e.x - g.x) < (e.dx + g.dx) * 0.9 &&
-         Math.abs(e.y - g.y) < (e.dy + g.dy) * 0.9){ couvert = true; break; }
+         Math.abs(e.y - g.y) < (e.dy + g.dy) * 1.6){ couvert = true; break; }
     }
     // 0,12 et non 0 : un nom qui disparaît complètement fait croire à une famille absente.
     // Assez faible pour ne plus brouiller le nom de devant, assez présent pour dire « il y a
@@ -1833,6 +1839,12 @@ poll(); setInterval(poll, 3000);
 window.__planete = { showPanel, entrerRegion, sortirRegion, setMode,
                      get noeuds(){ return nodeObjs; },
                      get regions(){ return regionObjs; },
+                     // La CAMÉRA, sans quoi aucun contrôle ne peut dire où une chose se trouve
+                     // À L'ÉCRAN — il ne saurait parler que de positions dans la scène, c'est-à-dire
+                     // de ce que le code croit dessiner. Ajoutée le 2026-08-16 pour mesurer le
+                     // recouvrement des étiquettes de familles, qui n'existe qu'en espace écran.
+                     get camera(){ return camera; },
+                     get toScreen(){ return toScreen; },
                      get liens(){ return linkObjs; },
                      get niveau(){ return niveau2Global; },
                      get region_ouverte(){ return focusRegion; },
